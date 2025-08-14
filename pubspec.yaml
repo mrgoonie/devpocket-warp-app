@@ -1,0 +1,78 @@
+name: devpocket_warp_app
+description: "The Ultimate AI-Powered SSH Client - Your Terminal, Your Pocket, Your AI Assistant"
+publish_to: 'none'
+version: 1.0.0+1
+
+environment:
+  sdk: ^3.5.0
+  flutter: ">=3.24.0"
+
+dependencies:
+  flutter:
+    sdk: flutter
+  
+  # State Management
+  flutter_riverpod: ^2.4.9
+  
+  # Terminal & SSH
+  xterm: ^3.4.0
+  web_socket_channel: ^2.4.0
+  
+  # Authentication & Storage
+  google_sign_in: ^6.1.5
+  flutter_secure_storage: ^9.0.0
+  shared_preferences: ^2.2.2
+  
+  # Networking & HTTP
+  http: ^1.1.0
+  
+  # Utilities
+  uuid: ^4.1.0
+  intl: ^0.18.0
+  
+  # UI & Assets
+  flutter_svg: ^2.0.9
+  lottie: ^3.0.0
+  
+  # Device & System
+  package_info_plus: ^8.0.0
+  url_launcher: ^6.2.2
+  connectivity_plus: ^6.0.3
+  local_auth: ^2.1.7
+  
+  # Security & SSH
+  dartssh2: ^2.9.0
+  crypto: ^3.0.3
+  cryptography: ^2.5.0
+  dio: ^5.4.0
+  device_info_plus: ^10.1.0
+  
+  # Additional Security
+  pointycastle: ^3.7.3
+  
+  # Icons
+  cupertino_icons: ^1.0.6
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+  flutter_lints: ^4.0.0
+  build_runner: ^2.4.6
+
+flutter:
+  uses-material-design: true
+  
+  assets:
+    - assets/images/
+    - assets/icons/
+    - assets/animations/
+    - assets/fonts/
+  
+  fonts:
+    - family: JetBrainsMono
+      fonts:
+        - asset: assets/fonts/JetBrainsMono-Regular.ttf
+        - asset: assets/fonts/JetBrainsMono-Bold.ttf
+          weight: 700
+        - asset: assets/fonts/JetBrainsMono-Italic.ttf
+          style: italic
