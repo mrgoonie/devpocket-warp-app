@@ -14,7 +14,7 @@
 
 ## 🎯 **Overview**
 
-DevPocket transforms your iPhone into a powerful development environment by combining the familiar SSH terminal experience with cutting-edge AI assistance. Built specifically for **DevOps/SRE engineers** and **digital nomads** who demand professional-grade tools.
+DevPocket transforms your iPhone into a powerful development environment by combining the familiar SSH terminal experience with cutting-edge AI assistance. Built specifically for **Vibe Coders**, **DevOps/SRE engineers** and **digital nomads** who demand professional-grade tools.
 
 ### **🔥 Key Differentiators**
 
@@ -329,7 +329,7 @@ flutter build ipa --release
 
 ### **💎 Freemium Tiers**
 
-**🆓 Free - "Hacker"**
+**🆓 Free Trial (7 days) - "Hacker"**
 - Core SSH terminal functionality
 - Basic AI features (BYOK required)
 - Single device support
