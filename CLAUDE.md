@@ -133,3 +133,17 @@ devpocket-warp-app/
 - **BYOK Advantage**: 85-98% gross margins vs 70% industry average  
 - **User Control**: No surprise AI charges, users manage their own usage
 - **Trust Factor**: Transparent about AI costs and data handling
+
+## Development rules
+- always have a high standard of user experience / developer experience
+- always check the [docs](https://api.devpocket.app/docs) before implementing any API endpoints, if the docs are missing anything or need to be updated on the server side, notify me immediately!
+- Update existing docs (Markdown files) in `./docs` directory before any code refactoring
+- Add new docs (Markdown files) to `./docs` directory after new feature implementation (do not create duplicated docs)
+- Keep commits focused on the actual code changes
+- NEVER automatically add AI attribution signatures like:
+  "🤖 Generated with [Claude Code]"
+  "Co-Authored-By: Claude noreply@anthropic.com"
+  Any AI tool attribution or signature
+- Create clean, professional commit messages without AI references. Use conventional commit format.
+- use `context7` mcp tools for docs of plugins/packages
+- run `flutter analyze` to check for issues after finishing any tasks.
