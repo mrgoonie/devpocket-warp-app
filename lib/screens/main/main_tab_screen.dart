@@ -170,7 +170,7 @@ class _MainTabScreenState extends ConsumerState<MainTabScreen>
     final useIconOnlyMode = tabWidth < 70 || screenWidth < 360;
     
     // Calculate dynamic font size based on available space
-    final baseFontSize = useIconOnlyMode ? 10.0 : 12.0;
+    final baseFontSize = useIconOnlyMode ? 10.0 : 11.0;
     final fontSize = (tabWidth < 80 && !useIconOnlyMode) 
         ? (baseFontSize * (tabWidth / 80)).clamp(8.0, baseFontSize)
         : baseFontSize;
@@ -182,8 +182,8 @@ class _MainTabScreenState extends ConsumerState<MainTabScreen>
         duration: const Duration(milliseconds: 200),
         curve: Curves.easeInOut,
         padding: EdgeInsets.symmetric(
-          horizontal: useIconOnlyMode ? 4 : 8, 
-          vertical: 8
+          horizontal: useIconOnlyMode ? 4 : 6, 
+          vertical: 4
         ),
         constraints: const BoxConstraints(
           minWidth: 44, // Minimum tap target size
@@ -204,52 +204,58 @@ class _MainTabScreenState extends ConsumerState<MainTabScreen>
           mainAxisSize: MainAxisSize.min,
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            // Icon
-            AnimatedContainer(
-              duration: const Duration(milliseconds: 200),
-              curve: Curves.easeInOut,
-              child: Icon(
-                isSelected ? tab.activeIcon : tab.icon,
-                size: useIconOnlyMode ? 26 : 24,
-                color: isSelected
-                    ? AppTheme.primaryColor
-                    : context.isDarkMode
-                        ? AppTheme.darkTextSecondary
-                        : AppTheme.lightTextSecondary,
-                semanticLabel: useIconOnlyMode ? tab.label : null,
-              ),
-            ),
-            
-            // Only show label and spacing in non-icon-only mode
-            if (!useIconOnlyMode) ...[
-              const SizedBox(height: 4),
-              
-              // Label with overflow protection
-              AnimatedDefaultTextStyle(
+            // Icon with flexible sizing
+            Flexible(
+              flex: 0,
+              child: AnimatedContainer(
                 duration: const Duration(milliseconds: 200),
                 curve: Curves.easeInOut,
-                style: context.textTheme.labelSmall!.copyWith(
+                child: Icon(
+                  isSelected ? tab.activeIcon : tab.icon,
+                  size: useIconOnlyMode ? 24 : 22,
                   color: isSelected
                       ? AppTheme.primaryColor
                       : context.isDarkMode
                           ? AppTheme.darkTextSecondary
                           : AppTheme.lightTextSecondary,
-                  fontWeight: isSelected ? FontWeight.w600 : FontWeight.w400,
-                  fontSize: fontSize,
+                  semanticLabel: useIconOnlyMode ? tab.label : null,
                 ),
-                child: Text(
-                  tab.label,
-                  overflow: TextOverflow.ellipsis,
-                  maxLines: 1,
-                  textAlign: TextAlign.center,
+              ),
+            ),
+            
+            // Only show label and spacing in non-icon-only mode
+            if (!useIconOnlyMode) ...[
+              const SizedBox(height: 2),
+              
+              // Label with flexible sizing to prevent overflow
+              Flexible(
+                child: AnimatedDefaultTextStyle(
+                  duration: const Duration(milliseconds: 200),
+                  curve: Curves.easeInOut,
+                  style: context.textTheme.labelSmall!.copyWith(
+                    color: isSelected
+                        ? AppTheme.primaryColor
+                        : context.isDarkMode
+                            ? AppTheme.darkTextSecondary
+                            : AppTheme.lightTextSecondary,
+                    fontWeight: isSelected ? FontWeight.w600 : FontWeight.w400,
+                    fontSize: fontSize,
+                    height: 1.0, // Reduce line height
+                  ),
+                  child: Text(
+                    tab.label,
+                    overflow: TextOverflow.ellipsis,
+                    maxLines: 1,
+                    textAlign: TextAlign.center,
+                  ),
                 ),
               ),
               
-              // Active Indicator
+              // Active Indicator with reduced margin
               AnimatedContainer(
                 duration: const Duration(milliseconds: 200),
                 curve: Curves.easeInOut,
-                margin: const EdgeInsets.only(top: 2),
+                margin: const EdgeInsets.only(top: 1),
                 height: 2,
                 width: isSelected ? 20 : 0,
                 decoration: BoxDecoration(
@@ -262,7 +268,7 @@ class _MainTabScreenState extends ConsumerState<MainTabScreen>
               AnimatedContainer(
                 duration: const Duration(milliseconds: 200),
                 curve: Curves.easeInOut,
-                margin: const EdgeInsets.only(top: 4),
+                margin: const EdgeInsets.only(top: 2),
                 height: 3,
                 width: 6,
                 decoration: BoxDecoration(

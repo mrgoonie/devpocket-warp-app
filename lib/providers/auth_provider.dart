@@ -4,6 +4,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 
 import '../models/user_model.dart';
 import '../services/auth_service.dart';
+import '../services/mock_auth_service.dart';
 import '../main.dart';
 
 class AuthNotifier extends StateNotifier<AuthState> {
@@ -249,7 +250,17 @@ class AuthNotifier extends StateNotifier<AuthState> {
 
 // Providers
 final authServiceProvider = Provider<AuthService>((ref) {
-  return AuthService();
+  // Use mock service for testing UI
+  // Set this to false to use real API
+  const bool useMockService = true;
+  
+  if (useMockService) {
+    debugPrint('🎭 Using MockAuthService for testing');
+    return MockAuthService();
+  } else {
+    debugPrint('🌐 Using real AuthService');
+    return AuthService();
+  }
 });
 
 final authProvider = StateNotifierProvider<AuthNotifier, AuthState>((ref) {
