@@ -26,6 +26,11 @@ DevPocket is an AI-powered mobile terminal app built with Flutter. It combines t
 - **AI Service**: OpenRouter integration using user-provided API keys
 - **Authentication**: JWT-based with secure token management
 
+### **📚 Resources**
+- **Documentation**: [api.devpocket.app/redoc](https://api.devpocket.app/redoc)
+- **API Reference**: [api.devpocket.app/docs](https://api.devpocket.app/docs)
+- **Security**: [security@devpocket.app](mailto:security@devpocket.app)
+
 ## Key Features
 
 ### Terminal Capabilities

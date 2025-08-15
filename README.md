@@ -104,7 +104,7 @@ DevPocket transforms your iPhone into a powerful development environment by comb
 1. **Get OpenRouter API Key**
    - Visit [OpenRouter.ai](https://openrouter.ai)
    - Create account and generate API key
-   - Recommended models: `anthropic/claude-3-sonnet`, `openai/gpt-4`
+   - Recommended models: `google/gemini-2.5-flash` (fast & cheap)
 
 2. **Configure in App**
    - Open DevPocket → Settings → API Configuration
@@ -377,8 +377,8 @@ We welcome contributions from the DevOps and mobile development community!
 - **Email**: support@devpocket.app
 
 ### **📚 Resources**
-- **Documentation**: [docs.devpocket.app](https://docs.devpocket.app)
-- **API Reference**: [api.devpocket.app](https://api.devpocket.app)
+- **Documentation**: [api.devpocket.app/redoc](https://api.devpocket.app/redoc)
+- **API Reference**: [api.devpocket.app/docs](https://api.devpocket.app/docs)
 - **Security**: [security@devpocket.app](mailto:security@devpocket.app)
 
 ---
