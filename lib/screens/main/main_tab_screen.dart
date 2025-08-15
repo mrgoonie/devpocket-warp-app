@@ -138,16 +138,17 @@ class _MainTabScreenState extends ConsumerState<MainTabScreen>
           height: 80,
           padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
           child: Row(
-            mainAxisAlignment: MainAxisAlignment.spaceAround,
             children: _tabs.asMap().entries.map((entry) {
               final index = entry.key;
               final tab = entry.value;
               final isSelected = index == _currentIndex;
 
-              return _buildTabButton(
-                tab: tab,
-                index: index,
-                isSelected: isSelected,
+              return Expanded(
+                child: _buildTabButton(
+                  tab: tab,
+                  index: index,
+                  isSelected: isSelected,
+                ),
               );
             }).toList(),
           ),
@@ -161,13 +162,32 @@ class _MainTabScreenState extends ConsumerState<MainTabScreen>
     required int index,
     required bool isSelected,
   }) {
+    final screenWidth = MediaQuery.of(context).size.width;
+    final availableWidth = screenWidth - 16; // Account for horizontal padding
+    final tabWidth = availableWidth / _tabs.length;
+    
+    // Use icon-only mode if tab width is too small or screen is narrow
+    final useIconOnlyMode = tabWidth < 70 || screenWidth < 360;
+    
+    // Calculate dynamic font size based on available space
+    final baseFontSize = useIconOnlyMode ? 10.0 : 12.0;
+    final fontSize = (tabWidth < 80 && !useIconOnlyMode) 
+        ? (baseFontSize * (tabWidth / 80)).clamp(8.0, baseFontSize)
+        : baseFontSize;
+    
     return GestureDetector(
       onTap: () => _onTabTapped(index),
       behavior: HitTestBehavior.opaque,
       child: AnimatedContainer(
         duration: const Duration(milliseconds: 200),
         curve: Curves.easeInOut,
-        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+        padding: EdgeInsets.symmetric(
+          horizontal: useIconOnlyMode ? 4 : 8, 
+          vertical: 8
+        ),
+        constraints: const BoxConstraints(
+          minWidth: 44, // Minimum tap target size
+        ),
         decoration: BoxDecoration(
           color: isSelected
               ? AppTheme.primaryColor.withValues(alpha: 0.1)
@@ -182,6 +202,7 @@ class _MainTabScreenState extends ConsumerState<MainTabScreen>
         ),
         child: Column(
           mainAxisSize: MainAxisSize.min,
+          mainAxisAlignment: MainAxisAlignment.center,
           children: [
             // Icon
             AnimatedContainer(
@@ -189,45 +210,67 @@ class _MainTabScreenState extends ConsumerState<MainTabScreen>
               curve: Curves.easeInOut,
               child: Icon(
                 isSelected ? tab.activeIcon : tab.icon,
-                size: 24,
+                size: useIconOnlyMode ? 26 : 24,
                 color: isSelected
                     ? AppTheme.primaryColor
                     : context.isDarkMode
                         ? AppTheme.darkTextSecondary
                         : AppTheme.lightTextSecondary,
+                semanticLabel: useIconOnlyMode ? tab.label : null,
               ),
             ),
             
-            const SizedBox(height: 4),
-            
-            // Label
-            AnimatedDefaultTextStyle(
-              duration: const Duration(milliseconds: 200),
-              curve: Curves.easeInOut,
-              style: context.textTheme.labelSmall!.copyWith(
-                color: isSelected
-                    ? AppTheme.primaryColor
-                    : context.isDarkMode
-                        ? AppTheme.darkTextSecondary
-                        : AppTheme.lightTextSecondary,
-                fontWeight: isSelected ? FontWeight.w600 : FontWeight.w400,
-                fontSize: 12,
+            // Only show label and spacing in non-icon-only mode
+            if (!useIconOnlyMode) ...[
+              const SizedBox(height: 4),
+              
+              // Label with overflow protection
+              AnimatedDefaultTextStyle(
+                duration: const Duration(milliseconds: 200),
+                curve: Curves.easeInOut,
+                style: context.textTheme.labelSmall!.copyWith(
+                  color: isSelected
+                      ? AppTheme.primaryColor
+                      : context.isDarkMode
+                          ? AppTheme.darkTextSecondary
+                          : AppTheme.lightTextSecondary,
+                  fontWeight: isSelected ? FontWeight.w600 : FontWeight.w400,
+                  fontSize: fontSize,
+                ),
+                child: Text(
+                  tab.label,
+                  overflow: TextOverflow.ellipsis,
+                  maxLines: 1,
+                  textAlign: TextAlign.center,
+                ),
               ),
-              child: Text(tab.label),
-            ),
-            
-            // Active Indicator
-            AnimatedContainer(
-              duration: const Duration(milliseconds: 200),
-              curve: Curves.easeInOut,
-              margin: const EdgeInsets.only(top: 2),
-              height: 2,
-              width: isSelected ? 20 : 0,
-              decoration: BoxDecoration(
-                color: AppTheme.primaryColor,
-                borderRadius: BorderRadius.circular(1),
+              
+              // Active Indicator
+              AnimatedContainer(
+                duration: const Duration(milliseconds: 200),
+                curve: Curves.easeInOut,
+                margin: const EdgeInsets.only(top: 2),
+                height: 2,
+                width: isSelected ? 20 : 0,
+                decoration: BoxDecoration(
+                  color: AppTheme.primaryColor,
+                  borderRadius: BorderRadius.circular(1),
+                ),
               ),
-            ),
+            ] else if (isSelected) ...[
+              // Show a smaller indicator for icon-only mode
+              AnimatedContainer(
+                duration: const Duration(milliseconds: 200),
+                curve: Curves.easeInOut,
+                margin: const EdgeInsets.only(top: 4),
+                height: 3,
+                width: 6,
+                decoration: BoxDecoration(
+                  color: AppTheme.primaryColor,
+                  borderRadius: BorderRadius.circular(1.5),
+                ),
+              ),
+            ],
           ],
         ),
       ),
