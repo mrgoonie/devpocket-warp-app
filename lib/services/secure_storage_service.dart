@@ -1,5 +1,4 @@
 import 'dart:convert';
-import 'dart:typed_data';
 import 'package:flutter/foundation.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:device_info_plus/device_info_plus.dart';
@@ -286,7 +285,7 @@ class SecureStorageService {
         _deviceId = iosInfo.identifierForVendor ?? 'unknown-ios';
       } else if (defaultTargetPlatform == TargetPlatform.android) {
         final androidInfo = await _deviceInfo.androidInfo;
-        _deviceId = androidInfo.id ?? 'unknown-android';
+        _deviceId = androidInfo.id;
       } else {
         _deviceId = 'unknown-device';
       }

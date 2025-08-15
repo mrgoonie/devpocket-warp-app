@@ -219,7 +219,6 @@ class HostCard extends StatelessWidget {
       case HostStatus.error:
         return AppTheme.terminalRed;
       case HostStatus.unknown:
-      default:
         return AppTheme.darkBorderColor;
     }
   }

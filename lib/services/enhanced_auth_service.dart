@@ -1,6 +1,5 @@
 import 'dart:convert';
 import 'dart:io';
-import 'dart:math';
 import 'package:flutter/material.dart';
 import 'package:dio/dio.dart';
 // Certificate pinning removed - package not available
@@ -18,7 +17,8 @@ import 'crypto_service.dart';
 /// Enhanced authentication service with comprehensive security measures
 class EnhancedAuthService {
   static const String _baseUrl = 'https://api.devpocket.app';
-  static const Duration _tokenRefreshThreshold = Duration(minutes: 5);
+  // TODO: Implement automatic token refresh
+  // static const Duration _tokenRefreshThreshold = Duration(minutes: 5);
   static const Duration _sessionTimeout = Duration(hours: 8);
   static const int _maxLoginAttempts = 5;
   static const Duration _lockoutDuration = Duration(minutes: 30);
@@ -27,7 +27,8 @@ class EnhancedAuthService {
   final SecureStorageService _secureStorage;
   final BiometricService _biometricService;
   final AuditService _auditService;
-  final CryptoService _cryptoService;
+  // TODO: Implement encryption for sensitive auth data
+  // final CryptoService _cryptoService;
   final DeviceInfoPlugin _deviceInfo;
   final Connectivity _connectivity;
 
@@ -49,7 +50,7 @@ class EnhancedAuthService {
   })  : _secureStorage = secureStorage,
         _biometricService = biometricService,
         _auditService = auditService,
-        _cryptoService = cryptoService,
+        // _cryptoService = cryptoService,
         _deviceInfo = deviceInfo ?? DeviceInfoPlugin(),
         _connectivity = connectivity ?? Connectivity(),
         _dio = dio ?? Dio() {
@@ -109,7 +110,7 @@ class EnhancedAuthService {
     final securityCheck = await _performPreAuthSecurityChecks();
     if (!securityCheck.passed) {
       return EnhancedAuthResult.failure(
-        error: securityCheck.reason,
+        error: securityCheck.reason ?? 'Security check failed',
         securityEvent: SecurityEventType.securityCheckFailed,
       );
     }
@@ -172,7 +173,7 @@ class EnhancedAuthService {
     final passwordValidation = _validatePasswordStrength(password);
     if (!passwordValidation.isValid) {
       return EnhancedAuthResult.failure(
-        error: passwordValidation.message,
+        error: passwordValidation.message ?? 'Password validation failed',
         securityEvent: SecurityEventType.weakPassword,
       );
     }
@@ -340,7 +341,7 @@ class EnhancedAuthService {
     // Validate new password strength
     final passwordValidation = _validatePasswordStrength(newPassword);
     if (!passwordValidation.isValid) {
-      throw AuthException(passwordValidation.message);
+      throw AuthException(passwordValidation.message ?? 'Password validation failed');
     }
 
     // Require biometric authentication for password change

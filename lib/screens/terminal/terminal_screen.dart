@@ -67,7 +67,8 @@ class _TerminalScreenState extends ConsumerState<TerminalScreen> {
   final FocusNode _inputFocusNode = FocusNode();
   final List<TerminalBlock> _blocks = [];
   final List<String> _commandHistory = [];
-  int _historyIndex = -1;
+  // TODO: Implement command history navigation
+  // int _historyIndex = -1;
   bool _isAgentMode = false;
   bool _showSuggestions = false;
   List<CommandSuggestion> _currentSuggestions = [];
@@ -119,7 +120,6 @@ Current directory: ${_currentContext.currentDirectory}
   Widget build(BuildContext context) {
     final aiEnabled = ref.watch(aiEnabledProvider);
     final hasValidKey = ref.watch(hasValidApiKeyProvider);
-    final aiUsage = ref.watch(aiUsageProvider);
     final isNearLimit = ref.watch(isNearCostLimitProvider);
 
     return Scaffold(
@@ -784,7 +784,8 @@ Current directory: ${_currentContext.currentDirectory}
     setState(() {
       _blocks.add(block);
       _commandHistory.add(command);
-      _historyIndex = -1;
+      // TODO: Implement command history navigation
+      // _historyIndex = -1;
     });
 
     _commandController.clear();

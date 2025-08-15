@@ -344,7 +344,6 @@ class NavigationHelper {
       case AuthStatus.loading:
       case AuthStatus.unknown:
       case AuthStatus.error:
-      default:
         return '/splash';
     }
   }

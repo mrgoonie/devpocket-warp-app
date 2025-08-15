@@ -1,5 +1,4 @@
 import 'dart:async';
-import 'dart:convert';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart';
 import 'package:local_auth/local_auth.dart';
@@ -21,12 +20,14 @@ class BiometricService {
   
   // Configuration
   static const Duration _authenticationTimeout = Duration(minutes: 15);
-  static const Duration _cooldownPeriod = Duration(seconds: 30);
+  // TODO: Implement cooldown period for failed attempts
+  // static const Duration _cooldownPeriod = Duration(seconds: 30);
   static const int _maxFailedAttempts = 3;
   
   // Failed attempts tracking
   int _failedAttempts = 0;
-  DateTime? _lastFailedAttempt;
+  // TODO: Implement lockout logic using these fields
+  // DateTime? _lastFailedAttempt;
   DateTime? _lockoutUntil;
 
   BiometricService({
@@ -234,7 +235,7 @@ class BiometricService {
   /// Reset failed attempts counter (admin function)
   void resetFailedAttempts() {
     _failedAttempts = 0;
-    _lastFailedAttempt = null;
+    // _lastFailedAttempt = null;
     _lockoutUntil = null;
   }
 
@@ -430,7 +431,7 @@ class BiometricService {
     _isAuthenticated = true;
     _lastAuthenticationTime = DateTime.now();
     _failedAttempts = 0;
-    _lastFailedAttempt = null;
+    // _lastFailedAttempt = null;
     _lockoutUntil = null;
     
     // Set up automatic timeout
@@ -442,7 +443,7 @@ class BiometricService {
 
   void _onAuthenticationFailure() {
     _failedAttempts++;
-    _lastFailedAttempt = DateTime.now();
+    // _lastFailedAttempt = DateTime.now();
     
     // Implement progressive lockout
     if (_failedAttempts >= _maxFailedAttempts) {

@@ -19,7 +19,6 @@ class SettingsScreen extends ConsumerWidget {
     final themeMode = ref.watch(themeProvider);
     final hasValidKey = ref.watch(hasValidApiKeyProvider);
     final aiUsage = ref.watch(aiUsageProvider);
-    final aiSettings = ref.watch(aiFeatureSettingsProvider);
 
     return Scaffold(
       appBar: AppBar(

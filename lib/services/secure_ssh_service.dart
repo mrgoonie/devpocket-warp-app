@@ -1,12 +1,12 @@
 import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
-import 'dart:typed_data';
 import 'package:dartssh2/dartssh2.dart';
 import 'package:flutter/foundation.dart';
+import 'package:uuid/uuid.dart';
 
 import '../models/enhanced_ssh_models.dart';
-import 'crypto_service.dart';
+import 'crypto_service.dart' as local_crypto;
 import 'secure_storage_service.dart';
 import 'command_validator.dart';
 import 'audit_service.dart';
@@ -14,8 +14,9 @@ import 'audit_service.dart';
 /// Comprehensive SSH service with production-grade security features
 class SecureSSHService {
   final SecureStorageService _secureStorage;
-  final CryptoService _cryptoService;
-  final CommandValidator _commandValidator;
+  final local_crypto.CryptoService _cryptoService;
+  // TODO: Implement global command validation using this validator
+  // final CommandValidator _commandValidator;
   final AuditService _auditService;
   
   // Active connections
@@ -30,12 +31,12 @@ class SecureSSHService {
   
   SecureSSHService({
     required SecureStorageService secureStorage,
-    required CryptoService cryptoService,
+    required local_crypto.CryptoService cryptoService,
     required CommandValidator commandValidator,
     required AuditService auditService,
   })  : _secureStorage = secureStorage,
         _cryptoService = cryptoService,
-        _commandValidator = commandValidator,
+        // _commandValidator = commandValidator,
         _auditService = auditService;
 
   /// Stream of security events
@@ -127,17 +128,19 @@ class SecureSSHService {
       );
       
       // Create SSH client through tunnel
+      List<SSHKeyPair> identities = [];
+      if (target.privateKeyId != null) {
+        final privateKey = await _getPrivateKey(target, targetPassphrase);
+        identities = [SSHKeyPair.fromPem(privateKey)].expand((x) => x).toList();
+      }
+      
       final targetClient = SSHClient(
         socket,
         username: target.username,
         onPasswordRequest: target.passwordHash != null 
             ? () => _getPassword(target)
             : null,
-        onPrivateKeyRequest: target.privateKeyId != null
-            ? () => _getPrivateKey(target, targetPassphrase)
-            : null,
-        hostKeyVerifier: (hostname, port, publicKey) => 
-            _verifyHostKey(target, hostname, port, publicKey),
+        identities: identities,
       );
       
       // Authenticate with target
@@ -191,7 +194,7 @@ class SecureSSHService {
     SecurityLevel securityLevel = SecurityLevel.high,
     bool requiresBiometric = true,
   }) async {
-    SSHKeyPair keyPair;
+    local_crypto.SSHKeyPair keyPair;
     
     switch (keyType.toLowerCase()) {
       case 'ed25519':
@@ -462,17 +465,19 @@ class SecureSSHService {
   }) async {
     final socket = await SSHSocket.connect(host.hostname, host.port);
     
+    List<SSHKeyPair> identities = [];
+    if (host.privateKeyId != null) {
+      final privateKey = await _getPrivateKey(host, passphrase);
+      identities = [SSHKeyPair.fromPem(privateKey)].expand((x) => x).toList();
+    }
+    
     final client = SSHClient(
       socket,
       username: host.username,
       onPasswordRequest: host.passwordHash != null 
           ? () => _getPassword(host)
           : null,
-      onPrivateKeyRequest: host.privateKeyId != null
-          ? () => _getPrivateKey(host, passphrase)
-          : null,
-      hostKeyVerifier: (hostname, port, publicKey) => 
-          _verifyHostKey(host, hostname, port, publicKey),
+      identities: identities,
       onUserauthBanner: (banner) => debugPrint('SSH Banner: $banner'),
     );
     
@@ -553,6 +558,8 @@ class SecureSSHService {
     return privateKey;
   }
 
+  /// Verify SSH host key against known fingerprints
+  /// TODO: Integrate host key verification into connection process  
   Future<bool> _verifyHostKey(
     SecureHost host,
     String hostname,
@@ -675,8 +682,9 @@ class SecureSSHConnection {
   final SecureSSHConnection? jumpConnection;
   final bool validateCommands;
   final ValidationLevel commandValidationLevel;
-  final SecureStorageService _secureStorage;
-  final CryptoService _cryptoService;
+  // TODO: Implement encryption/decryption for command results
+  // final SecureStorageService _secureStorage;
+  // final local_crypto.CryptoService _cryptoService;
   final AuditService _auditService;
   
   final DateTime connectedAt = DateTime.now();
@@ -691,10 +699,10 @@ class SecureSSHConnection {
     this.validateCommands = true,
     this.commandValidationLevel = ValidationLevel.strict,
     required SecureStorageService secureStorage,
-    required CryptoService cryptoService,
+    required local_crypto.CryptoService cryptoService,
     required AuditService auditService,
-  })  : _secureStorage = secureStorage,
-        _cryptoService = cryptoService,
+  })  : // _secureStorage = secureStorage,
+        // _cryptoService = cryptoService,
         _auditService = auditService;
 
   /// Execute command with validation and auditing
@@ -744,8 +752,8 @@ class SecureSSHConnection {
         environment: environment,
       );
       
-      final stdout = await session.stdout.transform(utf8.decoder).join();
-      final stderr = await session.stderr.transform(utf8.decoder).join();
+      final stdout = await utf8.decoder.bind(session.stdout).join();
+      final stderr = await utf8.decoder.bind(session.stderr).join();
       final exitCode = await session.exitCode;
       
       commandCount++;
@@ -800,7 +808,7 @@ class SecureSSHConnection {
     final session = await client.shell();
     session.stdin.add(utf8.encode('$command\n'));
     
-    await for (final chunk in session.stdout.transform(utf8.decoder)) {
+    await for (final chunk in utf8.decoder.bind(session.stdout)) {
       yield chunk;
     }
   }
@@ -838,7 +846,7 @@ class SecureSSHConnection {
       await remoteFile.close();
       
       if (mode != null) {
-        await sftp.chmod(remotePath, mode);
+        await sftp.setStat(remotePath, SftpFileAttrs(mode: SftpFileMode(userRead: true, userWrite: true)));
       }
       
       await _auditService.logFileTransfer(

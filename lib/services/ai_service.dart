@@ -1,9 +1,6 @@
 import 'dart:async';
 import 'dart:convert';
-import 'dart:math';
-import 'package:flutter/foundation.dart';
 import 'package:http/http.dart' as http;
-import 'package:shared_preferences/shared_preferences.dart';
 
 import '../models/ai_models.dart';
 
@@ -11,7 +8,8 @@ class AIService {
   static const String _baseUrl = 'https://openrouter.ai/api/v1';
   static const String _defaultModel = 'anthropic/claude-3.5-sonnet';
   static const Duration _defaultTimeout = Duration(seconds: 30);
-  static const int _maxRetries = 3;
+  // TODO: Implement retry logic for failed API calls
+  // static const int _maxRetries = 3;
   
   final http.Client _client;
   String? _apiKey;

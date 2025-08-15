@@ -96,7 +96,6 @@ class _SplashScreenState extends ConsumerState<SplashScreen>
         case AuthStatus.loading:
         case AuthStatus.unknown:
         case AuthStatus.error:
-        default:
           nextScreen = const LoginScreen();
           break;
       }

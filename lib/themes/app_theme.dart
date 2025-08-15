@@ -409,14 +409,14 @@ class AppTheme {
   static MaterialColor _createMaterialColor(Color color) {
     List<int> strengths = [50, 100, 200, 300, 400, 500, 600, 700, 800, 900];
     Map<int, Color> swatch = {};
-    final int r = color.red, g = color.green, b = color.blue;
+    final int r = (color.r * 255.0).round() & 0xff, g = (color.g * 255.0).round() & 0xff, b = (color.b * 255.0).round() & 0xff;
 
     for (int strength in strengths) {
       final double opacity = (1000 - strength) / 1000;
       swatch[strength] = Color.fromRGBO(r, g, b, opacity);
     }
 
-    return MaterialColor(color.value, swatch);
+    return MaterialColor(color.toARGB32(), swatch);
   }
 
   // Terminal-specific text styles

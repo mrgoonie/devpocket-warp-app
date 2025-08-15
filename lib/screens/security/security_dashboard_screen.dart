@@ -4,7 +4,6 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../services/audit_service.dart';
 import '../../services/biometric_service.dart';
 import '../../services/secure_ssh_service.dart';
-import '../../themes/app_theme.dart';
 import '../../widgets/security_risk_indicator.dart';
 import '../../widgets/security_metric_card.dart';
 

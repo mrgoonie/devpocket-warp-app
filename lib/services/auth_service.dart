@@ -2,7 +2,6 @@ import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 import 'package:google_sign_in/google_sign_in.dart';
-import 'package:shared_preferences/shared_preferences.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 
 import '../models/user_model.dart';
@@ -240,7 +239,7 @@ class AuthService {
   Future<void> logout() async {
     try {
       // Call logout endpoint
-      final response = await http.post(
+      await http.post(
         Uri.parse('$_baseUrl/auth/logout'),
         headers: await _authHeaders,
       );

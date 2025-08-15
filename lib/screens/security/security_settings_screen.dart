@@ -3,7 +3,6 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../services/biometric_service.dart';
 import '../../services/command_validator.dart';
-import '../../themes/app_theme.dart';
 import 'security_dashboard_screen.dart';
 
 /// Comprehensive security settings screen

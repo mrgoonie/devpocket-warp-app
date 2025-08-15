@@ -247,11 +247,9 @@ void commandValidationSecurityTests() {
 /// Test SSH security implementation
 void sshSecurityTests() {
   group('SSH Security Tests', () {
-    late MockSecureStorageService mockStorage;
     late MockCryptoService mockCrypto;
     
     setUp(() {
-      mockStorage = MockSecureStorageService();
       mockCrypto = MockCryptoService();
     });
 
@@ -285,15 +283,8 @@ void sshSecurityTests() {
     });
 
     test('host key fingerprint verification', () {
-      const hostname = 'test.example.com';
       const fingerprint1 = 'SHA256:abcd1234567890abcdef1234567890abcdef1234567890';
       const fingerprint2 = 'SHA256:different567890abcdef1234567890abcdef1234567890';
-      
-      final host1 = SecureHostFactory.create(
-        name: 'test-host',
-        hostname: hostname,
-        username: 'user',
-      ).copyWith(knownHostKeyFingerprint: fingerprint1);
       
       // Same fingerprint should verify
       when(mockCrypto.verifyHostKey(any, fingerprint1)).thenReturn(true);
@@ -356,7 +347,7 @@ void authenticationSecurityTests() {
       const strongPasswords = [
         'MyStr0ng!Password123',
         'C0mpl3x@Pass#2024!',
-        'Secure&Random$Pass9',
+        'Secure&Random\$Pass9',
       ];
       
       for (final weak in weakPasswords) {
