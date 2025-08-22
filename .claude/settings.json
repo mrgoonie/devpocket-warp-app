@@ -1,0 +1,24 @@
+{
+  "hooks": {
+    "matchers": [
+      {
+        "events": [
+          "Stop",
+          "SubagentStop"
+        ],
+        "projects": [
+          "*"
+        ],
+        "action": {
+          "type": "script",
+          "script": "$CLAUDE_PROJECT_DIR/.claude/hooks/telegram_notify.sh"
+        }
+      }
+    ]
+  },
+  "statusLine": {
+    "type": "command",
+    "command": ".claude/statusline.sh",
+    "padding": 0
+  }
+}
