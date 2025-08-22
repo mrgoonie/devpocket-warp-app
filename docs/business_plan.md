@@ -14,7 +14,7 @@ The target audience includes **indie hackers and digital nomads** who need devel
 
 ## Technical architecture delivers performance and innovation
 
-The technical foundation combines **Flutter's xterm.dart package** for 60fps terminal rendering with **FastAPI backend** architecture handling 3x more concurrent connections than traditional frameworks. The mobile frontend leverages GPU-accelerated rendering for smooth scrolling and supports advanced features like blocks, syntax highlighting, and gesture controls. Custom platform channels enable deep iOS and Android integration while maintaining 95% code sharing across platforms.
+The technical foundation combines **Flutter's xterm.dart package** for 60fps terminal rendering with **Fastify backend** architecture handling 3x more concurrent connections than traditional frameworks. The mobile frontend leverages GPU-accelerated rendering for smooth scrolling and supports advanced features like blocks, syntax highlighting, and gesture controls. Custom platform channels enable deep iOS and Android integration while maintaining 95% code sharing across platforms.
 
 The backend infrastructure employs **PostgreSQL for persistent storage** with Redis caching layer for command history and AI responses. WebSocket connections maintain real-time terminal sessions with automatic reconnection logic, while JWT authentication with biometric support ensures security. The **OpenRouter AI integration** implements intelligent model selection, starting with cost-effective Claude Haiku for basic suggestions and escalating to GPT-4 for complex operations. Response caching reduces costs by 60% while maintaining sub-2-second suggestion times.
 
@@ -54,7 +54,7 @@ The 16-week development timeline breaks into four focused phases. **Weeks 1-4** 
 
 **Weeks 9-12** optimize mobile UX with touch gestures, virtual keyboard enhancements, and offline capabilities. **Weeks 13-16** prepare for production with performance optimization, security audits, and monitoring setup. Each phase includes specific success metrics: sub-100ms local command response, sub-2s AI suggestions with caching, 99.9% WebSocket stability, and less than 0.1% crash rate.
 
-The technical team requires **two Flutter developers**, one senior and one mid-level, for frontend development. **One FastAPI backend engineer** handles server infrastructure and AI integration. **One DevOps engineer** manages deployment, monitoring, and scaling. **One product designer** focused on mobile UX completes the core team, with part-time developer advocate supporting community growth.
+The technical team requires **two Flutter developers**, one senior and one mid-level, for frontend development. **One Fastify backend engineer** handles server infrastructure and AI integration. **One DevOps engineer** manages deployment, monitoring, and scaling. **One product designer** focused on mobile UX completes the core team, with part-time developer advocate supporting community growth.
 
 ## Competitive advantages position DevPocket for market leadership
 
@@ -66,4 +66,4 @@ Success factors include maintaining **sub-2-second AI response times**, achievin
 
 ## Conclusion
 
-DevPocket.app addresses a critical gap in the developer tools market by bringing AI-powered terminal computing to mobile devices. With a clear technical architecture leveraging Flutter and FastAPI, a proven freemium pricing model, and a community-driven go-to-market strategy, DevPocket is positioned to capture significant market share in the growing mobile development tools space. The path to $11M ARR with 10,000 users is achievable through focused execution on product excellence, developer community building, and strategic growth initiatives. The time is now to build the terminal that mobile developers have been waiting for.
+DevPocket.app addresses a critical gap in the developer tools market by bringing AI-powered terminal computing to mobile devices. With a clear technical architecture leveraging Flutter and Fastify, a proven freemium pricing model, and a community-driven go-to-market strategy, DevPocket is positioned to capture significant market share in the growing mobile development tools space. The path to $11M ARR with 10,000 users is achievable through focused execution on product excellence, developer community building, and strategic growth initiatives. The time is now to build the terminal that mobile developers have been waiting for.

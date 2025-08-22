@@ -6,6 +6,7 @@ import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 
 import '../models/user_model.dart';
 import '../main.dart';
+import '../config/api_config.dart';
 
 class AuthResult {
   final bool success;
@@ -34,7 +35,7 @@ class AuthResult {
 }
 
 class AuthService {
-  static const String _baseUrl = AppConstants.baseUrl;
+  static String get _baseUrl => ApiConfig.fullBaseUrl;
   static const FlutterSecureStorage _secureStorage = AppConstants.secureStorage;
   
   final GoogleSignIn _googleSignIn = GoogleSignIn(

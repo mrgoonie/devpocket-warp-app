@@ -3,8 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../providers/auth_provider.dart';
 import '../../providers/theme_provider.dart';
-import '../../providers/ai_provider.dart';
-import '../../models/ai_models.dart';
+import '../../providers/api_providers.dart';
 import '../../themes/app_theme.dart';
 import '../../main.dart';
 import '../auth/login_screen.dart';
@@ -17,8 +16,14 @@ class SettingsScreen extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final user = ref.watch(currentUserProvider);
     final themeMode = ref.watch(themeProvider);
-    final hasValidKey = ref.watch(hasValidApiKeyProvider);
-    final aiUsage = ref.watch(aiUsageProvider);
+    final hasValidKey = ref.watch(hasAiApiKeyProvider).maybeWhen(
+      data: (hasKey) => hasKey,
+      orElse: () => false,
+    );
+    final canUseAI = ref.watch(canUseAiProvider).maybeWhen(
+      data: (canUse) => canUse,
+      orElse: () => false,
+    );
 
     return Scaffold(
       appBar: AppBar(
@@ -39,14 +44,14 @@ class SettingsScreen extends ConsumerWidget {
           _buildSectionHeader(context, 'AI Features'),
           const SizedBox(height: 12),
           
-          _buildAIStatusCard(context, hasValidKey, aiUsage),
+          _buildAIStatusCard(context, hasValidKey, canUseAI),
           
           _buildSettingCard(
             context: context,
             icon: hasValidKey ? Icons.psychology : Icons.psychology_outlined,
             title: 'AI Configuration',
             subtitle: hasValidKey 
-                ? 'API key configured - ${aiUsage.requestCount} requests used'
+                ? 'API key configured - AI features enabled'
                 : 'Configure OpenRouter API key for AI features',
             onTap: () => Navigator.push(
               context,
@@ -247,7 +252,7 @@ class SettingsScreen extends ConsumerWidget {
     );
   }
 
-  Widget _buildAIStatusCard(BuildContext context, bool hasValidKey, AIUsageStats usage) {
+  Widget _buildAIStatusCard(BuildContext context, bool hasValidKey, bool canUseAI) {
     return Card(
       elevation: 0,
       margin: const EdgeInsets.only(bottom: 12),
@@ -315,32 +320,35 @@ class SettingsScreen extends ConsumerWidget {
               ],
             ),
             
-            if (hasValidKey) ...[
-              const SizedBox(height: 16),
-              Row(
-                children: [
-                  Expanded(
-                    child: _buildUsageMetric(
-                      'Requests',
-                      usage.requestCount.toString(),
-                      Icons.send,
-                    ),
+            if (hasValidKey && canUseAI) ...[
+              const SizedBox(height: 12),
+              Container(
+                padding: const EdgeInsets.all(12),
+                decoration: BoxDecoration(
+                  color: AppTheme.primaryColor.withValues(alpha: 0.1),
+                  borderRadius: BorderRadius.circular(8),
+                  border: Border.all(
+                    color: AppTheme.primaryColor.withValues(alpha: 0.2),
                   ),
-                  Expanded(
-                    child: _buildUsageMetric(
-                      'Cost',
-                      '\$${usage.estimatedCost.toStringAsFixed(3)}',
-                      Icons.attach_money,
+                ),
+                child: Row(
+                  children: [
+                    Icon(
+                      Icons.check_circle,
+                      size: 16,
+                      color: AppTheme.primaryColor,
                     ),
-                  ),
-                  Expanded(
-                    child: _buildUsageMetric(
-                      'Tokens',
-                      '${(usage.tokenCount / 1000).toStringAsFixed(1)}K',
-                      Icons.token,
+                    const SizedBox(width: 8),
+                    Text(
+                      'Ready to assist with terminal commands',
+                      style: TextStyle(
+                        fontSize: 12,
+                        color: AppTheme.primaryColor,
+                        fontWeight: FontWeight.w500,
+                      ),
                     ),
-                  ),
-                ],
+                  ],
+                ),
               ),
             ],
           ],
@@ -349,37 +357,6 @@ class SettingsScreen extends ConsumerWidget {
     );
   }
 
-  Widget _buildUsageMetric(String label, String value, IconData icon) {
-    return Container(
-      padding: const EdgeInsets.all(12),
-      margin: const EdgeInsets.symmetric(horizontal: 4),
-      decoration: BoxDecoration(
-        color: AppTheme.primaryColor.withValues(alpha: 0.1),
-        borderRadius: BorderRadius.circular(8),
-      ),
-      child: Column(
-        children: [
-          Icon(icon, color: AppTheme.primaryColor, size: 20),
-          const SizedBox(height: 4),
-          Text(
-            value,
-            style: TextStyle(
-              fontSize: 16,
-              fontWeight: FontWeight.bold,
-              color: AppTheme.primaryColor,
-            ),
-          ),
-          Text(
-            label,
-            style: TextStyle(
-              fontSize: 10,
-              color: AppTheme.primaryColor.withValues(alpha: 0.7),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
 
   Widget _buildSettingCard({
     required BuildContext context,

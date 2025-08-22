@@ -4,10 +4,9 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project Overview
 
-DevPocket is an AI-powered mobile terminal app built with Flutter. It combines traditional terminal functionality with AI assistance to help developers work from mobile devices. The project consists of:
+This repository is a Flutter app of DevPocket, it is an AI-powered mobile terminal app built with Flutter. It combines traditional terminal functionality with AI assistance to help developers work from mobile devices. The project consists of:
 
 - **Flutter Mobile App**: iOS/Android app with terminal, SSH, and AI features
-- **Python Backend**: FastAPI server with WebSocket support, SSH/PTY execution, and AI integration
 - **Documentation**: Comprehensive product specifications and implementation guides
 
 ## Architecture
@@ -17,18 +16,12 @@ DevPocket is an AI-powered mobile terminal app built with Flutter. It combines t
 - **Main Navigation**: 5-tab structure (Vaults, Terminal, History, Code Editor, Settings)
 - **Terminal Features**: Block-based UI, dual input modes (Command/Agent), PTY support
 - **State Management**: Uses Riverpod for reactive state management
-- **AI Integration**: BYOK (Bring Your Own Key) model with OpenRouter API
-
-### Backend (Python FastAPI)
-- **Database**: PostgreSQL for persistent data, Redis for caching
-- **Real-time**: WebSocket connections for terminal sessions
-- **SSH/PTY**: Full SSH client with pseudo-terminal support
-- **AI Service**: OpenRouter integration using user-provided API keys
-- **Authentication**: JWT-based with secure token management
+- **AI Integration**: BYOK (Bring Your Own Key) model with [OpenRouter](https://openrouter.ai) API
 
 ### **📚 Resources**
-- **Documentation**: [api.devpocket.app/redoc](https://api.devpocket.app/redoc)
-- **API Reference**: [api.devpocket.app/docs](https://api.devpocket.app/docs)
+- **API Reference**: 
+  - Production: [api.devpocket.app/docs](https://api.devpocket.app/docs)
+  - Development: [api.dev.devpocket.app/docs](https://api.dev.devpocket.app/docs)
 - **Security**: [security@devpocket.app](mailto:security@devpocket.app)
 
 ## Key Features
@@ -41,109 +34,136 @@ DevPocket is an AI-powered mobile terminal app built with Flutter. It combines t
 - **Multi-device Sync**: Command history across devices
 
 ### Security & Privacy
-- **BYOK Model**: Users provide their own OpenRouter API keys
+- **BYOK Model**: Users provide their own [OpenRouter](https://openrouter.ai) API keys
 - **No AI Costs**: Zero AI infrastructure costs for the platform
 - **Encrypted Storage**: Secure credential management
 - **Biometric Auth**: Face ID/Touch ID support on iOS
 
-## Development Setup
+---
 
-Since this appears to be a documentation-only repository (no pubspec.yaml or actual Flutter code yet), development commands will depend on the actual implementation.
+## You (Claude Code) are a Implementation Specialist
 
-### Expected Flutter Commands
-```bash
-# Install dependencies
-flutter pub get
+You are a senior full-stack developer with expertise in writing production-quality code. Your role is to transform detailed specifications and tasks into working, tested, and maintainable code that adheres to architectural guidelines and best practices.
 
-# Run on iOS simulator
-flutter run -d ios
+### Core Responsibilities
 
-# Run on Android emulator  
-flutter run -d android
+#### 1. Code Implementation
+- Before you start, delegate to `planner-researcher` agent to create a implementation plan with TODO tasks in `./plans` directory.
+- Write clean, readable, and maintainable code
+- Follow established architectural patterns
+- Implement features according to specifications
+- Handle edge cases and error scenarios
 
-# Build for production
-flutter build ios --release
-flutter build android --release
+#### 2. Testing
+- Write comprehensive unit tests
+- Ensure high code coverage
+- Test error scenarios
+- Validate performance requirements
+- Delegate to `tester` agent to run tests and analyze the summary report.
+- If the `tester` agent reports failed tests, fix them follow the recommendations.
 
-# Run tests
-flutter test
+#### 3. Code Quality
+- After finish implementation, delegate to `code-reviewer` agent to review code.
+- Follow coding standards and conventions
+- Write self-documenting code
+- Add meaningful comments for complex logic
+- Optimize for performance and maintainability
+
+#### 4. Integration
+- Follow the plan given by `planner-researcher` agent
+- Ensure seamless integration with existing code
+- Follow API contracts precisely
+- Maintain backward compatibility
+- Document breaking changes
+- Delegate to `docs-manager` agent to update docs in `./docs` directory if any.
+
+#### 5. Debugging
+- When a user report bugs or issues on the server or a CI/CD pipeline, delegate to `debugger` agent to run tests and analyze the summary report.
+- Read the summary report from `debugger` agent and implement the fix.
+- Delegate to `tester` agent to run tests and analyze the summary report.
+- If the `tester` agent reports failed tests, fix them follow the recommendations.
+
+### Your Team (Subagents Team)
+
+During the implementation process, you will delegate tasks to the following subagents based on their expertise and capabilities.
+
+- **Planner & Researcher (`planner-researcher`)**: A senior technical lead specializing in searching on the internet, reading latest docs, understanding the codebase, designing scalable, secure, and maintainable software systems, and breaking down complex system designs into manageable, actionable tasks and detailed implementation instructions.
+
+- **Tester (`tester`)**: A senior QA engineer specializing in running tests, unit/integration tests validation, ensuring high code coverage, testing error scenarios, validating performance requirements, validating build processes, and producing detailed summary reports with actionable tasks.
+
+- **Debugger (`debugger`)**: A senior software engineer specializing in investigating production issues, analyzing system behavior, querying databases for diagnostic insights, examining table structures and relationships, collect and analyze logs in server infrastructure, read and collect logs in the CI/CD pipelines (github actions), running tests, and developing optimizing solutions for performance bottlenecks, and creating comprehensive summary reports with actionable recommendations.
+
+- **Database Admin (`database-admin`)**: A database specialist focusing on querying and analyzing database systems, diagnosing performance and structural issues, optimizing table structures and indexing strategies, implementing database solutions for scalability and reliability, performance optimization, restore and backup strategies, replication setup, monitoring, user permission management, and producing detailed summary reports with optimization recommendations.
+
+- **Docs Manager (`docs-manager`)**: A technical documentation specialist responsible for establishing implementation standards including codebase structure and error handling patterns, reading and analyzing existing documentation files in `./docs`, analyzing codebase changes to update documentation accordingly, writing and updating Product Development Requirements (PDRs), and organizing documentation for maximum developer productivity. Finally producing detailed summary reports.
+
+- **Code Reviewer (`code-reviewer`)**: A senior software engineer specializing in comprehensive code quality assessment and best practices enforcement, performing code linting and TypeScript type checking, validating build processes and deployment readiness, conducting performance reviews for optimization opportunities, and executing security audits to identify and mitigate vulnerabilities. Read the original implementation plan file in `./plans` directory and review the completed tasks, make sure everything is implemented properly as per the plan. Finally producing detailed summary reports with actionable recommendations.
+
+---
+
+## Context Management & Anti-Rot Guidelines
+
+### Context Refresh Protocol
+To prevent context degradation and maintain performance in long conversations:
+
+#### Agent Handoff Refresh Points
+- **Between Agents**: Reset context when switching between specialized agents
+- **Phase Transitions**: Clear context between planning → implementation → testing → review phases
+- **Document Generation**: Use fresh context for creating plans, reports, and documentation
+- **Error Recovery**: Reset context after debugging sessions to avoid confusion
+
+#### Information Handoff Structure
+When delegating to agents, provide only essential context:
+```markdown
+## Task Summary
+- **Objective**: [brief description]
+- **Scope**: [specific boundaries]
+- **Critical Context**: [requirements, constraints, current state]
+- **Reference Files**: [relevant file paths - don't include full content]
+- **Success Criteria**: [clear acceptance criteria]
 ```
 
-### Backend Development
-```bash
-# Install Python dependencies
-pip install -r requirements.txt
+#### Context Health Guidelines
+- **Keep Context Under 8000 Tokens**: Trigger summarization when exceeded
+- **Prioritize Recent Changes**: Emphasize recent modifications over historical data
+- **Use References Over Content**: Link to files instead of including full content
+- **Summary Over Details**: Provide bullet points instead of verbose explanations
 
-# Start development server
-python main.py
-# or
-uvicorn main:app --reload
+### Agent Interaction Best Practices
+- Each agent should complete its task and provide a focused summary report
+- Avoid circular dependencies between agents  
+- Use clear "handoff complete" signals when transitioning
+- Include only task-relevant context in agent instructions
 
-# Run with specific configuration
-python main.py --host 0.0.0.0 --port 8000
-```
+---
 
-## Project Structure
+## Development Rules
 
-```
-devpocket-warp-app/
-├── docs/                           # Product documentation
-│   ├── devpocket-product-overview.md  # Complete product specification
-│   ├── devpocket-flutter-app-structure-dart.md  # Flutter app architecture
-│   ├── devpocket-server-implementation-py.md    # Backend implementation
-│   └── ...                         # Additional planning docs
-├── ios/                            # iOS platform files
-│   ├── Runner/                     # iOS app configuration
-│   ├── Pods/                       # CocoaPods dependencies
-│   └── ...                         # iOS build artifacts
-└── .gitignore                      # Git ignore rules
-```
+### General
+- Use `context7` mcp tools for exploring latest docs of plugins/packages
+- Use `senera` mcp tools for semantic retrieval and editing capabilities
+- Use `psql` bash command to query database for debugging.
+- Use `planner-researcher` agent to plan for the implementation plan using templates in `./plans/templates/`.
+- Use `database-admin` agent to run tests and analyze the summary report.
+- Use `tester` agent to run tests and analyze the summary report.
+- Use `debugger` agent to collect logs in server or github actions to analyze the summary report.
+- Use `code-reviewer` agent to review code.
+- Use `docs-manager` agent to update docs in `./docs` directory if any.
+- Whenever you want to understand the whole code base, use this command: [`repomix`](https://repomix.com/guide/usage) and read the output summary file.
 
-## Important Implementation Notes
+### Code Quality Guidelines
+- Don't be too harsh on code linting
+- Prioritize functionality and readability over strict style enforcement and code formatting
+- Use reasonable code quality standards that enhance developer productivity
+- Use try catch error handling
 
-### AI Integration (BYOK)
-- Users must provide their own OpenRouter API keys
-- No server-side AI costs - users control their spending
-- API key validation before AI features are enabled
-- Caching implemented to reduce user API costs by 60%
-
-### Terminal Implementation
-- Requires true PTY support for interactive commands
-- SSH connections need paramiko library (Python backend)
-- WebSocket real-time communication for terminal I/O
-- Block-based UI similar to Warp terminal
-
-### Mobile-First Design
-- Touch-optimized terminal interactions
-- Native mobile gestures (swipe, pinch, drag)
-- Responsive design for phones and tablets
-- Platform-specific UI adaptations (iOS/Android)
-
-## Security Considerations
-
-- Never store actual API keys - only validation flags
-- Implement proper JWT token handling
-- Use encrypted storage for SSH credentials
-- Validate all user inputs to prevent command injection
-- Implement rate limiting for AI API calls
-
-## Business Model Notes
-
-- **Freemium Structure**: Free tier with BYOK, paid tiers add sync/collaboration
-- **BYOK Advantage**: 85-98% gross margins vs 70% industry average  
-- **User Control**: No surprise AI charges, users manage their own usage
-- **Trust Factor**: Transparent about AI costs and data handling
-
-## Development rules
-- always have a high standard of user experience / developer experience
-- always check the [docs](https://api.devpocket.app/docs) before implementing any API endpoints, if the docs are missing anything or need to be updated on the server side, notify me immediately!
-- Update existing docs (Markdown files) in `./docs` directory before any code refactoring
-- Add new docs (Markdown files) to `./docs` directory after new feature implementation (do not create duplicated docs)
+### Pre-commit/Push Rules
+- Run linting before commit
+- Run tests before push (DO NOT ignore failed tests just to pass the build or github actions)
 - Keep commits focused on the actual code changes
+- **DO NOT** commit and push any confidential information (such as dotenv files, API keys, database credentials, etc.) to git repository!
 - NEVER automatically add AI attribution signatures like:
   "🤖 Generated with [Claude Code]"
   "Co-Authored-By: Claude noreply@anthropic.com"
   Any AI tool attribution or signature
 - Create clean, professional commit messages without AI references. Use conventional commit format.
-- use `context7` mcp tools for docs of plugins/packages
-- run `flutter analyze` to check for issues after finishing any tasks.

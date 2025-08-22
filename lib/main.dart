@@ -185,8 +185,7 @@ class AppConstants {
   static const String appVersion = '1.0.0';
   static const String appBuildNumber = '1';
   
-  // API Configuration
-  static const String baseUrl = 'https://api.devpocket.app';
+  // API Configuration (moved to ApiConfig)
   static const String openRouterUrl = 'https://openrouter.ai/api/v1';
   
   // Storage Keys

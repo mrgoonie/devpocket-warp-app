@@ -3,8 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import '../models/user_model.dart';
-import '../services/auth_service.dart';
-import '../services/mock_auth_service.dart';
+import '../services/enhanced_auth_service_v2.dart';
 import '../main.dart';
 
 class AuthNotifier extends StateNotifier<AuthState> {
@@ -12,25 +11,21 @@ class AuthNotifier extends StateNotifier<AuthState> {
     _initialize();
   }
 
-  final AuthService _authService;
+  final EnhancedAuthServiceV2 _authService;
 
   Future<void> _initialize() async {
     state = state.copyWith(status: AuthStatus.loading, isLoading: true);
     
     try {
-      // Check if user has valid token
-      final hasValidToken = await _authService.hasValidToken();
-      if (hasValidToken) {
-        // Try to get current user
-        final user = await _authService.getCurrentUser();
-        if (user != null) {
-          state = state.copyWith(
-            status: AuthStatus.authenticated,
-            user: user,
-            isLoading: false,
-          );
-          return;
-        }
+      // Try to get current user (this will validate token internally)
+      final user = await _authService.getCurrentUser();
+      if (user != null) {
+        state = state.copyWith(
+          status: AuthStatus.authenticated,
+          user: user,
+          isLoading: false,
+        );
+        return;
       }
       
       // No valid authentication
@@ -54,7 +49,10 @@ class AuthNotifier extends StateNotifier<AuthState> {
     state = state.copyWith(isLoading: true, error: null);
     
     try {
-      final result = await _authService.login(username, password);
+      final result = await _authService.login(
+        email: username, // In our app, username can be email
+        password: password,
+      );
       
       if (result.success && result.user != null) {
         state = state.copyWith(
@@ -86,7 +84,11 @@ class AuthNotifier extends StateNotifier<AuthState> {
     state = state.copyWith(isLoading: true, error: null);
     
     try {
-      final result = await _authService.register(email, username, password);
+      final result = await _authService.register(
+        email: email,
+        username: username,
+        password: password,
+      );
       
       if (result.success && result.user != null) {
         state = state.copyWith(
@@ -142,21 +144,12 @@ class AuthNotifier extends StateNotifier<AuthState> {
     state = state.copyWith(isLoading: true, error: null);
     
     try {
-      final result = await _authService.signInWithGitHub();
-      
-      if (result.success && result.user != null) {
-        state = state.copyWith(
-          status: AuthStatus.authenticated,
-          user: result.user,
-          isLoading: false,
-        );
-      } else {
-        state = state.copyWith(
-          status: AuthStatus.unauthenticated,
-          error: result.error ?? 'GitHub sign-in failed',
-          isLoading: false,
-        );
-      }
+      // TODO: Implement GitHub sign-in in the auth service
+      state = state.copyWith(
+        status: AuthStatus.error,
+        error: 'GitHub sign-in not implemented yet',
+        isLoading: false,
+      );
     } catch (e) {
       state = state.copyWith(
         status: AuthStatus.error,
@@ -236,7 +229,10 @@ class AuthNotifier extends StateNotifier<AuthState> {
 
   Future<bool> resetPassword(String token, String newPassword) async {
     try {
-      return await _authService.resetPassword(token, newPassword);
+      return await _authService.resetPassword(
+        token: token,
+        newPassword: newPassword,
+      );
     } catch (e) {
       state = state.copyWith(error: e.toString());
       return false;
@@ -249,18 +245,9 @@ class AuthNotifier extends StateNotifier<AuthState> {
 }
 
 // Providers
-final authServiceProvider = Provider<AuthService>((ref) {
-  // Use mock service for testing UI
-  // Set this to false to use real API
-  const bool useMockService = true;
-  
-  if (useMockService) {
-    debugPrint('🎭 Using MockAuthService for testing');
-    return MockAuthService();
-  } else {
-    debugPrint('🌐 Using real AuthService');
-    return AuthService();
-  }
+final authServiceProvider = Provider<EnhancedAuthServiceV2>((ref) {
+  debugPrint('🌐 Using EnhancedAuthServiceV2');
+  return EnhancedAuthServiceV2.instance;
 });
 
 final authProvider = StateNotifierProvider<AuthNotifier, AuthState>((ref) {

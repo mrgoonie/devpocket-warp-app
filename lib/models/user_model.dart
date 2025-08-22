@@ -2,6 +2,7 @@ class User {
   final String id;
   final String username;
   final String email;
+  final bool emailVerified;
   final String? avatarUrl;
   final DateTime createdAt;
   final DateTime updatedAt;
@@ -28,6 +29,7 @@ class User {
     required this.id,
     required this.username,
     required this.email,
+    this.emailVerified = false,
     this.avatarUrl,
     required this.createdAt,
     required this.updatedAt,
@@ -49,6 +51,7 @@ class User {
     String? id,
     String? username,
     String? email,
+    bool? emailVerified,
     String? avatarUrl,
     DateTime? createdAt,
     DateTime? updatedAt,
@@ -69,6 +72,7 @@ class User {
       id: id ?? this.id,
       username: username ?? this.username,
       email: email ?? this.email,
+      emailVerified: emailVerified ?? this.emailVerified,
       avatarUrl: avatarUrl ?? this.avatarUrl,
       createdAt: createdAt ?? this.createdAt,
       updatedAt: updatedAt ?? this.updatedAt,
@@ -92,9 +96,10 @@ class User {
       id: json['id'],
       username: json['username'],
       email: json['email'],
+      emailVerified: json['emailVerified'] ?? false,
       avatarUrl: json['avatar_url'],
-      createdAt: DateTime.parse(json['created_at']),
-      updatedAt: DateTime.parse(json['updated_at']),
+      createdAt: DateTime.parse(json['createdAt']),
+      updatedAt: DateTime.parse(json['updatedAt'] ?? json['createdAt']),
       subscriptionTier: json['subscription_tier'] ?? 'free',
       isInTrial: json['is_in_trial'] ?? false,
       trialEndsAt: json['trial_ends_at'] != null 
@@ -119,9 +124,10 @@ class User {
       'id': id,
       'username': username,
       'email': email,
+      'emailVerified': emailVerified,
       'avatar_url': avatarUrl,
-      'created_at': createdAt.toIso8601String(),
-      'updated_at': updatedAt.toIso8601String(),
+      'createdAt': createdAt.toIso8601String(),
+      'updatedAt': updatedAt.toIso8601String(),
       'subscription_tier': subscriptionTier,
       'is_in_trial': isInTrial,
       'trial_ends_at': trialEndsAt?.toIso8601String(),
