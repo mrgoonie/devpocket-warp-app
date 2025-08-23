@@ -6,9 +6,21 @@ import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'screens/auth/splash_screen.dart';
 import 'themes/app_theme.dart';
 import 'providers/theme_provider.dart';
+import 'services/secure_storage_service.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
+  
+  // Initialize secure storage service first
+  try {
+    debugPrint('Initializing SecureStorageService...');
+    await SecureStorageService.instance.initialize();
+    debugPrint('✅ SecureStorageService initialized successfully');
+  } catch (e) {
+    debugPrint('❌ SecureStorageService initialization failed: $e');
+    // Continue with app startup even if secure storage fails
+    // This allows the app to run with basic storage fallback
+  }
   
   // Set system UI overlay style
   SystemChrome.setSystemUIOverlayStyle(

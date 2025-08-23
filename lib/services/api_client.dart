@@ -1,11 +1,11 @@
 import 'dart:io';
 import 'package:dio/dio.dart';
 import 'package:flutter/foundation.dart';
-import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 
 import '../config/api_config.dart';
 import '../models/api_response.dart';
 import '../main.dart';
+import 'secure_storage_service.dart';
 
 /// Enhanced API client with authentication, retry logic, and error handling
 class ApiClient {
@@ -13,7 +13,7 @@ class ApiClient {
   static ApiClient get instance => _instance ??= ApiClient._();
   
   late final Dio _dio;
-  final FlutterSecureStorage _secureStorage = AppConstants.secureStorage;
+  final SecureStorageService _secureStorage = SecureStorageService.instance;
   
   ApiClient._() {
     _dio = Dio(_baseOptions);
@@ -95,15 +95,16 @@ class ApiClient {
   }
   
   Future<void> _addAuthHeader(RequestOptions options) async {
-    final token = await _secureStorage.read(key: AppConstants.accessTokenKey);
-    if (token != null) {
-      options.headers['Authorization'] = 'Bearer $token';
+    final tokens = await _secureStorage.getAuthTokens();
+    if (tokens?['accessToken'] != null) {
+      options.headers['Authorization'] = 'Bearer ${tokens!['accessToken']}';
     }
   }
   
   Future<bool> _handleTokenRefresh() async {
     try {
-      final refreshToken = await _secureStorage.read(key: AppConstants.refreshTokenKey);
+      final tokens = await _secureStorage.getAuthTokens();
+      final refreshToken = tokens?['refreshToken'];
       if (refreshToken == null) return false;
       
       final response = await _dio.post(
@@ -118,14 +119,12 @@ class ApiClient {
         final data = response.data;
         final newAccessToken = data['data']['accessToken'];
         final newRefreshToken = data['data']['refreshToken'];
+        final userId = tokens?['userId'] ?? '';
         
-        await _secureStorage.write(
-          key: AppConstants.accessTokenKey,
-          value: newAccessToken,
-        );
-        await _secureStorage.write(
-          key: AppConstants.refreshTokenKey,
-          value: newRefreshToken,
+        await _secureStorage.storeAuthTokens(
+          accessToken: newAccessToken,
+          refreshToken: newRefreshToken,
+          userId: userId,
         );
         
         return true;
@@ -140,9 +139,12 @@ class ApiClient {
   }
   
   Future<void> _clearTokens() async {
-    await _secureStorage.delete(key: AppConstants.accessTokenKey);
-    await _secureStorage.delete(key: AppConstants.refreshTokenKey);
-    await _secureStorage.delete(key: AppConstants.userIdKey);
+    await _secureStorage.clearAuthTokens();
+  }
+  
+  /// Clear authentication tokens (public method)
+  Future<void> clearTokens() async {
+    await _clearTokens();
   }
   
   // GET request
@@ -355,15 +357,12 @@ class ApiClient {
   }
   
   /// Store authentication tokens securely
-  Future<void> storeTokens(String accessToken, String refreshToken) async {
+  Future<void> storeTokens(String accessToken, String refreshToken, {String? userId}) async {
     try {
-      await _secureStorage.write(
-        key: AppConstants.accessTokenKey,
-        value: accessToken,
-      );
-      await _secureStorage.write(
-        key: AppConstants.refreshTokenKey,
-        value: refreshToken,
+      await _secureStorage.storeAuthTokens(
+        accessToken: accessToken,
+        refreshToken: refreshToken,
+        userId: userId ?? '',
       );
       debugPrint('🔐 Tokens stored successfully');
     } catch (e) {

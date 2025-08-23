@@ -33,11 +33,27 @@ class EnhancedAuthServiceV2 {
         return response.data;
       }
       
+      // If authentication failed, clear any invalid tokens
+      if (response.errorMessage?.contains('Authentication failed') == true ||
+          response.errorMessage?.contains('AUTH_FAILED') == true) {
+        debugPrint('Authentication failed, clearing tokens...');
+        await _clearInvalidTokens();
+      }
+      
       debugPrint('Get current user failed: ${response.errorMessage}');
       return null;
     } catch (e) {
       debugPrint('Error getting current user: $e');
       return null;
+    }
+  }
+  
+  /// Clear invalid tokens when authentication fails
+  Future<void> _clearInvalidTokens() async {
+    try {
+      await _apiClient.clearTokens();
+    } catch (e) {
+      debugPrint('Error clearing invalid tokens: $e');
     }
   }
   
@@ -66,7 +82,7 @@ class EnhancedAuthServiceV2 {
         final refreshToken = data['refreshToken'] as String?;
         
         if (accessToken != null && refreshToken != null) {
-          await _apiClient.storeTokens(accessToken, refreshToken);
+          await _apiClient.storeTokens(accessToken, refreshToken, userId: user.id);
         }
         
         return AuthResult.success(
@@ -110,7 +126,7 @@ class EnhancedAuthServiceV2 {
         final refreshToken = data['refreshToken'] as String?;
         
         if (accessToken != null && refreshToken != null) {
-          await _apiClient.storeTokens(accessToken, refreshToken);
+          await _apiClient.storeTokens(accessToken, refreshToken, userId: user.id);
         }
         
         return AuthResult.success(

@@ -113,13 +113,15 @@ class SshProfile {
       host: json['host'],
       port: json['port'] ?? 22,
       username: json['username'],
-      authType: SshAuthType.fromString(json['authType'] ?? 'password'),
+      authType: SshAuthType.fromString(json['auth_type'] ?? json['authType'] ?? 'password'),
       password: json['password'],
-      privateKey: json['privateKey'],
+      privateKey: json['private_key'] ?? json['privateKey'],
       passphrase: json['passphrase'],
-      createdAt: DateTime.parse(json['createdAt']),
-      updatedAt: DateTime.parse(json['updatedAt']),
-      lastConnectedAt: json['lastConnectedAt'] != null
+      createdAt: DateTime.parse(json['created_at'] ?? json['createdAt']),
+      updatedAt: DateTime.parse(json['updated_at'] ?? json['updatedAt']),
+      lastConnectedAt: json['last_connected_at'] != null
+          ? DateTime.parse(json['last_connected_at'])
+          : json['lastConnectedAt'] != null
           ? DateTime.parse(json['lastConnectedAt'])
           : null,
       status: SshProfileStatus.values.firstWhere(
@@ -129,7 +131,7 @@ class SshProfile {
       description: json['description'],
       tags: List<String>.from(json['tags'] ?? []),
       color: json['color'],
-      isDefault: json['isDefault'] ?? false,
+      isDefault: json['is_default'] ?? json['isDefault'] ?? false,
     );
   }
   
@@ -140,18 +142,18 @@ class SshProfile {
       'host': host,
       'port': port,
       'username': username,
-      'authType': authType.value,
+      'auth_type': authType.value,
       if (password != null) 'password': password,
-      if (privateKey != null) 'privateKey': privateKey,
+      if (privateKey != null) 'private_key': privateKey,
       if (passphrase != null) 'passphrase': passphrase,
-      'createdAt': createdAt.toIso8601String(),
-      'updatedAt': updatedAt.toIso8601String(),
-      if (lastConnectedAt != null) 'lastConnectedAt': lastConnectedAt!.toIso8601String(),
+      'created_at': createdAt.toIso8601String(),
+      'updated_at': updatedAt.toIso8601String(),
+      if (lastConnectedAt != null) 'last_connected_at': lastConnectedAt!.toIso8601String(),
       'status': status.name,
       if (description != null) 'description': description,
       'tags': tags,
       if (color != null) 'color': color,
-      'isDefault': isDefault,
+      'is_default': isDefault,
     };
   }
   
@@ -162,9 +164,9 @@ class SshProfile {
       'host': host,
       'port': port,
       'username': username,
-      'authType': authType.value,
+      'auth_type': authType.value,
       if (password != null) 'password': password,
-      if (privateKey != null) 'privateKey': privateKey,
+      if (privateKey != null) 'private_key': privateKey,
       if (passphrase != null) 'passphrase': passphrase,
       if (description != null) 'description': description,
     };
@@ -215,7 +217,9 @@ class SshConnectionTestResult {
     return SshConnectionTestResult(
       success: json['success'] ?? false,
       error: json['error'],
-      responseTime: json['responseTime'] != null 
+      responseTime: json['response_time'] != null 
+          ? Duration(milliseconds: json['response_time'])
+          : json['responseTime'] != null 
           ? Duration(milliseconds: json['responseTime'])
           : null,
       timestamp: DateTime.parse(json['timestamp']),
@@ -227,7 +231,7 @@ class SshConnectionTestResult {
     return {
       'success': success,
       if (error != null) 'error': error,
-      if (responseTime != null) 'responseTime': responseTime!.inMilliseconds,
+      if (responseTime != null) 'response_time': responseTime!.inMilliseconds,
       'timestamp': timestamp.toIso8601String(),
       if (message != null) 'message': message,
     };
@@ -257,20 +261,20 @@ class SshKeyValidationResult {
   
   factory SshKeyValidationResult.fromJson(Map<String, dynamic> json) {
     return SshKeyValidationResult(
-      isValid: json['isValid'] ?? false,
+      isValid: json['is_valid'] ?? json['isValid'] ?? false,
       error: json['error'],
-      keyType: json['keyType'],
-      keySize: json['keySize'],
+      keyType: json['key_type'] ?? json['keyType'],
+      keySize: json['key_size'] ?? json['keySize'],
       fingerprint: json['fingerprint'],
     );
   }
   
   Map<String, dynamic> toJson() {
     return {
-      'isValid': isValid,
+      'is_valid': isValid,
       if (error != null) 'error': error,
-      if (keyType != null) 'keyType': keyType,
-      if (keySize != null) 'keySize': keySize,
+      if (keyType != null) 'key_type': keyType,
+      if (keySize != null) 'key_size': keySize,
       if (fingerprint != null) 'fingerprint': fingerprint,
     };
   }
@@ -305,11 +309,11 @@ class TerminalSession {
     return TerminalSession(
       id: json['id'],
       type: json['type'],
-      sshProfileId: json['sshProfileId'],
+      sshProfileId: json['ssh_profile_id'] ?? json['sshProfileId'],
       shell: json['shell'],
       status: json['status'],
-      createdAt: DateTime.parse(json['createdAt']),
-      lastActivity: DateTime.parse(json['lastActivity']),
+      createdAt: DateTime.parse(json['created_at'] ?? json['createdAt']),
+      lastActivity: DateTime.parse(json['last_activity'] ?? json['lastActivity']),
     );
   }
   
@@ -317,11 +321,11 @@ class TerminalSession {
     return {
       'id': id,
       'type': type,
-      if (sshProfileId != null) 'sshProfileId': sshProfileId,
+      if (sshProfileId != null) 'ssh_profile_id': sshProfileId,
       if (shell != null) 'shell': shell,
       'status': status,
-      'createdAt': createdAt.toIso8601String(),
-      'lastActivity': lastActivity.toIso8601String(),
+      'created_at': createdAt.toIso8601String(),
+      'last_activity': lastActivity.toIso8601String(),
     };
   }
   
@@ -350,7 +354,7 @@ class CreateTerminalSessionRequest {
   Map<String, dynamic> toJson() {
     return {
       'type': type,
-      if (sshProfileId != null) 'sshProfileId': sshProfileId,
+      if (sshProfileId != null) 'ssh_profile_id': sshProfileId,
       if (shell != null) 'shell': shell,
     };
   }
@@ -390,23 +394,23 @@ class TerminalStats {
   
   factory TerminalStats.fromJson(Map<String, dynamic> json) {
     return TerminalStats(
-      totalSessions: json['totalSessions'] ?? 0,
-      activeSessions: json['activeSessions'] ?? 0,
-      totalCommands: json['totalCommands'] ?? 0,
-      totalUsageTime: Duration(milliseconds: json['totalUsageTime'] ?? 0),
-      topCommands: List<String>.from(json['topCommands'] ?? []),
-      sessionsByType: Map<String, int>.from(json['sessionsByType'] ?? {}),
+      totalSessions: json['total_sessions'] ?? json['totalSessions'] ?? 0,
+      activeSessions: json['active_sessions'] ?? json['activeSessions'] ?? 0,
+      totalCommands: json['total_commands'] ?? json['totalCommands'] ?? 0,
+      totalUsageTime: Duration(milliseconds: json['total_usage_time'] ?? json['totalUsageTime'] ?? 0),
+      topCommands: List<String>.from(json['top_commands'] ?? json['topCommands'] ?? []),
+      sessionsByType: Map<String, int>.from(json['sessions_by_type'] ?? json['sessionsByType'] ?? {}),
     );
   }
   
   Map<String, dynamic> toJson() {
     return {
-      'totalSessions': totalSessions,
-      'activeSessions': activeSessions,
-      'totalCommands': totalCommands,
-      'totalUsageTime': totalUsageTime.inMilliseconds,
-      'topCommands': topCommands,
-      'sessionsByType': sessionsByType,
+      'total_sessions': totalSessions,
+      'active_sessions': activeSessions,
+      'total_commands': totalCommands,
+      'total_usage_time': totalUsageTime.inMilliseconds,
+      'top_commands': topCommands,
+      'sessions_by_type': sessionsByType,
     };
   }
   

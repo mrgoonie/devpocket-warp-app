@@ -126,7 +126,7 @@ The SSH profile system supports multiple authentication methods:
   "host": "server.example.com",
   "port": 22,
   "username": "user",
-  "authType": "password",
+  "auth_type": "PASSWORD",
   "password": "encrypted_password"
 }
 ```
@@ -138,8 +138,8 @@ The SSH profile system supports multiple authentication methods:
   "host": "server.example.com",
   "port": 22,
   "username": "user",
-  "authType": "key",
-  "privateKey": "-----BEGIN OPENSSH PRIVATE KEY-----\n..."
+  "auth_type": "SSH_KEY",
+  "private_key": "-----BEGIN OPENSSH PRIVATE KEY-----\n..."
 }
 ```
 
@@ -150,8 +150,8 @@ The SSH profile system supports multiple authentication methods:
   "host": "server.example.com",
   "port": 22,
   "username": "user",
-  "authType": "keyWithPassphrase",
-  "privateKey": "-----BEGIN OPENSSH PRIVATE KEY-----\n...",
+  "auth_type": "SSH_KEY_WITH_PASSPHRASE",
+  "private_key": "-----BEGIN OPENSSH PRIVATE KEY-----\n...,
   "passphrase": "encrypted_passphrase"
 }
 ```
@@ -192,8 +192,8 @@ Both session types return a session object with:
 - `id`: Unique session identifier
 - `type`: Session type ("local" or "ssh")
 - `status`: Current session status
-- `createdAt`: Session creation timestamp
-- `lastActivity`: Last activity timestamp
+- `created_at`: Session creation timestamp
+- `last_activity`: Last activity timestamp
 
 ### Subscription & Payments
 
@@ -382,14 +382,26 @@ Real-time terminal communication uses WebSocket connections:
 
 ```json
 {
-  "isActive": true,
-  "tier": "PRO",
-  "expiresAt": "2024-12-31T23:59:59Z",
-  "limits": {
-    "sshConnections": -1,
-    "aiRequests": -1,
-    "cloudHistory": true,
-    "multiDevice": true
+  "has_active_subscription": true,
+  "subscription": {
+    "id": "sub-uuid-here",
+    "plan_type": "PRO",
+    "status": "ACTIVE",
+    "started_at": "2024-01-01T00:00:00Z",
+    "expires_at": "2024-12-31T23:59:59Z",
+    "limits": {
+      "ssh_connections": -1,
+      "ai_requests": -1,
+      "cloud_history": true,
+      "multi_device": true,
+      "team_features": false,
+      "priority_support": true
+    },
+    "usage": {
+      "ssh_connections": 5,
+      "ai_requests": 150,
+      "reset_date": "2024-02-01T00:00:00Z"
+    }
   }
 }
 ```
@@ -421,11 +433,12 @@ curl -X POST https://api.dev.devpocket.app/api/v1/auth/register \
       "id": "uuid-here",
       "email": "user@example.com",
       "username": "testuser",
-      "emailVerified": false,
-      "createdAt": "2024-01-15T10:30:00Z"
+      "email_verified": false,
+      "created_at": "2024-01-15T10:30:00Z"
     },
-    "accessToken": "jwt-token-here",
-    "refreshToken": "refresh-token-here"
+    "access_token": "jwt-token-here",
+    "refresh_token": "refresh-token-here",
+    "expires_in": 86400
   }
 }
 ```
@@ -443,7 +456,7 @@ curl -X POST https://api.dev.devpocket.app/api/v1/ssh/profiles \
     "port": 22,
     "username": "admin",
     "authType": "key",
-    "privateKey": "-----BEGIN OPENSSH PRIVATE KEY-----\nYOUR_PRIVATE_KEY_HERE\n-----END OPENSSH PRIVATE KEY-----"
+    "private_key": "-----BEGIN OPENSSH PRIVATE KEY-----\nYOUR_PRIVATE_KEY_HERE\n-----END OPENSSH PRIVATE KEY-----"
   }'
 ```
 
@@ -458,8 +471,8 @@ curl -X POST https://api.dev.devpocket.app/api/v1/ssh/profiles \
     "host": "prod.example.com",
     "port": 22,
     "username": "admin",
-    "authType": "key",
-    "createdAt": "2024-01-15T10:30:00Z"
+    "auth_type": "SSH_KEY",
+    "created_at": "2024-01-15T10:30:00Z"
   }
 }
 ```
@@ -497,8 +510,8 @@ curl -X POST https://api.dev.devpocket.app/api/v1/terminal/sessions \
     "id": "session-uuid",
     "type": "ssh",
     "status": "active",
-    "createdAt": "2024-01-15T10:30:00Z",
-    "lastActivity": "2024-01-15T10:30:00Z"
+    "created_at": "2024-01-15T10:30:00Z",
+    "last_activity": "2024-01-15T10:30:00Z"
   }
 }
 ```

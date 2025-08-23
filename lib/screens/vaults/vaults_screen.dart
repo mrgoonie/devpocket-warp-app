@@ -4,10 +4,17 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../themes/app_theme.dart';
 import '../../main.dart';
 import '../../models/ssh_models.dart';
+import '../../models/ssh_profile_models.dart';
 import '../../providers/ssh_providers.dart';
+import '../../providers/ssh_host_providers.dart';
+import '../../providers/ssh_key_providers.dart';
 import '../../widgets/host_card.dart';
 import '../../widgets/add_host_sheet.dart';
 import '../../widgets/ssh_key_card.dart';
+import 'hosts_list_screen.dart';
+import 'host_edit_screen.dart';
+import '../ssh_keys/ssh_keys_screen.dart';
+import '../ssh_keys/ssh_key_create_screen.dart';
 
 class VaultsScreen extends ConsumerStatefulWidget {
   const VaultsScreen({super.key});
@@ -33,11 +40,11 @@ class _VaultsScreenState extends ConsumerState<VaultsScreen>
   }
 
   void _showAddHostDialog() {
-    showModalBottomSheet(
-      context: context,
-      isScrollControlled: true,
-      backgroundColor: Colors.transparent,
-      builder: (context) => const AddHostSheet(),
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (context) => const HostEditScreen(),
+      ),
     );
   }
 
@@ -83,7 +90,7 @@ class _VaultsScreenState extends ConsumerState<VaultsScreen>
   Widget _buildHostsTab() {
     return Consumer(
       builder: (context, ref, child) {
-        final hostsAsync = ref.watch(hostsProvider);
+        final hostsAsync = ref.watch(sshHostsProvider);
         
         return hostsAsync.when(
           data: (hosts) {
@@ -93,23 +100,97 @@ class _VaultsScreenState extends ConsumerState<VaultsScreen>
             
             return RefreshIndicator(
               onRefresh: () async {
-                ref.invalidate(hostsProvider);
+                await ref.read(sshHostsProvider.notifier).refresh();
               },
-              child: ListView.builder(
-                padding: const EdgeInsets.all(16),
-                itemCount: hosts.length,
-                itemBuilder: (context, index) {
-                  final host = hosts[index];
-                  return Padding(
-                    padding: const EdgeInsets.only(bottom: 12),
-                    child: HostCard(
-                      host: host,
-                      onTap: () => _connectToHost(host),
-                      onEdit: () => _editHost(host),
-                      onDelete: () => _deleteHost(host),
+              child: Column(
+                children: [
+                  // Quick stats header
+                  Container(
+                    margin: const EdgeInsets.all(16),
+                    padding: const EdgeInsets.all(16),
+                    decoration: BoxDecoration(
+                      color: AppTheme.darkSurface,
+                      borderRadius: BorderRadius.circular(12),
+                      border: Border.all(color: AppTheme.darkBorderColor),
                     ),
-                  );
-                },
+                    child: Row(
+                      children: [
+                        Expanded(
+                          child: _buildQuickStat(
+                            'Total',
+                            hosts.length.toString(),
+                            Icons.computer,
+                            AppTheme.primaryColor,
+                          ),
+                        ),
+                        Container(width: 1, height: 40, color: AppTheme.darkBorderColor),
+                        Expanded(
+                          child: _buildQuickStat(
+                            'Online',
+                            hosts.where((h) => h.status == SshProfileStatus.active).length.toString(),
+                            Icons.circle,
+                            AppTheme.terminalGreen,
+                          ),
+                        ),
+                        Container(width: 1, height: 40, color: AppTheme.darkBorderColor),
+                        Expanded(
+                          child: TextButton(
+                            onPressed: () => Navigator.push(
+                              context,
+                              MaterialPageRoute(builder: (context) => const HostsListScreen()),
+                            ),
+                            child: const Row(
+                              mainAxisAlignment: MainAxisAlignment.center,
+                              children: [
+                                Icon(Icons.arrow_forward, color: AppTheme.primaryColor, size: 16),
+                                SizedBox(width: 4),
+                                Text(
+                                  'View All',
+                                  style: TextStyle(color: AppTheme.primaryColor, fontSize: 12),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  // Recent hosts list
+                  Expanded(
+                    child: ListView.builder(
+                      padding: const EdgeInsets.symmetric(horizontal: 16),
+                      itemCount: (hosts.length > 3 ? 3 : hosts.length) + (hosts.length > 3 ? 1 : 0),
+                      itemBuilder: (context, index) {
+                        if (hosts.length > 3 && index == 3) {
+                          return Padding(
+                            padding: const EdgeInsets.only(bottom: 12),
+                            child: Card(
+                              color: AppTheme.darkSurface,
+                              child: ListTile(
+                                leading: const Icon(Icons.more_horiz, color: AppTheme.primaryColor),
+                                title: Text(
+                                  'View ${hosts.length - 3} more hosts',
+                                  style: const TextStyle(color: AppTheme.primaryColor),
+                                ),
+                                trailing: const Icon(Icons.arrow_forward, color: AppTheme.primaryColor),
+                                onTap: () => Navigator.push(
+                                  context,
+                                  MaterialPageRoute(builder: (context) => const HostsListScreen()),
+                                ),
+                              ),
+                            ),
+                          );
+                        }
+                        
+                        final host = hosts[index];
+                        return Padding(
+                          padding: const EdgeInsets.only(bottom: 12),
+                          child: _buildHostProfileCard(host),
+                        );
+                      },
+                    ),
+                  ),
+                ],
               ),
             );
           },
@@ -121,7 +202,7 @@ class _VaultsScreenState extends ConsumerState<VaultsScreen>
           error: (error, stackTrace) => _buildErrorState(
             'Failed to load hosts',
             error.toString(),
-            () => ref.invalidate(hostsProvider),
+            () => ref.read(sshHostsProvider.notifier).refresh(),
           ),
         );
       },
@@ -132,6 +213,7 @@ class _VaultsScreenState extends ConsumerState<VaultsScreen>
     return Consumer(
       builder: (context, ref, child) {
         final keysAsync = ref.watch(sshKeysProvider);
+        final statsAsync = ref.watch(sshKeyStatsProvider);
         
         return keysAsync.when(
           data: (keys) {
@@ -141,22 +223,101 @@ class _VaultsScreenState extends ConsumerState<VaultsScreen>
             
             return RefreshIndicator(
               onRefresh: () async {
-                ref.invalidate(sshKeysProvider);
+                await ref.read(sshKeysProvider.notifier).refreshKeys();
               },
-              child: ListView.builder(
-                padding: const EdgeInsets.all(16),
-                itemCount: keys.length,
-                itemBuilder: (context, index) {
-                  final key = keys[index];
-                  return Padding(
-                    padding: const EdgeInsets.only(bottom: 12),
-                    child: SSHKeyCard(
-                      sshKey: key,
-                      onEdit: () => _editKey(key),
-                      onDelete: () => _deleteKey(key),
+              child: Column(
+                children: [
+                  // Quick stats header for keys
+                  Container(
+                    margin: const EdgeInsets.all(16),
+                    padding: const EdgeInsets.all(16),
+                    decoration: BoxDecoration(
+                      color: AppTheme.darkSurface,
+                      borderRadius: BorderRadius.circular(12),
+                      border: Border.all(color: AppTheme.darkBorderColor),
                     ),
-                  );
-                },
+                    child: statsAsync.when(
+                      data: (stats) => Row(
+                        children: [
+                          Expanded(
+                            child: _buildQuickStat(
+                              'Total',
+                              (stats['totalKeys'] ?? 0).toString(),
+                              Icons.key,
+                              AppTheme.primaryColor,
+                            ),
+                          ),
+                          Container(width: 1, height: 40, color: AppTheme.darkBorderColor),
+                          Expanded(
+                            child: _buildQuickStat(
+                              'Recent',
+                              (stats['recentlyUsed'] ?? 0).toString(),
+                              Icons.schedule,
+                              AppTheme.terminalGreen,
+                            ),
+                          ),
+                          Container(width: 1, height: 40, color: AppTheme.darkBorderColor),
+                          Expanded(
+                            child: TextButton(
+                              onPressed: () => Navigator.push(
+                                context,
+                                MaterialPageRoute(builder: (context) => const SshKeysScreen()),
+                              ),
+                              child: const Row(
+                                mainAxisAlignment: MainAxisAlignment.center,
+                                children: [
+                                  Icon(Icons.arrow_forward, color: AppTheme.primaryColor, size: 16),
+                                  SizedBox(width: 4),
+                                  Text(
+                                    'View All',
+                                    style: TextStyle(color: AppTheme.primaryColor, fontSize: 12),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                      loading: () => const SizedBox(height: 72),
+                      error: (_, __) => const SizedBox(height: 72),
+                    ),
+                  ),
+                  // Recent keys list
+                  Expanded(
+                    child: ListView.builder(
+                      padding: const EdgeInsets.symmetric(horizontal: 16),
+                      itemCount: (keys.length > 3 ? 3 : keys.length) + (keys.length > 3 ? 1 : 0),
+                      itemBuilder: (context, index) {
+                        if (keys.length > 3 && index == 3) {
+                          return Padding(
+                            padding: const EdgeInsets.only(bottom: 12),
+                            child: Card(
+                              color: AppTheme.darkSurface,
+                              child: ListTile(
+                                leading: const Icon(Icons.more_horiz, color: AppTheme.primaryColor),
+                                title: Text(
+                                  'View ${keys.length - 3} more keys',
+                                  style: const TextStyle(color: AppTheme.primaryColor),
+                                ),
+                                trailing: const Icon(Icons.arrow_forward, color: AppTheme.primaryColor),
+                                onTap: () => Navigator.push(
+                                  context,
+                                  MaterialPageRoute(builder: (context) => const SshKeysScreen()),
+                                ),
+                              ),
+                            ),
+                          );
+                        }
+                        
+                        final key = keys[index];
+                        return Padding(
+                          padding: const EdgeInsets.only(bottom: 12),
+                          child: _buildKeyRecordCard(key),
+                        );
+                      },
+                    ),
+                  ),
+                ],
               ),
             );
           },
@@ -168,7 +329,7 @@ class _VaultsScreenState extends ConsumerState<VaultsScreen>
           error: (error, stackTrace) => _buildErrorState(
             'Failed to load SSH keys',
             error.toString(),
-            () => ref.invalidate(sshKeysProvider),
+            () => ref.read(sshKeysProvider.notifier).refreshKeys(),
           ),
         );
       },
@@ -311,7 +472,10 @@ class _VaultsScreenState extends ConsumerState<VaultsScreen>
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
                 OutlinedButton.icon(
-                  onPressed: () => _showImportKeyDialog(),
+                  onPressed: () => Navigator.push(
+                    context,
+                    MaterialPageRoute(builder: (context) => const SshKeysScreen()),
+                  ),
                   icon: const Icon(Icons.upload_file),
                   label: const Text('Import Key'),
                   style: OutlinedButton.styleFrom(
@@ -320,7 +484,10 @@ class _VaultsScreenState extends ConsumerState<VaultsScreen>
                 ),
                 const SizedBox(width: 16),
                 ElevatedButton.icon(
-                  onPressed: () => _showGenerateKeyDialog(),
+                  onPressed: () => Navigator.push(
+                    context,
+                    MaterialPageRoute(builder: (context) => const SshKeyCreateScreen()),
+                  ),
                   icon: const Icon(Icons.key),
                   label: const Text('Generate Key'),
                   style: ElevatedButton.styleFrom(
@@ -510,6 +677,321 @@ class _VaultsScreenState extends ConsumerState<VaultsScreen>
     }
   }
 
+  Widget _buildQuickStat(String label, String value, IconData icon, Color color) {
+    return Column(
+      children: [
+        Row(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(icon, color: color, size: 16),
+            const SizedBox(width: 4),
+            Text(
+              value,
+              style: const TextStyle(
+                color: AppTheme.darkTextPrimary,
+                fontSize: 18,
+                fontWeight: FontWeight.bold,
+              ),
+            ),
+          ],
+        ),
+        const SizedBox(height: 4),
+        Text(
+          label,
+          style: const TextStyle(
+            color: AppTheme.darkTextSecondary,
+            fontSize: 12,
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildHostProfileCard(SshProfile host) {
+    return Card(
+      color: AppTheme.darkSurface,
+      elevation: 2,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(12),
+        side: const BorderSide(color: AppTheme.darkBorderColor),
+      ),
+      child: InkWell(
+        borderRadius: BorderRadius.circular(12),
+        onTap: () => _connectToSshProfile(host),
+        child: Padding(
+          padding: const EdgeInsets.all(16),
+          child: Row(
+            children: [
+              _buildSshProfileStatusIndicator(host.status),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      host.name,
+                      style: const TextStyle(
+                        color: AppTheme.darkTextPrimary,
+                        fontSize: 16,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                    const SizedBox(height: 2),
+                    Text(
+                      host.connectionString,
+                      style: const TextStyle(
+                        color: AppTheme.darkTextSecondary,
+                        fontSize: 14,
+                      ),
+                    ),
+                    if (host.lastConnectedAt != null)
+                      Text(
+                        'Last: ${_formatTimestamp(host.lastConnectedAt!)}',
+                        style: const TextStyle(
+                          color: AppTheme.darkTextSecondary,
+                          fontSize: 12,
+                        ),
+                      ),
+                  ],
+                ),
+              ),
+              IconButton(
+                icon: const Icon(Icons.more_vert, color: AppTheme.darkTextSecondary),
+                onPressed: () => _showSshProfileMenu(host),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildSshProfileStatusIndicator(SshProfileStatus status) {
+    Color color;
+    IconData icon;
+
+    switch (status) {
+      case SshProfileStatus.active:
+        color = AppTheme.terminalGreen;
+        icon = Icons.circle;
+        break;
+      case SshProfileStatus.testing:
+        color = AppTheme.terminalYellow;
+        icon = Icons.hourglass_empty;
+        break;
+      case SshProfileStatus.failed:
+        color = AppTheme.terminalRed;
+        icon = Icons.error;
+        break;
+      case SshProfileStatus.disabled:
+        color = AppTheme.darkTextSecondary;
+        icon = Icons.pause_circle;
+        break;
+      default:
+        color = AppTheme.darkTextSecondary;
+        icon = Icons.circle_outlined;
+    }
+
+    return Container(
+      width: 32,
+      height: 32,
+      decoration: BoxDecoration(
+        color: color.withValues(alpha: 0.1),
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: color.withValues(alpha: 0.3)),
+      ),
+      child: Icon(icon, color: color, size: 16),
+    );
+  }
+
+  void _showSshProfileMenu(SshProfile host) {
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: AppTheme.darkSurface,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
+      builder: (context) => SafeArea(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            ListTile(
+              leading: const Icon(Icons.terminal, color: AppTheme.primaryColor),
+              title: const Text('Connect', style: TextStyle(color: AppTheme.darkTextPrimary)),
+              onTap: () {
+                Navigator.pop(context);
+                _connectToSshProfile(host);
+              },
+            ),
+            ListTile(
+              leading: const Icon(Icons.edit, color: AppTheme.terminalYellow),
+              title: const Text('Edit', style: TextStyle(color: AppTheme.darkTextPrimary)),
+              onTap: () {
+                Navigator.pop(context);
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(builder: (context) => HostEditScreen(host: host)),
+                );
+              },
+            ),
+            ListTile(
+              leading: const Icon(Icons.wifi_find, color: AppTheme.terminalBlue),
+              title: const Text('Test Connection', style: TextStyle(color: AppTheme.darkTextPrimary)),
+              onTap: () {
+                Navigator.pop(context);
+                _testSshConnection(host);
+              },
+            ),
+            ListTile(
+              leading: const Icon(Icons.delete, color: AppTheme.terminalRed),
+              title: const Text('Delete', style: TextStyle(color: AppTheme.darkTextPrimary)),
+              onTap: () {
+                Navigator.pop(context);
+                _deleteSshProfile(host);
+              },
+            ),
+            const SizedBox(height: 8),
+          ],
+        ),
+      ),
+    );
+  }
+
+  void _connectToSshProfile(SshProfile host) {
+    // Navigate to terminal with SSH profile connection
+    Navigator.pushNamed(context, '/terminal', arguments: host);
+  }
+
+  Future<void> _testSshConnection(SshProfile host) async {
+    // Show loading dialog
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (context) => const AlertDialog(
+        backgroundColor: AppTheme.darkSurface,
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            CircularProgressIndicator(color: AppTheme.primaryColor),
+            SizedBox(height: 16),
+            Text(
+              'Testing connection...',
+              style: TextStyle(color: AppTheme.darkTextPrimary),
+            ),
+          ],
+        ),
+      ),
+    );
+
+    try {
+      final result = await ref.read(sshHostsProvider.notifier).testConnection(host);
+      Navigator.pop(context); // Close loading dialog
+
+      // Show result dialog
+      showDialog(
+        context: context,
+        builder: (context) => AlertDialog(
+          backgroundColor: AppTheme.darkSurface,
+          title: Text(
+            result.success ? 'Connection Successful' : 'Connection Failed',
+            style: TextStyle(
+              color: result.success ? AppTheme.terminalGreen : AppTheme.terminalRed,
+            ),
+          ),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              if (result.responseTime != null)
+                Text(
+                  'Response time: ${result.responseTime!.inMilliseconds}ms',
+                  style: const TextStyle(color: AppTheme.darkTextSecondary),
+                ),
+              if (result.message != null)
+                Text(
+                  result.message!,
+                  style: const TextStyle(color: AppTheme.darkTextPrimary),
+                ),
+              if (result.error != null)
+                Text(
+                  result.error!,
+                  style: const TextStyle(color: AppTheme.terminalRed),
+                ),
+            ],
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(context),
+              child: const Text(
+                'OK',
+                style: TextStyle(color: AppTheme.primaryColor),
+              ),
+            ),
+          ],
+        ),
+      );
+    } catch (e) {
+      Navigator.pop(context); // Close loading dialog
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Test failed: $e'),
+          backgroundColor: AppTheme.terminalRed,
+        ),
+      );
+    }
+  }
+
+  void _deleteSshProfile(SshProfile host) {
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        backgroundColor: AppTheme.darkSurface,
+        title: const Text(
+          'Delete SSH Host',
+          style: TextStyle(color: AppTheme.darkTextPrimary),
+        ),
+        content: Text(
+          'Are you sure you want to delete "${host.name}"?\n\nThis action cannot be undone.',
+          style: const TextStyle(color: AppTheme.darkTextSecondary),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text(
+              'Cancel',
+              style: TextStyle(color: AppTheme.darkTextSecondary),
+            ),
+          ),
+          ElevatedButton(
+            onPressed: () async {
+              Navigator.pop(context);
+              final success = await ref.read(sshHostsProvider.notifier).deleteHost(host.id);
+              if (success) {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(
+                    content: Text('Host deleted successfully'),
+                    backgroundColor: AppTheme.terminalGreen,
+                  ),
+                );
+              } else {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(
+                    content: Text('Failed to delete host'),
+                    backgroundColor: AppTheme.terminalRed,
+                  ),
+                );
+              }
+            },
+            style: ElevatedButton.styleFrom(
+              backgroundColor: AppTheme.terminalRed,
+            ),
+            child: const Text('Delete'),
+          ),
+        ],
+      ),
+    );
+  }
+
   void _connectToHost(Host host) {
     // Navigate to terminal with host connection
     Navigator.pushNamed(context, '/terminal', arguments: host);
@@ -551,49 +1033,125 @@ class _VaultsScreenState extends ConsumerState<VaultsScreen>
     );
   }
 
-  void _editKey(SSHKey key) {
-    // TODO: Implement edit key functionality
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text('Edit key functionality coming soon')),
-    );
-  }
-
-  void _deleteKey(SSHKey key) {
-    showDialog(
-      context: context,
-      builder: (context) => AlertDialog(
-        backgroundColor: AppTheme.darkSurface,
-        title: const Text('Delete SSH Key'),
-        content: Text('Are you sure you want to delete "${key.name}"?'),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: const Text('Cancel'),
+  Widget _buildKeyRecordCard(SshKeyRecord key) {
+    return Card(
+      color: AppTheme.darkSurface,
+      elevation: 2,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(12),
+        side: const BorderSide(color: AppTheme.darkBorderColor),
+      ),
+      child: InkWell(
+        borderRadius: BorderRadius.circular(12),
+        onTap: () => Navigator.push(
+          context,
+          MaterialPageRoute(builder: (context) => const SshKeysScreen()),
+        ),
+        child: Padding(
+          padding: const EdgeInsets.all(16),
+          child: Row(
+            children: [
+              Container(
+                width: 40,
+                height: 40,
+                decoration: BoxDecoration(
+                  color: _getKeyTypeColor(key.keyType).withValues(alpha: 0.1),
+                  borderRadius: BorderRadius.circular(12),
+                  border: Border.all(
+                    color: _getKeyTypeColor(key.keyType).withValues(alpha: 0.3),
+                    width: 1,
+                  ),
+                ),
+                child: Icon(
+                  _getKeyTypeIcon(key.keyType),
+                  color: _getKeyTypeColor(key.keyType),
+                  size: 20,
+                ),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      key.name,
+                      style: const TextStyle(
+                        color: AppTheme.darkTextPrimary,
+                        fontSize: 16,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                    const SizedBox(height: 2),
+                    Row(
+                      children: [
+                        Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                          decoration: BoxDecoration(
+                            color: _getKeyTypeColor(key.keyType).withValues(alpha: 0.1),
+                            borderRadius: BorderRadius.circular(4),
+                          ),
+                          child: Text(
+                            key.keyType.displayName,
+                            style: TextStyle(
+                              color: _getKeyTypeColor(key.keyType),
+                              fontSize: 10,
+                              fontWeight: FontWeight.w500,
+                            ),
+                          ),
+                        ),
+                        const SizedBox(width: 6),
+                        if (key.hasPassphrase)
+                          Icon(
+                            Icons.lock,
+                            size: 12,
+                            color: AppTheme.darkTextSecondary,
+                          ),
+                      ],
+                    ),
+                    if (key.lastUsed != null)
+                      Text(
+                        'Used: ${_formatTimestamp(key.lastUsed!)}',
+                        style: const TextStyle(
+                          color: AppTheme.darkTextSecondary,
+                          fontSize: 12,
+                        ),
+                      ),
+                  ],
+                ),
+              ),
+              const Icon(Icons.arrow_forward_ios, color: AppTheme.darkTextSecondary, size: 16),
+            ],
           ),
-          ElevatedButton(
-            onPressed: () {
-              ref.read(sshKeysProvider.notifier).deleteKey(key.id);
-              Navigator.pop(context);
-            },
-            style: ElevatedButton.styleFrom(
-              backgroundColor: AppTheme.terminalRed,
-            ),
-            child: const Text('Delete'),
-          ),
-        ],
+        ),
       ),
     );
   }
 
-  void _showImportKeyDialog() {
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text('Import SSH key functionality coming soon')),
-    );
+  Color _getKeyTypeColor(SshKeyType keyType) {
+    switch (keyType) {
+      case SshKeyType.rsa2048:
+      case SshKeyType.rsa4096:
+        return Colors.blue;
+      case SshKeyType.ed25519:
+        return Colors.green;
+      case SshKeyType.ecdsa256:
+      case SshKeyType.ecdsa384:
+      case SshKeyType.ecdsa521:
+        return Colors.orange;
+    }
   }
 
-  void _showGenerateKeyDialog() {
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text('Generate SSH key functionality coming soon')),
-    );
+  IconData _getKeyTypeIcon(SshKeyType keyType) {
+    switch (keyType) {
+      case SshKeyType.rsa2048:
+      case SshKeyType.rsa4096:
+        return Icons.security;
+      case SshKeyType.ed25519:
+        return Icons.verified_user;
+      case SshKeyType.ecdsa256:
+      case SshKeyType.ecdsa384:
+      case SshKeyType.ecdsa521:
+        return Icons.shield;
+    }
   }
 }

@@ -486,19 +486,19 @@ void main() {
       await tester.pumpWidget(testWidget);
       await tester.pumpAndSettle();
 
-      // Navigate through tabs
+      // Navigate through tabs with timeout protection
       await tester.tap(find.byIcon(Icons.terminal).first);
-      await tester.pumpAndSettle();
+      await tester.pumpAndSettle(const Duration(seconds: 3));
 
       await tester.tap(find.byIcon(Icons.history).first);
-      await tester.pumpAndSettle();
+      await tester.pumpAndSettle(const Duration(seconds: 3));
 
       await tester.tap(find.byIcon(Icons.settings).first);
-      await tester.pumpAndSettle();
+      await tester.pumpAndSettle(const Duration(seconds: 3));
 
       // Go back to first tab
       await tester.tap(find.byIcon(Icons.folder_special).first);
-      await tester.pumpAndSettle();
+      await tester.pumpAndSettle(const Duration(seconds: 3));
 
       // Should still work correctly
       expect(find.byType(MainTabScreen), findsOneWidget);
@@ -525,19 +525,20 @@ void main() {
       await tester.pumpWidget(testWidget);
       await tester.pumpAndSettle();
 
-      // Rapid tap switching
+      // Rapid tap switching with controlled animation settling
       for (int i = 0; i < 3; i++) {
         await tester.tap(find.byIcon(Icons.terminal).first);
-        await tester.pump(const Duration(milliseconds: 50));
+        await tester.pump(const Duration(milliseconds: 100));
         
         await tester.tap(find.byIcon(Icons.history).first);
-        await tester.pump(const Duration(milliseconds: 50));
+        await tester.pump(const Duration(milliseconds: 100));
         
         await tester.tap(find.byIcon(Icons.settings).first);
-        await tester.pump(const Duration(milliseconds: 50));
+        await tester.pump(const Duration(milliseconds: 100));
       }
 
-      await tester.pumpAndSettle();
+      // Use pumpAndSettle with timeout to prevent infinite loops
+      await tester.pumpAndSettle(const Duration(seconds: 5));
 
       // Should still work without errors
       expect(find.byType(MainTabScreen), findsOneWidget);

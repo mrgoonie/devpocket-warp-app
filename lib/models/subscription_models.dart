@@ -31,9 +31,11 @@ class SubscriptionStatus {
   
   factory SubscriptionStatus.fromJson(Map<String, dynamic> json) {
     return SubscriptionStatus(
-      isActive: json['isActive'] ?? false,
+      isActive: json['is_active'] ?? json['isActive'] ?? false,
       tier: SubscriptionTier.fromString(json['tier'] ?? 'FREE'),
-      expiresAt: json['expiresAt'] != null 
+      expiresAt: json['expires_at'] != null 
+          ? DateTime.parse(json['expires_at'])
+          : json['expiresAt'] != null 
           ? DateTime.parse(json['expiresAt'])
           : null,
       limits: SubscriptionLimits.fromJson(json['limits'] ?? {}),
@@ -42,9 +44,9 @@ class SubscriptionStatus {
   
   Map<String, dynamic> toJson() {
     return {
-      'isActive': isActive,
+      'is_active': isActive,
       'tier': tier.value,
-      'expiresAt': expiresAt?.toIso8601String(),
+      'expires_at': expiresAt?.toIso8601String(),
       'limits': limits.toJson(),
     };
   }
@@ -76,19 +78,19 @@ class SubscriptionLimits {
   
   factory SubscriptionLimits.fromJson(Map<String, dynamic> json) {
     return SubscriptionLimits(
-      sshConnections: json['sshConnections'] ?? 0,
-      aiRequests: json['aiRequests'] ?? 0,
-      cloudHistory: json['cloudHistory'] ?? false,
-      multiDevice: json['multiDevice'] ?? false,
+      sshConnections: json['ssh_connections'] ?? json['sshConnections'] ?? 0,
+      aiRequests: json['ai_requests'] ?? json['aiRequests'] ?? 0,
+      cloudHistory: json['cloud_history'] ?? json['cloudHistory'] ?? false,
+      multiDevice: json['multi_device'] ?? json['multiDevice'] ?? false,
     );
   }
   
   Map<String, dynamic> toJson() {
     return {
-      'sshConnections': sshConnections,
-      'aiRequests': aiRequests,
-      'cloudHistory': cloudHistory,
-      'multiDevice': multiDevice,
+      'ssh_connections': sshConnections,
+      'ai_requests': aiRequests,
+      'cloud_history': cloudHistory,
+      'multi_device': multiDevice,
     };
   }
   
@@ -194,9 +196,9 @@ class PaymentHistoryEntry {
       amount: (json['amount'] as num).toDouble(),
       currency: json['currency'] ?? 'USD',
       status: json['status'],
-      createdAt: DateTime.parse(json['createdAt']),
+      createdAt: DateTime.parse(json['created_at'] ?? json['createdAt']),
       description: json['description'],
-      invoiceUrl: json['invoiceUrl'],
+      invoiceUrl: json['invoice_url'] ?? json['invoiceUrl'],
     );
   }
   
@@ -206,9 +208,9 @@ class PaymentHistoryEntry {
       'amount': amount,
       'currency': currency,
       'status': status,
-      'createdAt': createdAt.toIso8601String(),
+      'created_at': createdAt.toIso8601String(),
       'description': description,
-      'invoiceUrl': invoiceUrl,
+      'invoice_url': invoiceUrl,
     };
   }
   
@@ -242,7 +244,9 @@ class FeatureUsage {
       feature: json['feature'],
       used: json['used'] ?? 0,
       limit: json['limit'] ?? 0,
-      resetDate: json['resetDate'] != null 
+      resetDate: json['reset_date'] != null 
+          ? DateTime.parse(json['reset_date'])
+          : json['resetDate'] != null 
           ? DateTime.parse(json['resetDate'])
           : null,
     );
@@ -253,7 +257,7 @@ class FeatureUsage {
       'feature': feature,
       'used': used,
       'limit': limit,
-      'resetDate': resetDate?.toIso8601String(),
+      'reset_date': resetDate?.toIso8601String(),
     };
   }
   

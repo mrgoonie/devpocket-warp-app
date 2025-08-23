@@ -124,10 +124,10 @@ class User {
       'id': id,
       'username': username,
       'email': email,
-      'emailVerified': emailVerified,
+      'email_verified': emailVerified,
       'avatar_url': avatarUrl,
-      'createdAt': createdAt.toIso8601String(),
-      'updatedAt': updatedAt.toIso8601String(),
+      'created_at': createdAt.toIso8601String(),
+      'updated_at': updatedAt.toIso8601String(),
       'subscription_tier': subscriptionTier,
       'is_in_trial': isInTrial,
       'trial_ends_at': trialEndsAt?.toIso8601String(),
@@ -242,5 +242,77 @@ class AuthState {
   @override
   String toString() {
     return 'AuthState{status: $status, user: $user, error: $error, isLoading: $isLoading}';
+  }
+}
+
+/// Authentication response model for login/register/refresh endpoints
+class AuthResponse {
+  final User user;
+  final String accessToken;
+  final String refreshToken;
+  final int expiresIn;
+  
+  const AuthResponse({
+    required this.user,
+    required this.accessToken,
+    required this.refreshToken,
+    required this.expiresIn,
+  });
+  
+  factory AuthResponse.fromJson(Map<String, dynamic> json) {
+    return AuthResponse(
+      user: User.fromJson(json['user']),
+      accessToken: json['access_token'] ?? json['accessToken'],
+      refreshToken: json['refresh_token'] ?? json['refreshToken'],
+      expiresIn: json['expires_in'] ?? json['expiresIn'],
+    );
+  }
+  
+  Map<String, dynamic> toJson() {
+    return {
+      'user': user.toJson(),
+      'access_token': accessToken,
+      'refresh_token': refreshToken,
+      'expires_in': expiresIn,
+    };
+  }
+  
+  @override
+  String toString() {
+    return 'AuthResponse{user: ${user.username}, accessToken: ${accessToken.substring(0, 20)}..., expiresIn: $expiresIn}';
+  }
+}
+
+/// Token refresh response model
+class TokenRefreshResponse {
+  final String accessToken;
+  final String refreshToken;
+  final int expiresIn;
+  
+  const TokenRefreshResponse({
+    required this.accessToken,
+    required this.refreshToken,
+    required this.expiresIn,
+  });
+  
+  factory TokenRefreshResponse.fromJson(Map<String, dynamic> json) {
+    return TokenRefreshResponse(
+      accessToken: json['access_token'] ?? json['accessToken'],
+      refreshToken: json['refresh_token'] ?? json['refreshToken'],
+      expiresIn: json['expires_in'] ?? json['expiresIn'],
+    );
+  }
+  
+  Map<String, dynamic> toJson() {
+    return {
+      'access_token': accessToken,
+      'refresh_token': refreshToken,
+      'expires_in': expiresIn,
+    };
+  }
+  
+  @override
+  String toString() {
+    return 'TokenRefreshResponse{accessToken: ${accessToken.substring(0, 20)}..., expiresIn: $expiresIn}';
   }
 }

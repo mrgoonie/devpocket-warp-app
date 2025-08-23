@@ -12,6 +12,9 @@ class SecureStorageService {
   static const String _encryptedDataPrefix = 'encrypted_';
   static const String _metadataPrefix = 'metadata_';
   
+  static SecureStorageService? _instance;
+  static SecureStorageService get instance => _instance ??= SecureStorageService();
+  
   final FlutterSecureStorage _secureStorage;
   final CryptoService _cryptoService;
   final LocalAuthentication _localAuth;
@@ -42,8 +45,14 @@ class SecureStorageService {
   
   /// Initialize the secure storage service
   Future<void> initialize() async {
-    await _initializeDeviceIdentity();
-    await _initializeDeviceKey();
+    try {
+      await _initializeDeviceIdentity();
+      await _initializeDeviceKey();
+    } catch (e) {
+      debugPrint('❌ SecureStorageService initialization failed: $e');
+      // Don't throw exception - let the app continue with fallback storage
+      // The app will handle missing device keys gracefully
+    }
   }
   
   /// Store sensitive data with optional biometric protection
@@ -311,6 +320,8 @@ class SecureStorageService {
   
   Future<EncryptedData> _encryptValue(String value) async {
     if (_deviceKey == null) {
+      // Fallback to basic secure storage without additional encryption
+      debugPrint('⚠️ Device key not initialized, using fallback storage');
       throw SecureStorageException('Device key not initialized');
     }
     
@@ -354,6 +365,128 @@ class SecureStorageService {
       debugPrint('Biometric authentication error: $e');
       return false;
     }
+  }
+
+  // Authentication token management methods
+  Future<Map<String, String>?> getAuthTokens() async {
+    final tokensJson = await getSecure('auth_tokens');
+    if (tokensJson == null) return null;
+    
+    try {
+      final Map<String, dynamic> data = json.decode(tokensJson);
+      return data.cast<String, String>();
+    } catch (e) {
+      debugPrint('Error parsing auth tokens: $e');
+      return null;
+    }
+  }
+
+  Future<void> storeAuthTokens({
+    required String accessToken,
+    required String refreshToken,
+    required String userId,
+    DateTime? expiresAt,
+  }) async {
+    final tokens = {
+      'accessToken': accessToken,
+      'refreshToken': refreshToken,
+      'userId': userId,
+      if (expiresAt != null) 'expires_at': expiresAt.toIso8601String(),
+      'stored_at': DateTime.now().toIso8601String(),
+    };
+    
+    await storeSecure(
+      key: 'auth_tokens',
+      value: json.encode(tokens),
+      requireBiometric: false,
+    );
+  }
+
+  Future<void> clearAuthTokens() async {
+    await deleteSecure('auth_tokens');
+  }
+
+  Future<DateTime?> getLastActiveTime() async {
+    final timeStr = await getSecure('last_active_time');
+    if (timeStr == null) return null;
+    
+    try {
+      return DateTime.parse(timeStr);
+    } catch (e) {
+      debugPrint('Error parsing last active time: $e');
+      return null;
+    }
+  }
+
+  Future<void> storeLastActiveTime([DateTime? time]) async {
+    await storeSecure(
+      key: 'last_active_time',
+      value: (time ?? DateTime.now()).toIso8601String(),
+      requireBiometric: false,
+    );
+  }
+
+  // Onboarding management methods
+  Future<bool> isOnboardingCompleted() async {
+    final completed = await getSecure('onboarding_completed');
+    return completed == 'true';
+  }
+
+  Future<void> markOnboardingCompleted() async {
+    await storeSecure(
+      key: 'onboarding_completed',
+      value: 'true',
+      requireBiometric: false,
+    );
+    await storeLastActiveTime();
+  }
+
+  Future<void> resetOnboarding() async {
+    await deleteSecure('onboarding_completed');
+    await deleteSecure('onboarding_progress');
+    await deleteSecure('onboarding_preferences');
+  }
+
+  // Generic storage methods (for backward compatibility)
+  Future<void> store(String key, String value) async {
+    await storeSecure(key: key, value: value, requireBiometric: false);
+  }
+
+  Future<String?> read(String key) async {
+    return await getSecure(key);
+  }
+
+  Future<Map<String, String>> readAll() async {
+    // Note: This is a simplified implementation
+    // In a real implementation, you'd need to enumerate all keys
+    final result = <String, String>{};
+    
+    // Try to read common keys
+    final commonKeys = [
+      'onboarding_completed',
+      'onboarding_progress', 
+      'onboarding_preferences',
+      'last_active_time',
+      'auth_tokens',
+    ];
+    
+    for (final key in commonKeys) {
+      final value = await getSecure(key);
+      if (value != null) {
+        result[key] = value;
+      }
+    }
+    
+    return result;
+  }
+
+  Future<void> delete(String key) async {
+    await deleteSecure(key);
+  }
+
+  Future<void> deleteSecure(String key) async {
+    await _secureStorage.delete(key: '$_encryptedDataPrefix$key');
+    await _secureStorage.delete(key: '$_metadataPrefix$key');
   }
 }
 

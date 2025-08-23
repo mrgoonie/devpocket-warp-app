@@ -7,6 +7,8 @@ import '../../main.dart';
 import '../../models/ai_models.dart';
 import '../../providers/ai_provider.dart';
 import '../../screens/settings/api_key_screen.dart';
+import '../../models/ssh_profile_models.dart';
+import 'enhanced_terminal_screen.dart';
 
 // Terminal Block Model for tracking command execution
 @immutable
@@ -212,11 +214,11 @@ Current directory: ${_currentContext.currentDirectory}
           ),
         ),
         
-        // Connection button
+        // SSH Terminal button
         TextButton.icon(
-          onPressed: _showConnectionDialog,
-          icon: const Icon(Icons.lan, size: 16),
-          label: const Text('Connect', style: TextStyle(fontSize: 12)),
+          onPressed: _openSshTerminal,
+          icon: const Icon(Icons.terminal, size: 16),
+          label: const Text('SSH', style: TextStyle(fontSize: 12)),
           style: TextButton.styleFrom(
             foregroundColor: AppTheme.primaryColor,
             padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
@@ -994,17 +996,33 @@ mysql-pod-5678           1/1     Running   0          1h''';
     });
   }
 
+  void _openSshTerminal() {
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (context) => const EnhancedTerminalScreen(),
+      ),
+    );
+  }
+
   void _showConnectionDialog() {
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
         backgroundColor: AppTheme.darkSurface,
-        title: const Text('Quick Connect'),
-        content: const Text('SSH connection feature coming soon!\n\nFor now, the terminal simulates a local environment for demonstration.'),
+        title: const Text('SSH Terminal'),
+        content: const Text('Click the SSH button to open the enhanced SSH terminal with real connections to your hosts.'),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context),
             child: const Text('Got it'),
+          ),
+          TextButton(
+            onPressed: () {
+              Navigator.pop(context);
+              _openSshTerminal();
+            },
+            child: const Text('Open SSH Terminal'),
           ),
         ],
       ),

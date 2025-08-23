@@ -1,5 +1,54 @@
 import 'package:uuid/uuid.dart';
 
+/// SSH Key types supported for generation
+enum SshKeyType {
+  rsa2048('rsa', 2048),
+  rsa4096('rsa', 4096),
+  ed25519('ed25519', 256),
+  ecdsa256('ecdsa', 256),
+  ecdsa384('ecdsa', 384),
+  ecdsa521('ecdsa', 521);
+
+  const SshKeyType(this.algorithm, this.keySize);
+  
+  final String algorithm;
+  final int keySize;
+  
+  String get displayName {
+    switch (this) {
+      case SshKeyType.rsa2048:
+        return 'RSA 2048-bit';
+      case SshKeyType.rsa4096:
+        return 'RSA 4096-bit (Recommended)';
+      case SshKeyType.ed25519:
+        return 'Ed25519 (Most Secure)';
+      case SshKeyType.ecdsa256:
+        return 'ECDSA P-256';
+      case SshKeyType.ecdsa384:
+        return 'ECDSA P-384';
+      case SshKeyType.ecdsa521:
+        return 'ECDSA P-521';
+    }
+  }
+  
+  String get description {
+    switch (this) {
+      case SshKeyType.rsa2048:
+        return 'Standard RSA key, widely compatible';
+      case SshKeyType.rsa4096:
+        return 'High security RSA key, recommended for most use cases';
+      case SshKeyType.ed25519:
+        return 'Modern, fastest and most secure option';
+      case SshKeyType.ecdsa256:
+        return 'Elliptic curve key, good performance';
+      case SshKeyType.ecdsa384:
+        return 'Higher security elliptic curve key';
+      case SshKeyType.ecdsa521:
+        return 'Highest security elliptic curve key';
+    }
+  }
+}
+
 enum HostStatus {
   unknown,
   online,
@@ -494,5 +543,157 @@ class ConnectionLogFactory {
       commandCount: commandCount,
       lastCommand: lastCommand,
     );
+  }
+}
+
+/// SSH Key Record for storage
+class SshKeyRecord {
+  final String id;
+  final String name;
+  final SshKeyType keyType;
+  final String publicKey;
+  final String fingerprint;
+  final DateTime createdAt;
+  final DateTime? lastUsed;
+  final bool hasPassphrase;
+  final Map<String, dynamic> metadata;
+
+  const SshKeyRecord({
+    required this.id,
+    required this.name,
+    required this.keyType,
+    required this.publicKey,
+    required this.fingerprint,
+    required this.createdAt,
+    this.lastUsed,
+    required this.hasPassphrase,
+    this.metadata = const {},
+  });
+
+  SshKeyRecord copyWith({
+    String? id,
+    String? name,
+    SshKeyType? keyType,
+    String? publicKey,
+    String? fingerprint,
+    DateTime? createdAt,
+    DateTime? lastUsed,
+    bool? hasPassphrase,
+    Map<String, dynamic>? metadata,
+  }) {
+    return SshKeyRecord(
+      id: id ?? this.id,
+      name: name ?? this.name,
+      keyType: keyType ?? this.keyType,
+      publicKey: publicKey ?? this.publicKey,
+      fingerprint: fingerprint ?? this.fingerprint,
+      createdAt: createdAt ?? this.createdAt,
+      lastUsed: lastUsed ?? this.lastUsed,
+      hasPassphrase: hasPassphrase ?? this.hasPassphrase,
+      metadata: metadata ?? this.metadata,
+    );
+  }
+
+  factory SshKeyRecord.fromJson(Map<String, dynamic> json) {
+    return SshKeyRecord(
+      id: json['id'],
+      name: json['name'],
+      keyType: SshKeyType.values.firstWhere(
+        (e) => e.name == json['keyType'],
+        orElse: () => SshKeyType.rsa4096,
+      ),
+      publicKey: json['publicKey'],
+      fingerprint: json['fingerprint'],
+      createdAt: DateTime.parse(json['createdAt']),
+      lastUsed: json['lastUsed'] != null ? DateTime.parse(json['lastUsed']) : null,
+      hasPassphrase: json['hasPassphrase'] ?? false,
+      metadata: Map<String, dynamic>.from(json['metadata'] ?? {}),
+    );
+  }
+
+  Map<String, dynamic> toJson() {
+    return {
+      'id': id,
+      'name': name,
+      'keyType': keyType.name,
+      'publicKey': publicKey,
+      'fingerprint': fingerprint,
+      'createdAt': createdAt.toIso8601String(),
+      'lastUsed': lastUsed?.toIso8601String(),
+      'hasPassphrase': hasPassphrase,
+      'metadata': metadata,
+    };
+  }
+
+  @override
+  bool operator ==(Object other) {
+    if (identical(this, other)) return true;
+    return other is SshKeyRecord && other.id == id;
+  }
+
+  @override
+  int get hashCode => id.hashCode;
+
+  @override
+  String toString() {
+    return 'SshKeyRecord{id: $id, name: $name, keyType: ${keyType.displayName}}';
+  }
+}
+
+/// SSH Key Pair (record + private key)
+class SshKeyPair {
+  final SshKeyRecord record;
+  final String privateKey;
+
+  const SshKeyPair({
+    required this.record,
+    required this.privateKey,
+  });
+
+  @override
+  String toString() {
+    return 'SshKeyPair{record: ${record.toString()}}';
+  }
+}
+
+/// SSH Key event types
+enum SshKeyEventType {
+  generating,
+  created,
+  importing,
+  imported,
+  updated,
+  deleted,
+  exported,
+  copied,
+  cleanup,
+  error,
+}
+
+/// SSH Key event model
+class SshKeyEvent {
+  final SshKeyEventType type;
+  final String? keyId;
+  final String? name;
+  final SshKeyType? keyType;
+  final String? fingerprint;
+  final String? message;
+  final String? error;
+  final DateTime timestamp;
+
+  const SshKeyEvent({
+    required this.type,
+    this.keyId,
+    this.name,
+    this.keyType,
+    this.fingerprint,
+    this.message,
+    this.error,
+    required this.timestamp,
+  });
+
+  @override
+  String toString() {
+    return 'SshKeyEvent{type: $type, keyId: $keyId, name: $name, message: $message}';
   }
 }

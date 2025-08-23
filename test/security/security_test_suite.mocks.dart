@@ -550,6 +550,150 @@ class MockSecureStorageService extends _i1.Mock
         returnValue:
             _i7.Future<List<_i10.BiometricType>>.value(<_i10.BiometricType>[]),
       ) as _i7.Future<List<_i10.BiometricType>>);
+
+  @override
+  _i7.Future<Map<String, String>?> getAuthTokens() => (super.noSuchMethod(
+        Invocation.method(
+          #getAuthTokens,
+          [],
+        ),
+        returnValue: _i7.Future<Map<String, String>?>.value(),
+      ) as _i7.Future<Map<String, String>?>);
+
+  @override
+  _i7.Future<void> storeAuthTokens({
+    required String? accessToken,
+    required String? refreshToken,
+    required String? userId,
+    DateTime? expiresAt,
+  }) =>
+      (super.noSuchMethod(
+        Invocation.method(
+          #storeAuthTokens,
+          [],
+          {
+            #accessToken: accessToken,
+            #refreshToken: refreshToken,
+            #userId: userId,
+            #expiresAt: expiresAt,
+          },
+        ),
+        returnValue: _i7.Future<void>.value(),
+        returnValueForMissingStub: _i7.Future<void>.value(),
+      ) as _i7.Future<void>);
+
+  @override
+  _i7.Future<void> clearAuthTokens() => (super.noSuchMethod(
+        Invocation.method(
+          #clearAuthTokens,
+          [],
+        ),
+        returnValue: _i7.Future<void>.value(),
+        returnValueForMissingStub: _i7.Future<void>.value(),
+      ) as _i7.Future<void>);
+
+  @override
+  _i7.Future<DateTime?> getLastActiveTime() => (super.noSuchMethod(
+        Invocation.method(
+          #getLastActiveTime,
+          [],
+        ),
+        returnValue: _i7.Future<DateTime?>.value(),
+      ) as _i7.Future<DateTime?>);
+
+  @override
+  _i7.Future<void> storeLastActiveTime([DateTime? time]) => (super.noSuchMethod(
+        Invocation.method(
+          #storeLastActiveTime,
+          [time],
+        ),
+        returnValue: _i7.Future<void>.value(),
+        returnValueForMissingStub: _i7.Future<void>.value(),
+      ) as _i7.Future<void>);
+
+  @override
+  _i7.Future<bool> isOnboardingCompleted() => (super.noSuchMethod(
+        Invocation.method(
+          #isOnboardingCompleted,
+          [],
+        ),
+        returnValue: _i7.Future<bool>.value(false),
+      ) as _i7.Future<bool>);
+
+  @override
+  _i7.Future<void> markOnboardingCompleted() => (super.noSuchMethod(
+        Invocation.method(
+          #markOnboardingCompleted,
+          [],
+        ),
+        returnValue: _i7.Future<void>.value(),
+        returnValueForMissingStub: _i7.Future<void>.value(),
+      ) as _i7.Future<void>);
+
+  @override
+  _i7.Future<void> resetOnboarding() => (super.noSuchMethod(
+        Invocation.method(
+          #resetOnboarding,
+          [],
+        ),
+        returnValue: _i7.Future<void>.value(),
+        returnValueForMissingStub: _i7.Future<void>.value(),
+      ) as _i7.Future<void>);
+
+  @override
+  _i7.Future<void> store(
+    String? key,
+    String? value,
+  ) =>
+      (super.noSuchMethod(
+        Invocation.method(
+          #store,
+          [
+            key,
+            value,
+          ],
+        ),
+        returnValue: _i7.Future<void>.value(),
+        returnValueForMissingStub: _i7.Future<void>.value(),
+      ) as _i7.Future<void>);
+
+  @override
+  _i7.Future<String?> read(String? key) => (super.noSuchMethod(
+        Invocation.method(
+          #read,
+          [key],
+        ),
+        returnValue: _i7.Future<String?>.value(),
+      ) as _i7.Future<String?>);
+
+  @override
+  _i7.Future<Map<String, String>> readAll() => (super.noSuchMethod(
+        Invocation.method(
+          #readAll,
+          [],
+        ),
+        returnValue: _i7.Future<Map<String, String>>.value(<String, String>{}),
+      ) as _i7.Future<Map<String, String>>);
+
+  @override
+  _i7.Future<void> delete(String? key) => (super.noSuchMethod(
+        Invocation.method(
+          #delete,
+          [key],
+        ),
+        returnValue: _i7.Future<void>.value(),
+        returnValueForMissingStub: _i7.Future<void>.value(),
+      ) as _i7.Future<void>);
+
+  @override
+  _i7.Future<void> deleteSecure(String? key) => (super.noSuchMethod(
+        Invocation.method(
+          #deleteSecure,
+          [key],
+        ),
+        returnValue: _i7.Future<void>.value(),
+        returnValueForMissingStub: _i7.Future<void>.value(),
+      ) as _i7.Future<void>);
 }
 
 /// A class which mocks [SecureSSHService].

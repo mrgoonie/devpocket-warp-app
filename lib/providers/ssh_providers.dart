@@ -167,7 +167,7 @@ final hostsProvider = StateNotifierProvider<HostsNotifier, AsyncValue<List<Host>
   return HostsNotifier();
 });
 
-final sshKeysProvider = StateNotifierProvider<SSHKeysNotifier, AsyncValue<List<SSHKey>>>((ref) {
+final legacySshKeysProvider = StateNotifierProvider<SSHKeysNotifier, AsyncValue<List<SSHKey>>>((ref) {
   return SSHKeysNotifier();
 });
 
