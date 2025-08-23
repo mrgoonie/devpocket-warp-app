@@ -353,6 +353,24 @@ class ApiClient {
       errors: errors,
     );
   }
+  
+  /// Store authentication tokens securely
+  Future<void> storeTokens(String accessToken, String refreshToken) async {
+    try {
+      await _secureStorage.write(
+        key: AppConstants.accessTokenKey,
+        value: accessToken,
+      );
+      await _secureStorage.write(
+        key: AppConstants.refreshTokenKey,
+        value: refreshToken,
+      );
+      debugPrint('🔐 Tokens stored successfully');
+    } catch (e) {
+      debugPrint('❌ Failed to store tokens: $e');
+      throw Exception('Failed to store authentication tokens');
+    }
+  }
 }
 
 /// Retry interceptor for handling transient failures

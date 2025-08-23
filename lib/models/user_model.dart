@@ -96,23 +96,23 @@ class User {
       id: json['id'],
       username: json['username'],
       email: json['email'],
-      emailVerified: json['emailVerified'] ?? false,
-      avatarUrl: json['avatar_url'],
-      createdAt: DateTime.parse(json['createdAt']),
-      updatedAt: DateTime.parse(json['updatedAt'] ?? json['createdAt']),
-      subscriptionTier: json['subscription_tier'] ?? 'free',
-      isInTrial: json['is_in_trial'] ?? false,
-      trialEndsAt: json['trial_ends_at'] != null 
-          ? DateTime.parse(json['trial_ends_at']) 
+      emailVerified: json['email_verified'] ?? json['emailVerified'] ?? false,
+      avatarUrl: json['avatar_url'] ?? json['avatarUrl'],
+      createdAt: DateTime.parse(json['created_at'] ?? json['createdAt']),
+      updatedAt: DateTime.parse(json['updated_at'] ?? json['updatedAt'] ?? json['created_at'] ?? json['createdAt']),
+      subscriptionTier: json['subscription_tier'] ?? json['subscriptionTier'] ?? 'free',
+      isInTrial: json['is_in_trial'] ?? json['isInTrial'] ?? false,
+      trialEndsAt: json['trial_ends_at'] != null || json['trialEndsAt'] != null
+          ? DateTime.parse(json['trial_ends_at'] ?? json['trialEndsAt']) 
           : null,
-      subscriptionEndsAt: json['subscription_ends_at'] != null 
-          ? DateTime.parse(json['subscription_ends_at']) 
+      subscriptionEndsAt: json['subscription_ends_at'] != null || json['subscriptionEndsAt'] != null
+          ? DateTime.parse(json['subscription_ends_at'] ?? json['subscriptionEndsAt']) 
           : null,
-      twoFactorEnabled: json['two_factor_enabled'] ?? false,
-      emailNotifications: json['email_notifications'] ?? true,
-      pushNotifications: json['push_notifications'] ?? true,
-      firstName: json['first_name'],
-      lastName: json['last_name'],
+      twoFactorEnabled: json['two_factor_enabled'] ?? json['twoFactorEnabled'] ?? false,
+      emailNotifications: json['email_notifications'] ?? json['emailNotifications'] ?? true,
+      pushNotifications: json['push_notifications'] ?? json['pushNotifications'] ?? true,
+      firstName: json['first_name'] ?? json['firstName'],
+      lastName: json['last_name'] ?? json['lastName'],
       bio: json['bio'],
       company: json['company'],
       location: json['location'],
