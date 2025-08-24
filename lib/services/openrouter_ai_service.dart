@@ -21,7 +21,6 @@ class OpenRouterAiService {
   static const String _baseUrl = 'https://openrouter.ai/api/v1';
   static const String _modelsEndpoint = '/models';
   static const String _chatCompletionsEndpoint = '/chat/completions';
-  static const String _completionsEndpoint = '/completions';
   
   OpenRouterAiService._() {
     _dio = Dio(_baseOptions);

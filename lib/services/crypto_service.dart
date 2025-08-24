@@ -7,6 +7,13 @@ import 'package:cryptography/cryptography.dart' as crypto;
 import 'package:flutter/foundation.dart';
 import 'package:pointycastle/export.dart';
 
+/// SSH Key Types supported by the crypto service
+enum SSHKeyType {
+  rsa,
+  ed25519,
+  ecdsa,
+}
+
 /// Comprehensive cryptographic service for DevPocket
 /// Handles key generation, encryption, decryption, and digital signatures
 class CryptoService {
@@ -202,6 +209,21 @@ class CryptoService {
       );
     } catch (e) {
       throw CryptoException('Ed25519 key generation failed: $e');
+    }
+  }
+  
+  /// Generate SSH key pair with specified type and parameters
+  Future<SSHKeyPair> generateSSHKeyPair({
+    required SSHKeyType type,
+    int? bitLength,
+  }) async {
+    switch (type) {
+      case SSHKeyType.rsa:
+        return await generateSSHKeyPairRSA(keySize: bitLength ?? 4096);
+      case SSHKeyType.ed25519:
+        return await generateSSHKeyPairEd25519();
+      case SSHKeyType.ecdsa:
+        throw CryptoException('ECDSA key generation not yet implemented');
     }
   }
   

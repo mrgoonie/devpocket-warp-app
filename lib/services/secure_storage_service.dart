@@ -488,6 +488,11 @@ class SecureStorageService {
     await _secureStorage.delete(key: '$_encryptedDataPrefix$key');
     await _secureStorage.delete(key: '$_metadataPrefix$key');
   }
+
+  // Additional methods for compatibility with tests
+  Future<void> write({required String key, required String value}) async {
+    await storeSecure(key: key, value: value, requireBiometric: false);
+  }
 }
 
 /// Exception for secure storage operations

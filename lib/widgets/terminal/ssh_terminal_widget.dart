@@ -69,33 +69,6 @@ class _SshTerminalWidgetState extends ConsumerState<SshTerminalWidget> {
     };
   }
 
-  TerminalTheme _buildTerminalTheme() {
-    return TerminalTheme(
-      cursor: AppTheme.primaryColor,
-      selection: AppTheme.primaryColor.withValues(alpha: 0.3),
-      foreground: AppTheme.darkTextPrimary,
-      background: AppTheme.darkBackground,
-      black: const Color(0xFF000000),
-      white: const Color(0xFFFFFFFF),
-      red: AppTheme.terminalRed,
-      green: AppTheme.terminalGreen,
-      yellow: AppTheme.terminalYellow,
-      blue: AppTheme.terminalBlue,
-      magenta: const Color(0xFFFF79C6),
-      cyan: const Color(0xFF8BE9FD),
-      brightBlack: const Color(0xFF6272A4),
-      brightWhite: const Color(0xFFFFFFFF),
-      brightRed: AppTheme.terminalRed,
-      brightGreen: AppTheme.terminalGreen,
-      brightYellow: AppTheme.terminalYellow,
-      brightBlue: AppTheme.terminalBlue,
-      brightMagenta: const Color(0xFFFF79C6),
-      brightCyan: const Color(0xFF8BE9FD),
-      searchHitBackground: Colors.yellow,
-      searchHitBackgroundCurrent: Colors.orange,
-      searchHitForeground: Colors.black,
-    );
-  }
 
   Future<void> _setupSession() async {
     try {
@@ -186,15 +159,6 @@ class _SshTerminalWidgetState extends ConsumerState<SshTerminalWidget> {
     }
   }
 
-  Future<void> _sendCommand(String command) async {
-    if (!_isConnected || _currentSessionId == null) return;
-    
-    try {
-      await _sessionHandler.sendCommand(_currentSessionId!, command);
-    } catch (e) {
-      _terminal.write('\r\nError sending command: $e\r\n');
-    }
-  }
 
   Future<void> _disconnectSession() async {
     if (_currentSessionId != null) {

@@ -7,7 +7,6 @@ import '../../main.dart';
 import '../../models/ai_models.dart';
 import '../../providers/ai_provider.dart';
 import '../../screens/settings/api_key_screen.dart';
-import '../../models/ssh_profile_models.dart';
 import 'enhanced_terminal_screen.dart';
 
 // Terminal Block Model for tracking command execution
@@ -1005,27 +1004,4 @@ mysql-pod-5678           1/1     Running   0          1h''';
     );
   }
 
-  void _showConnectionDialog() {
-    showDialog(
-      context: context,
-      builder: (context) => AlertDialog(
-        backgroundColor: AppTheme.darkSurface,
-        title: const Text('SSH Terminal'),
-        content: const Text('Click the SSH button to open the enhanced SSH terminal with real connections to your hosts.'),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: const Text('Got it'),
-          ),
-          TextButton(
-            onPressed: () {
-              Navigator.pop(context);
-              _openSshTerminal();
-            },
-            child: const Text('Open SSH Terminal'),
-          ),
-        ],
-      ),
-    );
-  }
 }

@@ -35,6 +35,15 @@ class AuthResult {
 }
 
 class AuthService {
+  static AuthService? _instance;
+  static AuthService get instance => _instance ??= AuthService._();
+
+  AuthService._();
+  
+  // Protected constructor for subclasses
+  @protected
+  AuthService.protected();
+
   static String get _baseUrl => ApiConfig.fullBaseUrl;
   static const FlutterSecureStorage _secureStorage = AppConstants.secureStorage;
   
@@ -68,6 +77,38 @@ class AuthService {
     } catch (e) {
       debugPrint('Error checking token validity: $e');
       return false;
+    }
+  }
+
+  // Get valid access token, refresh if necessary
+  Future<String?> getValidAccessToken() async {
+    try {
+      String? token = await _secureStorage.read(key: AppConstants.accessTokenKey);
+      if (token == null) return null;
+      
+      // Try to validate token by making a test request
+      final response = await http.get(
+        Uri.parse('$_baseUrl/auth/me'),
+        headers: {
+          ..._defaultHeaders,
+          'Authorization': 'Bearer $token',
+        },
+      );
+      
+      if (response.statusCode == 200) {
+        return token;
+      } else if (response.statusCode == 401) {
+        // Token expired, try to refresh
+        final refreshed = await _refreshToken();
+        if (refreshed) {
+          return await _secureStorage.read(key: AppConstants.accessTokenKey);
+        }
+      }
+      
+      return null;
+    } catch (e) {
+      debugPrint('Error getting valid access token: $e');
+      return null;
     }
   }
 
@@ -321,6 +362,52 @@ class AuthService {
       return response.statusCode == 200;
     } catch (e) {
       debugPrint('Password reset error: $e');
+      return false;
+    }
+  }
+
+  // Validate token with server
+  Future<bool> validateToken(String token) async {
+    try {
+      final response = await http.get(
+        Uri.parse('$_baseUrl/auth/validate'),
+        headers: {
+          ..._defaultHeaders,
+          'Authorization': 'Bearer $token',
+        },
+      );
+      
+      return response.statusCode == 200;
+    } catch (e) {
+      debugPrint('Token validation error: $e');
+      return false;
+    }
+  }
+
+  // Check if user has a valid session
+  Future<bool> hasValidSession() async {
+    try {
+      final token = await _secureStorage.read(key: AppConstants.accessTokenKey);
+      if (token == null) return false;
+      
+      return await validateToken(token);
+    } catch (e) {
+      debugPrint('Session validation error: $e');
+      return false;
+    }
+  }
+
+  // Test connection to auth server
+  Future<bool> testConnection() async {
+    try {
+      final response = await http.get(
+        Uri.parse('$_baseUrl/health'),
+        headers: _defaultHeaders,
+      ).timeout(const Duration(seconds: 10));
+      
+      return response.statusCode == 200;
+    } catch (e) {
+      debugPrint('Connection test error: $e');
       return false;
     }
   }

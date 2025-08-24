@@ -4,7 +4,6 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../themes/app_theme.dart';
 import '../../main.dart';
 import '../../models/ssh_models.dart';
-import '../../services/ssh_key_generation_service.dart';
 import '../../providers/ssh_key_providers.dart';
 
 class SshKeyCreateScreen extends ConsumerStatefulWidget {

@@ -33,7 +33,7 @@ class SshProfileApiService {
       
       debugPrint('Failed to fetch SSH profiles: ${response.errorMessage}');
       return ApiResponse.error(
-        response.errorMessage ?? 'Failed to fetch SSH profiles',
+        response.errorMessage,
         response.statusCode,
       );
       
@@ -63,7 +63,7 @@ class SshProfileApiService {
       
       debugPrint('Failed to fetch SSH profile: ${response.errorMessage}');
       return ApiResponse.error(
-        response.errorMessage ?? 'Profile not found',
+        response.errorMessage,
         response.statusCode,
       );
       
@@ -94,7 +94,7 @@ class SshProfileApiService {
       
       debugPrint('Failed to create SSH profile: ${response.errorMessage}');
       return ApiResponse.error(
-        response.errorMessage ?? 'Failed to create profile',
+        response.errorMessage,
         response.statusCode,
       );
       
@@ -125,7 +125,7 @@ class SshProfileApiService {
       
       debugPrint('Failed to update SSH profile: ${response.errorMessage}');
       return ApiResponse.error(
-        response.errorMessage ?? 'Failed to update profile',
+        response.errorMessage,
         response.statusCode,
       );
       
@@ -152,7 +152,7 @@ class SshProfileApiService {
       
       debugPrint('Failed to delete SSH profile: ${response.errorMessage}');
       return ApiResponse.error(
-        response.errorMessage ?? 'Failed to delete profile',
+        response.errorMessage,
         response.statusCode,
       );
       
@@ -189,7 +189,7 @@ class SshProfileApiService {
       return ApiResponse.success(
         SshConnectionTestResult(
           success: false,
-          error: response.errorMessage ?? 'Connection test failed',
+          error: response.errorMessage,
           timestamp: DateTime.now(),
         ),
       );
@@ -241,7 +241,7 @@ class SshProfileApiService {
       return ApiResponse.success(
         SshKeyValidationResult(
           isValid: false,
-          error: response.errorMessage ?? 'Key validation failed',
+          error: response.errorMessage,
         ),
       );
       
@@ -280,7 +280,7 @@ class SshProfileApiService {
       
       debugPrint('Failed to fetch SSH profile statistics: ${response.errorMessage}');
       return ApiResponse.error(
-        response.errorMessage ?? 'Failed to fetch statistics',
+        response.errorMessage,
         response.statusCode,
       );
       
@@ -314,7 +314,7 @@ class SshProfileApiService {
       
       debugPrint('Failed to sync SSH profiles: ${response.errorMessage}');
       return ApiResponse.error(
-        response.errorMessage ?? 'Failed to sync profiles',
+        response.errorMessage,
         response.statusCode,
       );
       

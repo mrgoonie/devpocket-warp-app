@@ -4,7 +4,6 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../themes/app_theme.dart';
 import '../../models/ssh_profile_models.dart';
 import '../../providers/ssh_host_providers.dart';
-import '../../widgets/host_card.dart';
 import 'host_edit_screen.dart';
 
 class HostsListScreen extends ConsumerStatefulWidget {

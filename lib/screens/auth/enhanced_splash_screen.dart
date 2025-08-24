@@ -4,7 +4,6 @@ import 'dart:async';
 
 import '../../themes/app_theme.dart';
 import '../../services/app_initialization_service.dart';
-import '../../services/auth_persistence_service.dart';
 import '../../main.dart';
 import 'onboarding_screen.dart';
 import 'login_screen.dart';

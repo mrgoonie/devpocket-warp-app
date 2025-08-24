@@ -10,6 +10,11 @@ import 'audit_service.dart';
 /// Comprehensive biometric authentication service
 /// Provides secure biometric authentication for sensitive operations
 class BiometricService {
+  static final BiometricService _instance = BiometricService._(
+    auditService: AuditService.instance,
+  );
+  
+  static BiometricService get instance => _instance;
   final LocalAuthentication _localAuth;
   final AuditService _auditService;
   
@@ -30,6 +35,12 @@ class BiometricService {
   // DateTime? _lastFailedAttempt;
   DateTime? _lockoutUntil;
 
+  BiometricService._({
+    LocalAuthentication? localAuth,
+    required AuditService auditService,
+  })  : _localAuth = localAuth ?? LocalAuthentication(),
+        _auditService = auditService;
+        
   BiometricService({
     LocalAuthentication? localAuth,
     required AuditService auditService,

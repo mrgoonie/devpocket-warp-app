@@ -4,7 +4,6 @@ import 'package:flutter/foundation.dart';
 class ApiConfig {
   static const String _prodBaseUrl = 'https://api.devpocket.app';
   static const String _devBaseUrl = 'https://api.dev.devpocket.app';
-  static const String _localBaseUrl = 'http://localhost:3000';
   
   /// Get base URL based on current environment
   static String get baseUrl {
@@ -18,6 +17,11 @@ class ApiConfig {
   static String get wsUrl {
     final base = baseUrl.replaceFirst('https://', 'wss://').replaceFirst('http://', 'ws://');
     return '$base/ws';
+  }
+  
+  /// Get WebSocket base URL (without /ws path) for terminal service
+  static String get wsBaseUrl {
+    return baseUrl.replaceFirst('https://', 'wss://').replaceFirst('http://', 'ws://');
   }
   
   /// API version prefix

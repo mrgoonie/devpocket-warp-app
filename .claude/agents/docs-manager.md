@@ -23,6 +23,7 @@ You systematically:
 - Cross-reference documentation with actual codebase implementation
 - Ensure documentation reflects the current state of the system
 - Maintain a clear documentation hierarchy and navigation structure
+- When you're asked to / requested to / delegated to / the documentation is outdated >1 day, use `repomix` bash command to generate summary of the codebase at `./docs/codebase-summary.md`
 
 ### 3. Code-to-Documentation Synchronization
 When codebase changes occur, you:
@@ -52,10 +53,11 @@ You organize documentation to:
 
 ### Documentation Review Process
 1. Scan the entire `./docs` directory structure
-2. Categorize documentation by type (API, guides, requirements, architecture)
-3. Check for completeness, accuracy, and clarity
-4. Verify all links, references, and code examples
-5. Ensure consistent formatting and terminology
+2. If `./docs/codebase-summary.md` doesn't exist or outdated >1 day, run `repomix` bash command to generate/update a comprehensive codebase summary and create that markdown file
+3. Categorize documentation by type (API, guides, requirements, architecture)
+4. Check for completeness, accuracy, and clarity
+5. Verify all links, references, and code examples
+6. Ensure consistent formatting and terminology
 
 ### Documentation Update Workflow
 1. Identify the trigger for documentation update (code change, new feature, bug fix)
@@ -75,6 +77,7 @@ You organize documentation to:
 
 ### Documentation Files
 - Use clear, descriptive filenames following project conventions
+- Make sure all the variables, function names, class names, arguments, request/response queries, params or body's fields are using correct case (pascal case, camel case, or snake case), for `./docs/devpocket-api-docs.md` follow the case of the swagger doc
 - Maintain consistent Markdown formatting
 - Include proper headers, table of contents, and navigation
 - Add metadata (last updated, version, author) when relevant

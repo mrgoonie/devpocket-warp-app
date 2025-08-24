@@ -7,6 +7,11 @@ import '../main.dart';
 import 'auth_service.dart';
 
 class MockAuthService extends AuthService {
+  static MockAuthService? _instance;
+  static MockAuthService get instance => _instance ??= MockAuthService._();
+  
+  MockAuthService._() : super.protected();
+  
   static const FlutterSecureStorage _secureStorage = AppConstants.secureStorage;
   
   // Mock user data for testing
@@ -316,5 +321,31 @@ class MockAuthService extends AuthService {
   // Quick login method for testing
   Future<AuthResult> quickLogin() async {
     return login('demo', 'password123');
+  }
+
+  @override
+  Future<bool> validateToken(String token) async {
+    // Mock validation - accept any non-empty token
+    await Future.delayed(const Duration(milliseconds: 500));
+    return token.isNotEmpty;
+  }
+
+  @override
+  Future<bool> hasValidSession() async {
+    // Check if mock token exists
+    try {
+      final token = await _secureStorage.read(key: AppConstants.accessTokenKey);
+      return token != null;
+    } catch (e) {
+      debugPrint('Error checking valid session: $e');
+      return false;
+    }
+  }
+
+  @override
+  Future<bool> testConnection() async {
+    // Mock connection test - always successful with delay
+    await Future.delayed(const Duration(milliseconds: 800));
+    return true;
   }
 }

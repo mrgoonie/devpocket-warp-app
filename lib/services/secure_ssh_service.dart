@@ -560,44 +560,6 @@ class SecureSSHService {
 
   /// Verify SSH host key against known fingerprints
   /// TODO: Integrate host key verification into connection process  
-  Future<bool> _verifyHostKey(
-    SecureHost host,
-    String hostname,
-    int port,
-    Uint8List publicKey,
-  ) async {
-    final publicKeyString = _formatPublicKey(publicKey);
-    final fingerprint = _cryptoService.calculateSSHFingerprint(publicKeyString);
-    
-    switch (host.hostKeyVerification) {
-      case HostKeyVerification.disabled:
-        return true;
-        
-      case HostKeyVerification.strict:
-        if (host.knownHostKeyFingerprint == null) {
-          // Store the fingerprint for first connection
-          await _storeHostKey(host, fingerprint);
-          return true;
-        }
-        return host.knownHostKeyFingerprint == fingerprint;
-        
-      case HostKeyVerification.warn:
-        if (host.knownHostKeyFingerprint != null && 
-            host.knownHostKeyFingerprint != fingerprint) {
-          _securityEventsController.add(SecurityEvent.hostKeyChanged(
-            hostId: host.id,
-            hostname: hostname,
-            expectedFingerprint: host.knownHostKeyFingerprint!,
-            actualFingerprint: fingerprint,
-          ));
-        }
-        return true;
-        
-      case HostKeyVerification.interactive:
-        // In a real implementation, this would prompt the user
-        throw SSHException('Interactive host key verification not implemented');
-    }
-  }
 
   Future<void> _storeHostKey(SecureHost host, String fingerprint) async {
     await _secureStorage.storeHostFingerprint(
@@ -607,11 +569,6 @@ class SecureSSHService {
     );
   }
 
-  String _formatPublicKey(Uint8List publicKey) {
-    // Convert binary public key to SSH format
-    // This is a simplified implementation
-    return 'ssh-rsa ${base64.encode(publicKey)}';
-  }
 
   String _generateConnectionId(SecureHost host) {
     return '${host.id}_${DateTime.now().millisecondsSinceEpoch}';

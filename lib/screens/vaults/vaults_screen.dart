@@ -8,9 +8,6 @@ import '../../models/ssh_profile_models.dart';
 import '../../providers/ssh_providers.dart';
 import '../../providers/ssh_host_providers.dart';
 import '../../providers/ssh_key_providers.dart';
-import '../../widgets/host_card.dart';
-import '../../widgets/add_host_sheet.dart';
-import '../../widgets/ssh_key_card.dart';
 import 'hosts_list_screen.dart';
 import 'host_edit_screen.dart';
 import '../ssh_keys/ssh_keys_screen.dart';
@@ -992,46 +989,8 @@ class _VaultsScreenState extends ConsumerState<VaultsScreen>
     );
   }
 
-  void _connectToHost(Host host) {
-    // Navigate to terminal with host connection
-    Navigator.pushNamed(context, '/terminal', arguments: host);
-  }
 
-  void _editHost(Host host) {
-    showModalBottomSheet(
-      context: context,
-      isScrollControlled: true,
-      backgroundColor: Colors.transparent,
-      builder: (context) => AddHostSheet(host: host),
-    );
-  }
 
-  void _deleteHost(Host host) {
-    showDialog(
-      context: context,
-      builder: (context) => AlertDialog(
-        backgroundColor: AppTheme.darkSurface,
-        title: const Text('Delete Host'),
-        content: Text('Are you sure you want to delete "${host.name}"?'),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: const Text('Cancel'),
-          ),
-          ElevatedButton(
-            onPressed: () {
-              ref.read(hostsProvider.notifier).deleteHost(host.id);
-              Navigator.pop(context);
-            },
-            style: ElevatedButton.styleFrom(
-              backgroundColor: AppTheme.terminalRed,
-            ),
-            child: const Text('Delete'),
-          ),
-        ],
-      ),
-    );
-  }
 
   Widget _buildKeyRecordCard(SshKeyRecord key) {
     return Card(

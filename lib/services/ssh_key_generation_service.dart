@@ -1,7 +1,6 @@
 import 'package:crypto/crypto.dart';
 import 'package:flutter/foundation.dart';
 import 'package:pointycastle/export.dart';
-import 'dart:typed_data';
 import 'dart:convert';
 import 'dart:math';
 
@@ -32,7 +31,6 @@ class SshKeyGenerationService {
 
   SshKeyGenerationService._();
 
-  final Random _random = Random.secure();
 
   /// Generate SSH key pair
   Future<SshKeyGenerationResult> generateKeyPair({
@@ -170,7 +168,7 @@ ZP4+7Q7+7Q7+7QAAAAEAAAAAEAAAGEAAAAE3NzaC1lZDI1NTE5AAAAIEdummy+key+data
   /// Format RSA public key for SSH
   static String _formatRsaPublicKey(RSAPublicKey publicKey, String comment) {
     final nBytes = _bigIntToBytes(publicKey.n!);
-    final eBytes = _bigIntToBytes(publicKey.e!);
+    final eBytes = _bigIntToBytes(publicKey.publicExponent!);
     
     final buffer = <int>[];
     
@@ -311,10 +309,7 @@ ${_generateRandomBase64Lines()}
       final keyData = base64Decode(parts[1]);
       final hash = sha256.convert(keyData);
       
-      // Format as SHA256 fingerprint
-      final fingerprint = hash.bytes
-          .map((b) => b.toRadixString(16).padLeft(2, '0'))
-          .join(':');
+      // Format as SHA256 fingerprint (unused variable removed)
       
       return 'SHA256:${base64Encode(hash.bytes).replaceAll('=', '')}';
       

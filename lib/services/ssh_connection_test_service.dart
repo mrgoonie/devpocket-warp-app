@@ -67,16 +67,6 @@ class SshConnectionTestService {
         timestamp: DateTime.now(),
       );
       
-    } on TimeoutException catch (e) {
-      stopwatch.stop();
-      debugPrint('SSH connection timeout: $e');
-      
-      return SshConnectionTestResult(
-        success: false,
-        error: 'Connection timeout: ${e.message}',
-        responseTime: stopwatch.elapsed,
-        timestamp: DateTime.now(),
-      );
       
     } catch (e) {
       stopwatch.stop();

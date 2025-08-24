@@ -1,10 +1,10 @@
 import 'package:flutter/foundation.dart';
 import 'dart:async';
-import 'dart:convert';
 
 import '../models/ssh_profile_models.dart';
 import 'ssh_connection_manager.dart';
 import 'websocket_manager.dart';
+import 'terminal_websocket_service.dart';
 
 /// Terminal session types
 enum TerminalSessionType {
@@ -56,6 +56,7 @@ class TerminalSessionHandler {
   final StreamController<TerminalOutput> _outputController = StreamController.broadcast();
   final SshConnectionManager _sshManager = SshConnectionManager.instance;
   final WebSocketManager _wsManager = WebSocketManager.instance;
+  final TerminalWebSocketService _terminalWsService = TerminalWebSocketService.instance;
 
   /// Stream of terminal output
   Stream<TerminalOutput> get output => _outputController.stream;
@@ -83,23 +84,51 @@ class TerminalSessionHandler {
         timestamp: DateTime.now(),
       ));
       
-      // Connect to SSH host
-      await _sshManager.connect(profile);
-      
-      session.state = TerminalSessionState.running;
-      
-      // Listen to SSH events
-      session.sshSubscription = _sshManager.events.listen((event) {
-        _handleSshEvent(sessionId, event);
-      });
-      
-      _emitOutput(TerminalOutput(
-        data: 'Connected to ${profile.connectionString}\n',
-        type: TerminalOutputType.info,
-        timestamp: DateTime.now(),
-      ));
-      
-      return sessionId;
+      // Try WebSocket connection first (if backend supports it)
+      try {
+        await _terminalWsService.connect();
+        final wsSessionId = await _terminalWsService.createTerminalSession(profile);
+        
+        // Listen to WebSocket terminal output
+        session.wsSubscription = _terminalWsService.getTerminalOutput(sessionId: wsSessionId).listen((message) {
+          _emitOutput(TerminalOutput(
+            data: message.data.toString(),
+            type: TerminalOutputType.stdout,
+            timestamp: message.timestamp,
+          ));
+        });
+        
+        session.state = TerminalSessionState.running;
+        
+        _emitOutput(TerminalOutput(
+          data: 'Connected to ${profile.connectionString} via WebSocket\n',
+          type: TerminalOutputType.info,
+          timestamp: DateTime.now(),
+        ));
+        
+        return sessionId;
+        
+      } catch (wsError) {
+        debugPrint('WebSocket connection failed, falling back to direct SSH: $wsError');
+        
+        // Fallback to direct SSH connection
+        await _sshManager.connect(profile);
+        
+        session.state = TerminalSessionState.running;
+        
+        // Listen to SSH events
+        session.sshSubscription = _sshManager.events.listen((event) {
+          _handleSshEvent(sessionId, event);
+        });
+        
+        _emitOutput(TerminalOutput(
+          data: 'Connected to ${profile.connectionString} via direct SSH\n',
+          type: TerminalOutputType.info,
+          timestamp: DateTime.now(),
+        ));
+        
+        return sessionId;
+      }
       
     } catch (e) {
       debugPrint('Failed to create SSH terminal session: $e');
@@ -236,12 +265,17 @@ class TerminalSessionHandler {
       
       switch (session.type) {
         case TerminalSessionType.ssh:
-          await _sshManager.sendCommand(sessionId, command);
+          // Try WebSocket first, fallback to direct SSH
+          if (_terminalWsService.isConnected && _terminalWsService.getActiveSessions().contains(sessionId)) {
+            await _terminalWsService.sendTerminalControl(command, sessionId: sessionId);
+          } else {
+            await _sshManager.sendCommand(sessionId, command);
+          }
           break;
           
         case TerminalSessionType.websocket:
           if (session.websocketUrl != null) {
-            await _wsManager.sendTerminalData(command, sessionId: sessionId);
+            await _terminalWsService.sendTerminalData(command, sessionId: sessionId);
           }
           break;
           
@@ -280,12 +314,17 @@ class TerminalSessionHandler {
     try {
       switch (session.type) {
         case TerminalSessionType.ssh:
-          await _sshManager.sendData(sessionId, data);
+          // Try WebSocket first, fallback to direct SSH
+          if (_terminalWsService.isConnected && _terminalWsService.getActiveSessions().contains(sessionId)) {
+            await _terminalWsService.sendTerminalData(data, sessionId: sessionId);
+          } else {
+            await _sshManager.sendData(sessionId, data);
+          }
           break;
           
         case TerminalSessionType.websocket:
           if (session.websocketUrl != null) {
-            await _wsManager.sendTerminalData(data, sessionId: sessionId);
+            await _terminalWsService.sendTerminalData(data, sessionId: sessionId);
           }
           break;
           

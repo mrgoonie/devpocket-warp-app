@@ -6,4 +6,5 @@ description: Debugging technical issues and providing solutions.
  $ARGUMENTS
 
 Use the `debugger` subagent to find the root cause of the issues, then analyze and explain the reports to the user.
-**Do not implement the fix automatically.**
+
+**IMPORTANT**: **Do not** implement the fix automatically.

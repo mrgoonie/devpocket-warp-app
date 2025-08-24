@@ -1,12 +1,9 @@
 import 'package:flutter/foundation.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
-import 'package:crypto/crypto.dart';
 import 'dart:convert';
 
 import '../models/ssh_profile_models.dart';
-import '../models/ssh_models.dart';
 import 'api_client.dart';
-import 'secure_storage_service.dart';
 
 /// Enhanced SSH host management service with encryption and API integration
 class SshHostService {
@@ -14,7 +11,6 @@ class SshHostService {
   static SshHostService get instance => _instance ??= SshHostService._();
   
   final ApiClient _apiClient = ApiClient.instance;
-  final SecureStorageService _secureStorage = SecureStorageService.instance;
   final FlutterSecureStorage _storage = const FlutterSecureStorage(
     aOptions: AndroidOptions(
       encryptedSharedPreferences: true,
@@ -62,20 +58,6 @@ class SshHostService {
   }
   
   /// Decrypt sensitive host data
-  Future<String> _decryptCredential(String encryptedCredential) async {
-    final key = await _storage.read(key: _encryptionKeyKey);
-    if (key == null) throw Exception('Encryption key not found');
-    
-    final keyBytes = base64Decode(key);
-    final encryptedBytes = base64Decode(encryptedCredential);
-    final decrypted = <int>[];
-    
-    for (int i = 0; i < encryptedBytes.length; i++) {
-      decrypted.add(encryptedBytes[i] ^ keyBytes[i % keyBytes.length]);
-    }
-    
-    return utf8.decode(decrypted);
-  }
   
   /// Get all SSH hosts from API with fallback to local storage
   Future<List<SshProfile>> getHosts() async {
@@ -230,7 +212,7 @@ class SshHostService {
       debugPrint('Test SSH connection failed: ${response.errorMessage}');
       return SshConnectionTestResult(
         success: false,
-        error: response.errorMessage ?? 'Connection test failed',
+        error: response.errorMessage,
         timestamp: DateTime.now(),
       );
       
@@ -268,33 +250,6 @@ class SshHostService {
   }
   
   /// Decrypt host credentials for local use
-  Future<SshProfile> _decryptHostCredentials(SshProfile host) async {
-    String? decryptedPassword;
-    String? decryptedPrivateKey;
-    String? decryptedPassphrase;
-    
-    try {
-      if (host.password != null) {
-        decryptedPassword = await _decryptCredential(host.password!);
-      }
-      if (host.privateKey != null) {
-        decryptedPrivateKey = await _decryptCredential(host.privateKey!);
-      }
-      if (host.passphrase != null) {
-        decryptedPassphrase = await _decryptCredential(host.passphrase!);
-      }
-    } catch (e) {
-      debugPrint('Error decrypting credentials: $e');
-      // Return original if decryption fails
-      return host;
-    }
-    
-    return host.copyWith(
-      password: decryptedPassword,
-      privateKey: decryptedPrivateKey,
-      passphrase: decryptedPassphrase,
-    );
-  }
   
   /// Cache hosts locally for offline access
   Future<void> _cacheHosts(List<SshProfile> hosts) async {
@@ -386,6 +341,24 @@ class SshHostService {
       };
     } catch (e) {
       return {'error': e.toString()};
+    }
+  }
+
+  /// Search hosts by name or hostname
+  Future<List<SshProfile>> searchHosts(String query) async {
+    try {
+      final hosts = await getHosts();
+      if (query.isEmpty) return hosts;
+      
+      final lowercaseQuery = query.toLowerCase();
+      return hosts.where((host) {
+        return host.name.toLowerCase().contains(lowercaseQuery) ||
+               host.host.toLowerCase().contains(lowercaseQuery) ||
+               (host.username.toLowerCase().contains(lowercaseQuery));
+      }).toList();
+    } catch (e) {
+      debugPrint('Error searching hosts: $e');
+      return [];
     }
   }
 }

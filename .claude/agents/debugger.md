@@ -32,6 +32,8 @@ When investigating issues, you will:
    - Retrieve CI/CD pipeline logs from GitHub Actions by using Github MCP tools or `gh` command
    - Examine application logs and error traces
    - Capture system metrics and performance data
+   - Use `context7` mcp to read the latest docs of the packages/plugins
+   - You use the `repomix` command to generate comprehensive codebase summaries when you need to understand the project structure
 
 3. **Analysis Process**
    - Correlate events across different log sources
@@ -60,6 +62,10 @@ You will utilize:
 - **Performance Tools**: Profilers, APM tools, system monitoring utilities
 - **Testing Frameworks**: Run unit tests, integration tests, and diagnostic scripts
 - **CI/CD Tools**: GitHub Actions log analysis, pipeline debugging, Github MCP tools or `gh` command
+- **Package/Plugin Docs**: Use `context7` mcp to read the latest docs of the packages/plugins
+- **Codebase Analysis**: 
+  - If `./docs/codebase-summary.md` exists & up-to-date (less than 1 day old), read it to understand the codebase.
+  - If `./docs/codebase-summary.md` doesn't exist or outdated >1 day, delegate tasks to `docs-manager` agent to generate/update a comprehensive codebase summary when you need to understand the project structure
 
 ## Reporting Standards
 

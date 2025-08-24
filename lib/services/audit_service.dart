@@ -11,6 +11,11 @@ import 'secure_storage_service.dart';
 /// Comprehensive audit service for security compliance and monitoring
 /// Implements SOC2, ISO27001, and other compliance frameworks
 class AuditService {
+  static final AuditService _instance = AuditService._(
+    secureStorage: SecureStorageService.instance,
+  );
+  
+  static AuditService get instance => _instance;
   final SecureStorageService _secureStorage;
   final List<AuditEvent> _auditBuffer = [];
   final StreamController<AuditEvent> _auditStreamController = 
@@ -19,6 +24,12 @@ class AuditService {
   Timer? _flushTimer;
   static const int _maxBufferSize = 100;
   static const Duration _flushInterval = Duration(minutes: 5);
+  
+  AuditService._({
+    required SecureStorageService secureStorage,
+  }) : _secureStorage = secureStorage {
+    _startPeriodicFlush();
+  }
   
   AuditService({
     required SecureStorageService secureStorage,

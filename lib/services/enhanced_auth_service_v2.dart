@@ -34,8 +34,8 @@ class EnhancedAuthServiceV2 {
       }
       
       // If authentication failed, clear any invalid tokens
-      if (response.errorMessage?.contains('Authentication failed') == true ||
-          response.errorMessage?.contains('AUTH_FAILED') == true) {
+      if (response.errorMessage.contains('Authentication failed') ||
+          response.errorMessage.contains('AUTH_FAILED')) {
         debugPrint('Authentication failed, clearing tokens...');
         await _clearInvalidTokens();
       }
