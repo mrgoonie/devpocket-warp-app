@@ -187,7 +187,7 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
                   // Skip button
                   TextButton(
                     onPressed: _skipOnboarding,
-                    child: Text(
+                    child: const Text(
                       'Skip',
                       style: TextStyle(
                         color: AppTheme.darkTextSecondary,

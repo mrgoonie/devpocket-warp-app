@@ -293,7 +293,7 @@ class _ForgotPasswordScreenState extends ConsumerState<ForgotPasswordScreen>
               ),
               TextButton(
                 onPressed: () => Navigator.of(context).pop(),
-                child: Text(
+                child: const Text(
                   'Sign In',
                   style: TextStyle(
                     color: AppTheme.primaryColor,
@@ -446,7 +446,7 @@ class _ForgotPasswordScreenState extends ConsumerState<ForgotPasswordScreen>
         // Back to Login
         TextButton(
           onPressed: () => Navigator.of(context).pop(),
-          child: Text(
+          child: const Text(
             'Back to Sign In',
             style: TextStyle(
               color: AppTheme.darkTextSecondary,

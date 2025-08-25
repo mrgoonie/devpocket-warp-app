@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
@@ -21,6 +22,7 @@ class _SplashScreenState extends ConsumerState<SplashScreen>
   late AnimationController _animationController;
   late Animation<double> _scaleAnimation;
   late Animation<double> _opacityAnimation;
+  Timer? _splashTimer;
 
   @override
   void initState() {
@@ -58,26 +60,26 @@ class _SplashScreenState extends ConsumerState<SplashScreen>
     _animationController.forward();
   }
 
-  Future<void> _startSplashFlow() async {
-    // Wait for minimum splash duration
-    await Future.delayed(const Duration(milliseconds: 2500));
-    
-    if (!mounted) return;
+  void _startSplashFlow() {
+    // Use Timer instead of Future.delayed so we can cancel it
+    _splashTimer = Timer(const Duration(milliseconds: 2500), () async {
+      if (!mounted) return;
 
-    // Check authentication and onboarding status
-    final authState = ref.read(authProvider);
-    final onboardingCompleted = ref.read(onboardingProvider);
-    final isFirstLaunchAsync = ref.read(isFirstLaunchProvider);
-    
-    final isFirstLaunch = await isFirstLaunchAsync.when(
-      data: (value) => value,
-      loading: () => true,
-      error: (_, __) => true,
-    );
+      // Check authentication and onboarding status
+      final authState = ref.read(authProvider);
+      final onboardingCompleted = ref.read(onboardingProvider);
+      final isFirstLaunchAsync = ref.read(isFirstLaunchProvider);
+      
+      final isFirstLaunch = isFirstLaunchAsync.when(
+        data: (value) => value,
+        loading: () => true,
+        error: (_, __) => true,
+      );
 
-    if (!mounted) return;
+      if (!mounted) return;
 
-    _navigateToNextScreen(authState, onboardingCompleted, isFirstLaunch);
+      _navigateToNextScreen(authState, onboardingCompleted, isFirstLaunch);
+    });
   }
 
   void _navigateToNextScreen(AuthState authState, bool onboardingCompleted, bool isFirstLaunch) {
@@ -125,6 +127,7 @@ class _SplashScreenState extends ConsumerState<SplashScreen>
 
   @override
   void dispose() {
+    _splashTimer?.cancel();
     _animationController.dispose();
     super.dispose();
   }

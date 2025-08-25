@@ -366,7 +366,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen>
             ),
             TextButton(
               onPressed: _navigateToForgotPassword,
-              child: Text(
+              child: const Text(
                 'Forgot Password?',
                 style: TextStyle(
                   color: AppTheme.primaryColor,
@@ -506,7 +506,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen>
         ),
         TextButton(
           onPressed: _navigateToRegister,
-          child: Text(
+          child: const Text(
             'Start Free Trial',
             style: TextStyle(
               color: AppTheme.primaryColor,

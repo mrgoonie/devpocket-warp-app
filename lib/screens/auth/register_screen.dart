@@ -359,8 +359,8 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen>
                     color: AppTheme.darkTextSecondary,
                     height: 1.4,
                   ),
-                  children: [
-                    const TextSpan(text: 'I agree to the '),
+                  children: const [
+                    TextSpan(text: 'I agree to the '),
                     TextSpan(
                       text: 'Terms of Service',
                       style: TextStyle(
@@ -368,7 +368,7 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen>
                         decoration: TextDecoration.underline,
                       ),
                     ),
-                    const TextSpan(text: ' and '),
+                    TextSpan(text: ' and '),
                     TextSpan(
                       text: 'Privacy Policy',
                       style: TextStyle(
@@ -473,7 +473,7 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen>
         ),
         TextButton(
           onPressed: _navigateToLogin,
-          child: Text(
+          child: const Text(
             'Sign In',
             style: TextStyle(
               color: AppTheme.primaryColor,
