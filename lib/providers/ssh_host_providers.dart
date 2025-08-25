@@ -2,6 +2,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter/foundation.dart';
 
 import '../models/ssh_profile_models.dart';
+import '../models/ssh_sync_models.dart';
 import '../services/ssh_host_service.dart';
 import '../services/ssh_connection_test_service.dart';
 
@@ -129,17 +130,74 @@ class SshHostsNotifier extends StateNotifier<AsyncValue<List<SshProfile>>> {
     await _loadHosts();
   }
   
-  /// Sync with server
-  Future<bool> syncWithServer() async {
+  /// Enhanced sync with server using new sync methods
+  Future<SyncResult> syncWithServer() async {
     try {
-      final success = await _hostService.syncWithServer();
-      if (success) {
+      final result = await _hostService.performFullSync();
+      if (result.success) {
         await refresh();
       }
-      return success;
+      return result;
     } catch (e) {
       debugPrint('Error syncing with server: $e');
-      return false;
+      return SyncResult.error(e.toString());
+    }
+  }
+  
+  /// Sync local profiles to server
+  Future<SyncResult> syncToServer() async {
+    try {
+      final result = await _hostService.syncLocalProfilesToServer();
+      if (result.success) {
+        await refresh();
+      }
+      return result;
+    } catch (e) {
+      debugPrint('Error syncing to server: $e');
+      return SyncResult.error(e.toString());
+    }
+  }
+  
+  /// Sync server profiles to local
+  Future<SyncResult> syncFromServer() async {
+    try {
+      final result = await _hostService.syncServerProfilesToLocal();
+      if (result.success) {
+        await refresh();
+      }
+      return result;
+    } catch (e) {
+      debugPrint('Error syncing from server: $e');
+      return SyncResult.error(e.toString());
+    }
+  }
+  
+  /// Resolve pending sync conflicts
+  Future<SyncResult> resolveConflict(SyncStrategy strategy) async {
+    try {
+      // Update sync config with user's choice
+      final currentConfig = await _hostService.getSyncConfig();
+      final newConfig = SyncConfig(
+        defaultStrategy: strategy,
+        autoSyncEnabled: currentConfig.autoSyncEnabled,
+        syncInterval: currentConfig.syncInterval,
+        conflictNotificationsEnabled: currentConfig.conflictNotificationsEnabled,
+        backgroundSyncEnabled: currentConfig.backgroundSyncEnabled,
+      );
+      await _hostService.saveSyncConfig(newConfig);
+      
+      // Clear pending conflict
+      await _hostService.clearPendingConflict();
+      
+      // Perform sync with the chosen strategy
+      final result = await _hostService.performFullSync();
+      if (result.success) {
+        await refresh();
+      }
+      return result;
+    } catch (e) {
+      debugPrint('Error resolving conflict: $e');
+      return SyncResult.error(e.toString());
     }
   }
   
@@ -267,6 +325,258 @@ final activeHostsCountProvider = Provider<int>((ref) {
   ) ?? 0;
 });
 
+// ===== SYNC STATE MANAGEMENT =====
+
+/// Sync state notifier for managing SSH profile synchronization
+class SyncStateNotifier extends StateNotifier<SyncState> {
+  SyncStateNotifier() : super(const SyncState()) {
+    _checkForPendingConflicts();
+  }
+  
+  final SshHostService _hostService = SshHostService.instance;
+  
+  /// Check for pending conflicts on initialization
+  Future<void> _checkForPendingConflicts() async {
+    try {
+      final conflict = await _hostService.getPendingConflict();
+      if (conflict != null) {
+        state = SyncState(
+          status: SyncStatus.conflict,
+          message: conflict.description,
+          pendingConflict: conflict,
+        );
+      }
+    } catch (e) {
+      debugPrint('Error checking for pending conflicts: $e');
+    }
+  }
+  
+  /// Sync local profiles to server
+  Future<void> syncToServer() async {
+    state = const SyncState(status: SyncStatus.syncing, message: 'Uploading local profiles...');
+    
+    try {
+      final result = await _hostService.syncLocalProfilesToServer();
+      
+      if (result.success) {
+        state = SyncState(
+          status: SyncStatus.success,
+          message: 'Successfully synced ${result.successful} profile(s) to server',
+          lastResult: result,
+          lastSyncTime: DateTime.now(),
+        );
+      } else {
+        state = SyncState(
+          status: SyncStatus.error,
+          message: result.error ?? 'Sync failed with unknown error',
+          lastResult: result,
+        );
+      }
+    } catch (e) {
+      state = SyncState(
+        status: SyncStatus.error,
+        message: 'Sync failed: $e',
+      );
+    }
+  }
+  
+  /// Sync server profiles to local
+  Future<void> syncFromServer() async {
+    state = const SyncState(status: SyncStatus.syncing, message: 'Downloading server profiles...');
+    
+    try {
+      final result = await _hostService.syncServerProfilesToLocal();
+      
+      if (result.success) {
+        state = SyncState(
+          status: SyncStatus.success,
+          message: 'Successfully synced ${result.successful} profile(s) from server',
+          lastResult: result,
+          lastSyncTime: DateTime.now(),
+        );
+      } else {
+        state = SyncState(
+          status: SyncStatus.error,
+          message: result.error ?? 'Sync failed with unknown error',
+          lastResult: result,
+        );
+      }
+    } catch (e) {
+      state = SyncState(
+        status: SyncStatus.error,
+        message: 'Sync failed: $e',
+      );
+    }
+  }
+  
+  /// Perform full bidirectional sync
+  Future<void> performFullSync() async {
+    state = const SyncState(status: SyncStatus.syncing, message: 'Performing full sync...');
+    
+    try {
+      final result = await _hostService.performFullSync();
+      
+      if (result.success) {
+        state = SyncState(
+          status: SyncStatus.success,
+          message: result.total > 0 
+              ? 'Successfully synced ${result.successful} profile(s)'
+              : 'Profiles are already in sync',
+          lastResult: result,
+          lastSyncTime: DateTime.now(),
+        );
+      } else {
+        // Check if failure is due to conflicts
+        final conflict = await _hostService.getPendingConflict();
+        if (conflict != null) {
+          state = SyncState(
+            status: SyncStatus.conflict,
+            message: 'Sync conflicts detected - user intervention required',
+            pendingConflict: conflict,
+          );
+        } else {
+          state = SyncState(
+            status: SyncStatus.error,
+            message: result.error ?? 'Full sync failed with unknown error',
+            lastResult: result,
+          );
+        }
+      }
+    } catch (e) {
+      state = SyncState(
+        status: SyncStatus.error,
+        message: 'Full sync failed: $e',
+      );
+    }
+  }
+  
+  /// Resolve conflicts with a specific strategy
+  Future<void> resolveConflict(SyncStrategy strategy) async {
+    final conflict = state.pendingConflict;
+    if (conflict == null) return;
+    
+    state = state.copyWith(
+      status: SyncStatus.syncing,
+      message: 'Resolving conflicts with ${strategy.name} strategy...',
+    );
+    
+    try {
+      // Update sync config with chosen strategy
+      final currentConfig = await _hostService.getSyncConfig();
+      final newConfig = SyncConfig(
+        defaultStrategy: strategy,
+        autoSyncEnabled: currentConfig.autoSyncEnabled,
+        syncInterval: currentConfig.syncInterval,
+        conflictNotificationsEnabled: currentConfig.conflictNotificationsEnabled,
+        backgroundSyncEnabled: currentConfig.backgroundSyncEnabled,
+      );
+      await _hostService.saveSyncConfig(newConfig);
+      
+      // Clear the conflict
+      await _hostService.clearPendingConflict();
+      
+      // Perform sync with the chosen strategy
+      final result = await _hostService.performFullSync();
+      
+      if (result.success) {
+        state = SyncState(
+          status: SyncStatus.success,
+          message: 'Conflicts resolved successfully using ${strategy.name} strategy',
+          lastResult: result,
+          lastSyncTime: DateTime.now(),
+        );
+      } else {
+        state = SyncState(
+          status: SyncStatus.error,
+          message: 'Failed to resolve conflicts: ${result.error}',
+          lastResult: result,
+        );
+      }
+    } catch (e) {
+      state = SyncState(
+        status: SyncStatus.error,
+        message: 'Failed to resolve conflicts: $e',
+      );
+    }
+  }
+  
+  /// Clear current sync status
+  void clearStatus() {
+    state = SyncState(
+      lastSyncTime: state.lastSyncTime,
+      lastResult: state.lastResult,
+    );
+  }
+  
+  /// Check if sync is needed
+  Future<bool> isSyncNeeded() async {
+    return await _hostService.isSyncNeeded();
+  }
+  
+  /// Get last sync time
+  Future<DateTime?> getLastSyncTime() async {
+    return await _hostService.getLastSyncTime();
+  }
+}
+
+/// Sync configuration notifier
+class SyncConfigNotifier extends StateNotifier<AsyncValue<SyncConfig>> {
+  SyncConfigNotifier() : super(const AsyncValue.loading()) {
+    _loadConfig();
+  }
+  
+  final SshHostService _hostService = SshHostService.instance;
+  
+  Future<void> _loadConfig() async {
+    try {
+      final config = await _hostService.getSyncConfig();
+      state = AsyncValue.data(config);
+    } catch (e, stackTrace) {
+      state = AsyncValue.error(e, stackTrace);
+    }
+  }
+  
+  /// Update sync configuration
+  Future<void> updateConfig(SyncConfig config) async {
+    try {
+      await _hostService.saveSyncConfig(config);
+      state = AsyncValue.data(config);
+    } catch (e, stackTrace) {
+      state = AsyncValue.error(e, stackTrace);
+    }
+  }
+  
+  /// Toggle auto sync
+  Future<void> toggleAutoSync(bool enabled) async {
+    final currentConfig = state.valueOrNull;
+    if (currentConfig != null) {
+      final newConfig = SyncConfig(
+        defaultStrategy: currentConfig.defaultStrategy,
+        autoSyncEnabled: enabled,
+        syncInterval: currentConfig.syncInterval,
+        conflictNotificationsEnabled: currentConfig.conflictNotificationsEnabled,
+        backgroundSyncEnabled: currentConfig.backgroundSyncEnabled,
+      );
+      await updateConfig(newConfig);
+    }
+  }
+  
+  /// Update sync interval
+  Future<void> updateSyncInterval(Duration interval) async {
+    final currentConfig = state.valueOrNull;
+    if (currentConfig != null) {
+      final newConfig = SyncConfig(
+        defaultStrategy: currentConfig.defaultStrategy,
+        autoSyncEnabled: currentConfig.autoSyncEnabled,
+        syncInterval: interval,
+        conflictNotificationsEnabled: currentConfig.conflictNotificationsEnabled,
+        backgroundSyncEnabled: currentConfig.backgroundSyncEnabled,
+      );
+      await updateConfig(newConfig);
+    }
+  }
+}
+
 // Host search provider
 final hostSearchProvider = StateProvider<String>((ref) => '');
 
@@ -294,3 +604,51 @@ final filteredHostsProvider = Provider<AsyncValue<List<SshProfile>>>((ref) {
     error: (error, stack) => AsyncValue.error(error, stack),
   ) ?? const AsyncValue.loading();
 });
+
+// ===== NEW SYNC PROVIDERS =====
+
+/// SSH profiles sync state provider
+final syncStateProvider = StateNotifierProvider<SyncStateNotifier, SyncState>((ref) {
+  return SyncStateNotifier();
+});
+
+/// Sync configuration provider
+final syncConfigProvider = StateNotifierProvider<SyncConfigNotifier, AsyncValue<SyncConfig>>((ref) {
+  return SyncConfigNotifier();
+});
+
+/// Provider to check if sync is needed
+final syncNeededProvider = FutureProvider<bool>((ref) async {
+  final syncNotifier = ref.read(syncStateProvider.notifier);
+  return await syncNotifier.isSyncNeeded();
+});
+
+/// Provider to get last sync time
+final lastSyncTimeProvider = FutureProvider<DateTime?>((ref) async {
+  final syncNotifier = ref.read(syncStateProvider.notifier);
+  return await syncNotifier.getLastSyncTime();
+});
+
+/// Provider for sync status display message
+final syncStatusMessageProvider = Provider<String>((ref) {
+  final syncState = ref.watch(syncStateProvider);
+  return syncState.displayMessage;
+});
+
+/// Provider to check if there are pending conflicts
+final hasPendingConflictsProvider = Provider<bool>((ref) {
+  final syncState = ref.watch(syncStateProvider);
+  return syncState.hasConflict && syncState.pendingConflict != null;
+});
+
+/// Provider for sync button enabled state
+final syncButtonEnabledProvider = Provider<bool>((ref) {
+  final syncState = ref.watch(syncStateProvider);
+  final hostsAsync = ref.watch(sshHostsProvider);
+  
+  // Disabled if currently syncing or if no hosts available
+  return !syncState.isSyncing && hostsAsync.hasValue;
+});
+
+/// Provider for the currently selected SSH profile for terminal connection
+final currentSshProfileProvider = StateProvider<SshProfile?>((ref) => null);

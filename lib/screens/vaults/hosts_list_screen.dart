@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../themes/app_theme.dart';
 import '../../models/ssh_profile_models.dart';
 import '../../providers/ssh_host_providers.dart';
+import '../main/main_tab_screen.dart';
 import 'host_edit_screen.dart';
 
 class HostsListScreen extends ConsumerStatefulWidget {
@@ -573,8 +574,11 @@ class _HostsListScreenState extends ConsumerState<HostsListScreen> {
   }
 
   void _connectToHost(SshProfile host) {
-    // Navigate to terminal with host connection
-    Navigator.pushNamed(context, '/terminal', arguments: host);
+    // Set the SSH profile in the provider for the Terminal screen to use
+    ref.read(currentSshProfileProvider.notifier).state = host;
+    
+    // Navigate to the Terminal tab instead of creating a new route
+    TabNavigationHelper.navigateToTab(context, TabNavigationHelper.terminalTab);
   }
 
   Future<void> _testConnection(SshProfile host) async {

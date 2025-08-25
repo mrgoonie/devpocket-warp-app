@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:uuid/uuid.dart';
 
@@ -30,7 +31,6 @@ class _HostEditScreenState extends ConsumerState<HostEditScreen> {
 
   SshAuthType _authType = SshAuthType.password;
   bool _isPasswordVisible = false;
-  bool _isPrivateKeyVisible = false;
   bool _isPassphraseVisible = false;
   bool _isLoading = false;
 
@@ -285,28 +285,10 @@ class _HostEditScreenState extends ConsumerState<HostEditScreen> {
                   style: TextStyle(color: AppTheme.darkTextPrimary),
                 ),
                 subtitle: const Text(
-                  'Use private key authentication',
+                  'Use private key authentication (with optional passphrase)',
                   style: TextStyle(color: AppTheme.darkTextSecondary, fontSize: 12),
                 ),
                 value: SshAuthType.key,
-                groupValue: _authType,
-                onChanged: (value) {
-                  setState(() {
-                    _authType = value!;
-                  });
-                },
-                activeColor: AppTheme.primaryColor,
-              ),
-              RadioListTile<SshAuthType>(
-                title: const Text(
-                  'SSH Key with Passphrase',
-                  style: TextStyle(color: AppTheme.darkTextPrimary),
-                ),
-                subtitle: const Text(
-                  'Use private key with passphrase',
-                  style: TextStyle(color: AppTheme.darkTextSecondary, fontSize: 12),
-                ),
-                value: SshAuthType.keyWithPassphrase,
                 groupValue: _authType,
                 onChanged: (value) {
                   setState(() {
@@ -358,47 +340,21 @@ class _HostEditScreenState extends ConsumerState<HostEditScreen> {
             label: 'Private Key',
             hint: 'Paste your private key here',
             maxLines: 8,
-            obscureText: !_isPrivateKeyVisible,
+            // Remove obscureText for SSH keys as they need to be multiline and visible
+            // SSH keys should be visible for proper formatting verification
             suffixIcon: IconButton(
               icon: Icon(
-                _isPrivateKeyVisible ? Icons.visibility_off : Icons.visibility,
+                Icons.copy,
                 color: AppTheme.darkTextSecondary,
               ),
               onPressed: () {
-                setState(() {
-                  _isPrivateKeyVisible = !_isPrivateKeyVisible;
-                });
-              },
-            ),
-            validator: (value) {
-              if (value?.isEmpty ?? true) {
-                return 'Private key is required';
-              }
-              if (!value!.contains('BEGIN') || !value.contains('PRIVATE KEY')) {
-                return 'Invalid private key format';
-              }
-              return null;
-            },
-          ),
-        ];
-
-      case SshAuthType.keyWithPassphrase:
-        return [
-          CustomTextField(
-            controller: _privateKeyController,
-            label: 'Private Key',
-            hint: 'Paste your private key here',
-            maxLines: 8,
-            obscureText: !_isPrivateKeyVisible,
-            suffixIcon: IconButton(
-              icon: Icon(
-                _isPrivateKeyVisible ? Icons.visibility_off : Icons.visibility,
-                color: AppTheme.darkTextSecondary,
-              ),
-              onPressed: () {
-                setState(() {
-                  _isPrivateKeyVisible = !_isPrivateKeyVisible;
-                });
+                // Copy functionality instead of visibility toggle
+                if (_privateKeyController.text.isNotEmpty) {
+                  Clipboard.setData(ClipboardData(text: _privateKeyController.text));
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(content: Text('Private key copied to clipboard')),
+                  );
+                }
               },
             ),
             validator: (value) {
@@ -414,8 +370,8 @@ class _HostEditScreenState extends ConsumerState<HostEditScreen> {
           const SizedBox(height: 16),
           CustomTextField(
             controller: _passphraseController,
-            label: 'Passphrase',
-            hint: 'Enter key passphrase',
+            label: 'Passphrase (Optional)',
+            hint: 'Enter key passphrase if required',
             obscureText: !_isPassphraseVisible,
             suffixIcon: IconButton(
               icon: Icon(
@@ -428,14 +384,9 @@ class _HostEditScreenState extends ConsumerState<HostEditScreen> {
                 });
               },
             ),
-            validator: (value) {
-              if (value?.isEmpty ?? true) {
-                return 'Passphrase is required for encrypted keys';
-              }
-              return null;
-            },
           ),
         ];
+
     }
   }
 
@@ -591,10 +542,10 @@ class _HostEditScreenState extends ConsumerState<HostEditScreen> {
         password: _authType == SshAuthType.password 
             ? _passwordController.text 
             : null,
-        privateKey: (_authType == SshAuthType.key || _authType == SshAuthType.keyWithPassphrase)
+        privateKey: _authType == SshAuthType.key
             ? _privateKeyController.text 
             : null,
-        passphrase: _authType == SshAuthType.keyWithPassphrase 
+        passphrase: _authType == SshAuthType.key && _passphraseController.text.isNotEmpty
             ? _passphraseController.text 
             : null,
         description: _descriptionController.text.trim().isNotEmpty 
@@ -678,10 +629,10 @@ class _HostEditScreenState extends ConsumerState<HostEditScreen> {
       password: _authType == SshAuthType.password 
           ? _passwordController.text 
           : null,
-      privateKey: (_authType == SshAuthType.key || _authType == SshAuthType.keyWithPassphrase)
+      privateKey: _authType == SshAuthType.key
           ? _privateKeyController.text 
           : null,
-      passphrase: _authType == SshAuthType.keyWithPassphrase 
+      passphrase: _authType == SshAuthType.key && _passphraseController.text.isNotEmpty
           ? _passphraseController.text 
           : null,
       createdAt: DateTime.now(),

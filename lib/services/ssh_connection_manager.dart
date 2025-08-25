@@ -93,7 +93,6 @@ class SshConnectionManager {
           break;
           
         case SshAuthType.key:
-        case SshAuthType.keyWithPassphrase:
           final keyPair = await _parsePrivateKey(
             profile.privateKey!,
             profile.passphrase,

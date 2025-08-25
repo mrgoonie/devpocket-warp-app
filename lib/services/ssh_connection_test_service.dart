@@ -112,7 +112,6 @@ class SshConnectionTestService {
         );
         
       case SshAuthType.key:
-      case SshAuthType.keyWithPassphrase:
         final keyPair = await _getPublicKeyAuth(profile);
         if (keyPair != null) {
           return SSHClient(
@@ -137,8 +136,7 @@ class SshConnectionTestService {
     
     try {
       // Parse private key based on auth type
-      if (profile.authType == SshAuthType.key || 
-          profile.authType == SshAuthType.keyWithPassphrase) {
+      if (profile.authType == SshAuthType.key) {
         
         final privateKey = profile.privateKey!;
         final passphrase = profile.passphrase;

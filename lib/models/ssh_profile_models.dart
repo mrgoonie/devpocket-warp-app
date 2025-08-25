@@ -2,16 +2,23 @@ import 'package:uuid/uuid.dart';
 
 /// SSH profile authentication types as per API documentation
 enum SshAuthType {
-  password('password'),
-  key('key'),
-  keyWithPassphrase('keyWithPassphrase');
+  password('PASSWORD'),
+  key('KEY');
   
   const SshAuthType(this.value);
   final String value;
   
   static SshAuthType fromString(String value) {
+    // Handle both uppercase (API) and lowercase (legacy) values
+    final normalizedValue = value.toUpperCase();
+    
+    // Handle legacy keyWithPassphrase -> key conversion
+    if (normalizedValue == 'KEYWITHPASSPHRASE' || value == 'keyWithPassphrase') {
+      return SshAuthType.key;
+    }
+    
     return SshAuthType.values.firstWhere(
-      (type) => type.value == value,
+      (type) => type.value == normalizedValue,
       orElse: () => SshAuthType.password,
     );
   }
@@ -175,8 +182,8 @@ class SshProfile {
   String get connectionString => '$username@$host:$port';
   
   bool get requiresPassword => authType == SshAuthType.password;
-  bool get requiresPrivateKey => authType == SshAuthType.key || authType == SshAuthType.keyWithPassphrase;
-  bool get requiresPassphrase => authType == SshAuthType.keyWithPassphrase;
+  bool get requiresPrivateKey => authType == SshAuthType.key;
+  bool get requiresPassphrase => authType == SshAuthType.key && passphrase != null;
   
   bool get isActive => status == SshProfileStatus.active;
   bool get isTesting => status == SshProfileStatus.testing;

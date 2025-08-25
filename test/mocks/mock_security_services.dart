@@ -83,7 +83,7 @@ class TestSafeSshHostService extends Mock implements SshHostService {
   }
   
   @override
-  Future<List<SshProfile>> getHosts() async {
+  Future<List<SshProfile>> getHosts({bool forceSync = false}) async {
     await Future.delayed(const Duration(milliseconds: 30));
     return List.from(_profiles);
   }

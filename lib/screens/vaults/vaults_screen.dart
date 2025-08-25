@@ -8,6 +8,8 @@ import '../../models/ssh_profile_models.dart';
 import '../../providers/ssh_providers.dart';
 import '../../providers/ssh_host_providers.dart';
 import '../../providers/ssh_key_providers.dart';
+import '../../widgets/ssh_sync_widgets.dart';
+import '../main/main_tab_screen.dart';
 import 'hosts_list_screen.dart';
 import 'host_edit_screen.dart';
 import '../ssh_keys/ssh_keys_screen.dart';
@@ -66,6 +68,34 @@ class _VaultsScreenState extends ConsumerState<VaultsScreen>
           ],
         ),
         actions: [
+          // Sync status indicator in app bar
+          Consumer(
+            builder: (context, ref, child) {
+              final hasPendingConflicts = ref.watch(hasPendingConflictsProvider);
+              if (hasPendingConflicts) {
+                return IconButton(
+                  icon: const Icon(Icons.warning, color: AppTheme.terminalYellow),
+                  onPressed: () {
+                    final conflict = ref.read(syncStateProvider).pendingConflict;
+                    if (conflict != null) {
+                      showDialog(
+                        context: context,
+                        builder: (context) => ConflictResolutionDialog(
+                          conflict: conflict,
+                          onResolve: (strategy) {
+                            Navigator.of(context).pop();
+                            ref.read(syncStateProvider.notifier).resolveConflict(strategy);
+                          },
+                        ),
+                      );
+                    }
+                  },
+                  tooltip: 'Resolve Sync Conflicts',
+                );
+              }
+              return const SizedBox.shrink();
+            },
+          ),
           IconButton(
             icon: const Icon(Icons.add_circle_outline),
             onPressed: _showAddHostDialog,
@@ -97,58 +127,76 @@ class _VaultsScreenState extends ConsumerState<VaultsScreen>
             
             return RefreshIndicator(
               onRefresh: () async {
+                // Perform full sync on refresh
+                ref.read(syncStateProvider.notifier).performFullSync();
                 await ref.read(sshHostsProvider.notifier).refresh();
               },
               child: Column(
                 children: [
-                  // Quick stats header
+                  // Sync status widget
+                  const Padding(
+                    padding: EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                    child: SyncStatusWidget(compact: true),
+                  ),
+                  // Quick stats header with sync controls
                   Container(
-                    margin: const EdgeInsets.all(16),
+                    margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
                     padding: const EdgeInsets.all(16),
                     decoration: BoxDecoration(
                       color: AppTheme.darkSurface,
                       borderRadius: BorderRadius.circular(12),
                       border: Border.all(color: AppTheme.darkBorderColor),
                     ),
-                    child: Row(
+                    child: Column(
                       children: [
-                        Expanded(
-                          child: _buildQuickStat(
-                            'Total',
-                            hosts.length.toString(),
-                            Icons.computer,
-                            AppTheme.primaryColor,
-                          ),
-                        ),
-                        Container(width: 1, height: 40, color: AppTheme.darkBorderColor),
-                        Expanded(
-                          child: _buildQuickStat(
-                            'Online',
-                            hosts.where((h) => h.status == SshProfileStatus.active).length.toString(),
-                            Icons.circle,
-                            AppTheme.terminalGreen,
-                          ),
-                        ),
-                        Container(width: 1, height: 40, color: AppTheme.darkBorderColor),
-                        Expanded(
-                          child: TextButton(
-                            onPressed: () => Navigator.push(
-                              context,
-                              MaterialPageRoute(builder: (context) => const HostsListScreen()),
+                        // Stats row
+                        Row(
+                          children: [
+                            Expanded(
+                              child: _buildQuickStat(
+                                'Total',
+                                hosts.length.toString(),
+                                Icons.computer,
+                                AppTheme.primaryColor,
+                              ),
                             ),
-                            child: const Row(
-                              mainAxisAlignment: MainAxisAlignment.center,
-                              children: [
-                                Icon(Icons.arrow_forward, color: AppTheme.primaryColor, size: 16),
-                                SizedBox(width: 4),
-                                Text(
-                                  'View All',
-                                  style: TextStyle(color: AppTheme.primaryColor, fontSize: 12),
+                            Container(width: 1, height: 40, color: AppTheme.darkBorderColor),
+                            Expanded(
+                              child: _buildQuickStat(
+                                'Online',
+                                hosts.where((h) => h.status == SshProfileStatus.active).length.toString(),
+                                Icons.circle,
+                                AppTheme.terminalGreen,
+                              ),
+                            ),
+                            Container(width: 1, height: 40, color: AppTheme.darkBorderColor),
+                            Expanded(
+                              child: TextButton(
+                                onPressed: () => Navigator.push(
+                                  context,
+                                  MaterialPageRoute(builder: (context) => const HostsListScreen()),
                                 ),
-                              ],
+                                child: const Row(
+                                  mainAxisAlignment: MainAxisAlignment.center,
+                                  children: [
+                                    Icon(Icons.arrow_forward, color: AppTheme.primaryColor, size: 16),
+                                    SizedBox(width: 4),
+                                    Text(
+                                      'View All',
+                                      style: TextStyle(color: AppTheme.primaryColor, fontSize: 12),
+                                    ),
+                                  ],
+                                ),
+                              ),
                             ),
-                          ),
+                          ],
                         ),
+                        const SizedBox(height: 12),
+                        // Sync controls
+                        const SyncControlsWidget(showFullControls: false),
+                        const SizedBox(height: 8),
+                        // Last sync time
+                        const LastSyncTimeWidget(),
                       ],
                     ),
                   ),
@@ -855,8 +903,11 @@ class _VaultsScreenState extends ConsumerState<VaultsScreen>
   }
 
   void _connectToSshProfile(SshProfile host) {
-    // Navigate to terminal with SSH profile connection
-    Navigator.pushNamed(context, '/terminal', arguments: host);
+    // Set the SSH profile in the provider for the Terminal screen to use
+    ref.read(currentSshProfileProvider.notifier).state = host;
+    
+    // Navigate to the Terminal tab instead of creating a new route
+    TabNavigationHelper.navigateToTab(context, TabNavigationHelper.terminalTab);
   }
 
   Future<void> _testSshConnection(SshProfile host) async {
