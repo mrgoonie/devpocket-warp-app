@@ -78,8 +78,8 @@ class EnhancedAuthServiceV2 {
         final user = User.fromJson(data['user']);
         
         // Store tokens securely after successful registration
-        final accessToken = data['accessToken'] as String?;
-        final refreshToken = data['refreshToken'] as String?;
+        final accessToken = data['access_token'] as String?;
+        final refreshToken = data['refresh_token'] as String?;
         
         if (accessToken != null && refreshToken != null) {
           await _apiClient.storeTokens(accessToken, refreshToken, userId: user.id);
@@ -122,8 +122,8 @@ class EnhancedAuthServiceV2 {
         final user = User.fromJson(data['user']);
         
         // Store tokens securely after successful login
-        final accessToken = data['accessToken'] as String?;
-        final refreshToken = data['refreshToken'] as String?;
+        final accessToken = data['access_token'] as String?;
+        final refreshToken = data['refresh_token'] as String?;
         
         if (accessToken != null && refreshToken != null) {
           await _apiClient.storeTokens(accessToken, refreshToken, userId: user.id);
@@ -169,10 +169,18 @@ class EnhancedAuthServiceV2 {
         final data = response.data!;
         final user = User.fromJson(data['user']);
         
+        // Store tokens securely after successful Google sign-in
+        final accessToken = data['access_token'] as String?;
+        final refreshToken = data['refresh_token'] as String?;
+        
+        if (accessToken != null && refreshToken != null) {
+          await _apiClient.storeTokens(accessToken, refreshToken, userId: user.id);
+        }
+        
         return AuthResult.success(
           user: user,
-          accessToken: data['accessToken'],
-          refreshToken: data['refreshToken'],
+          accessToken: accessToken,
+          refreshToken: refreshToken,
         );
       } else {
         return AuthResult.failure(
