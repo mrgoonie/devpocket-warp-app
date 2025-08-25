@@ -1,0 +1,20 @@
+Task: Fix Flutter analyzer warnings for unused variables and fields
+
+Current issue:
+- 6 unused_local_variable warnings
+- 3 unused_field warnings
+
+Requirements:
+1. Run Flutter analyzer to identify specific unused variables and fields
+2. Review each warning to determine if variable/field should be:
+   - Removed (if truly unused)
+   - Prefixed with underscore (if intentionally unused)
+   - Actually used (if it was meant to be used)
+3. Fix all warnings while maintaining functionality
+4. Ensure no breaking changes to existing functionality
+
+Acceptance Criteria:
+- Flutter analyzer shows 0 unused_local_variable warnings
+- Flutter analyzer shows 0 unused_field warnings
+- All tests pass after fixes
+- No functionality is broken

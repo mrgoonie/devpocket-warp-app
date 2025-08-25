@@ -2,12 +2,12 @@ import 'package:flutter_test/flutter_test.dart';
 import 'dart:math';
 import 'dart:typed_data';
 
-import '../../lib/models/ssh_profile_models.dart';
-import '../../lib/services/ssh_host_service.dart';
-import '../../lib/services/terminal_session_handler.dart';
-import '../../lib/services/ssh_connection_manager.dart';
-import '../../lib/services/terminal_websocket_service.dart';
-import '../../lib/services/crypto_service.dart';
+import 'package:devpocket_warp_app/models/ssh_profile_models.dart';
+import 'package:devpocket_warp_app/services/ssh_host_service.dart';
+import 'package:devpocket_warp_app/services/terminal_session_handler.dart';
+import 'package:devpocket_warp_app/services/ssh_connection_manager.dart';
+import 'package:devpocket_warp_app/services/terminal_websocket_service.dart';
+import 'package:devpocket_warp_app/services/crypto_service.dart';
 
 /// Performance benchmarks and optimization tests
 /// Validates system meets performance requirements
@@ -377,7 +377,7 @@ void main() {
     group('Cryptographic Performance', () {
       testWidgets('should perform encryption/decryption efficiently', (WidgetTester tester) async {
         const operationCount = mediumTestSize; // Reduced from 100
-        final testData = 'Performance test data that needs encryption';
+        const testData = 'Performance test data that needs encryption';
         final key = cryptoService.generateSalt();
 
         // Test AES encryption performance

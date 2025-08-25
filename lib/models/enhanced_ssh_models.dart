@@ -333,16 +333,25 @@ class SecureHost {
     int riskScore = 0;
 
     // Host key verification
-    if (hostKeyVerification == HostKeyVerification.disabled) riskScore += 30;
-    else if (hostKeyVerification == HostKeyVerification.warn) riskScore += 20;
+    if (hostKeyVerification == HostKeyVerification.disabled) {
+      riskScore += 30;
+    } else if (hostKeyVerification == HostKeyVerification.warn) {
+      riskScore += 20;
+    }
 
     // Authentication method
-    if (authMethod == AuthMethod.password) riskScore += 10;
-    else if (authMethod == AuthMethod.multiFactor) riskScore -= 10;
+    if (authMethod == AuthMethod.password) {
+      riskScore += 10;
+    } else if (authMethod == AuthMethod.multiFactor) {
+      riskScore -= 10;
+    }
 
     // Encryption level
-    if (encryptionLevel == EncryptionLevel.legacy) riskScore += 25;
-    else if (encryptionLevel == EncryptionLevel.high) riskScore -= 10;
+    if (encryptionLevel == EncryptionLevel.legacy) {
+      riskScore += 25;
+    } else if (encryptionLevel == EncryptionLevel.high) {
+      riskScore -= 10;
+    }
 
     // Compression (security risk)
     if (compressionEnabled) riskScore += 5;

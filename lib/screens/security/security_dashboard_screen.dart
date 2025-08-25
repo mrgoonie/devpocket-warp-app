@@ -78,7 +78,7 @@ class _SecurityDashboardScreenState extends ConsumerState<SecurityDashboardScree
     // Check biometric availability
     final biometricService = ref.read(biometricServiceProvider);
     if (!await biometricService.isAvailable()) {
-      alerts.add(SecurityAlert(
+      alerts.add(const SecurityAlert(
         severity: SecuritySeverity.medium,
         title: 'Biometric Authentication Unavailable',
         description: 'Enable biometric authentication for enhanced security',
@@ -225,9 +225,9 @@ class _SecurityDashboardScreenState extends ConsumerState<SecurityDashboardScree
 
   Widget _buildSecurityAlerts() {
     if (_securityAlerts.isEmpty) {
-      return Card(
+      return const Card(
         child: Padding(
-          padding: const EdgeInsets.all(20),
+          padding: EdgeInsets.all(20),
           child: Row(
             children: [
               Icon(
@@ -235,8 +235,8 @@ class _SecurityDashboardScreenState extends ConsumerState<SecurityDashboardScree
                 color: Colors.green,
                 size: 32,
               ),
-              const SizedBox(width: 16),
-              const Expanded(
+              SizedBox(width: 16),
+              Expanded(
                 child: Text(
                   'No security alerts',
                   style: TextStyle(
@@ -508,12 +508,18 @@ class _SecurityDashboardScreenState extends ConsumerState<SecurityDashboardScree
     
     if (_auditStats != null) {
       // Deduct points for low success rate
-      if (_auditStats!.successRate < 0.5) score -= 30;
-      else if (_auditStats!.successRate < 0.8) score -= 15;
+      if (_auditStats!.successRate < 0.5) {
+        score -= 30;
+      } else if (_auditStats!.successRate < 0.8) {
+        score -= 15;
+      }
       
       // Deduct points for security warnings
-      if (_auditStats!.securityWarningRate > 0.2) score -= 25;
-      else if (_auditStats!.securityWarningRate > 0.1) score -= 10;
+      if (_auditStats!.securityWarningRate > 0.2) {
+        score -= 25;
+      } else if (_auditStats!.securityWarningRate > 0.1) {
+        score -= 10;
+      }
     }
     
     // Deduct points for security alerts
@@ -597,12 +603,15 @@ class _SecurityDashboardScreenState extends ConsumerState<SecurityDashboardScree
       final sshService = ref.read(sshServiceProvider);
       await sshService.disconnect(connection.id);
       
+      if (!mounted) return;
+      
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text('Disconnected from ${connection.host.displayName}'),
         ),
       );
     } catch (e) {
+      if (!mounted) return;
       _showError('Failed to disconnect: $e');
     }
   }

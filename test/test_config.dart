@@ -10,6 +10,11 @@ class TestConfig {
   static const Duration mediumTimeout = Duration(seconds: 15);
   static const Duration longTimeout = Duration(seconds: 30);
   
+  // Spot framework specific timeouts
+  static const Duration spotTestTimeout = Duration(seconds: 30);
+  static const Duration spotActionTimeout = Duration(seconds: 10);
+  static const Duration webSocketTestTimeout = Duration(seconds: 15);
+  
   // Test size limits to prevent memory issues
   static const int smallBatch = 5;
   static const int mediumBatch = 15;
@@ -33,11 +38,11 @@ class TestConfig {
       final binding = WidgetsBinding.instance;
       if (binding is TestWidgetsFlutterBinding) {
         // We're in a test environment
-        print('Test environment initialized');
+        debugPrint('Test environment initialized');
       }
     } catch (e) {
       // Ignore if not available in test environment
-      print('Test binding configuration skipped: $e');
+      debugPrint('Test binding configuration skipped: $e');
     }
     
     // Set memory pressure callback
@@ -49,7 +54,7 @@ class TestConfig {
     // Add periodic GC to prevent memory buildup
     if (Platform.environment['FLUTTER_TEST'] == 'true') {
       // We're in a test environment
-      print('Test environment initialized with memory management');
+      debugPrint('Test environment initialized with memory management');
     }
   }
   
@@ -67,6 +72,20 @@ class TestConfig {
       return Duration(milliseconds: (baseTimeout.inMilliseconds * 1.5).round());
     }
     return baseTimeout;
+  }
+  
+  /// Get Spot-specific timeout for test execution
+  static Duration getSpotTimeout() {
+    return isCIEnvironment 
+        ? Duration(milliseconds: (spotTestTimeout.inMilliseconds * 1.5).round())
+        : spotTestTimeout;
+  }
+  
+  /// Get WebSocket-specific timeout for connection tests  
+  static Duration getWebSocketTimeout() {
+    return isCIEnvironment
+        ? Duration(milliseconds: (webSocketTestTimeout.inMilliseconds * 1.5).round())
+        : webSocketTestTimeout;
   }
   
   /// Get appropriate batch size based on environment
@@ -100,12 +119,12 @@ class TestStability {
         lastException = e is Exception ? e : Exception(e.toString());
         
         if (attempts == maxAttempts) {
-          print('Test "$description" failed after $maxAttempts attempts');
+          debugPrint('Test "$description" failed after $maxAttempts attempts');
           rethrow;
         }
         
-        print('Test "$description" attempt $attempts failed: $e');
-        print('Retrying in ${attempts * 100}ms...');
+        debugPrint('Test "$description" attempt $attempts failed: $e');
+        debugPrint('Retrying in ${attempts * 100}ms...');
         
         // Exponential backoff
         await Future.delayed(Duration(milliseconds: attempts * 100));
@@ -187,12 +206,12 @@ class TestStability {
       } catch (e) {
         if (attempts == maxAttempts) {
           // Fallback to simple pump
-          print('PumpAndSettle failed after $maxAttempts attempts, using simple pump');
+          debugPrint('PumpAndSettle failed after $maxAttempts attempts, using simple pump');
           await tester.pump(duration ?? const Duration(milliseconds: 100));
           return;
         }
         
-        print('PumpAndSettle attempt $attempts failed: $e');
+        debugPrint('PumpAndSettle attempt $attempts failed: $e');
         await Future.delayed(Duration(milliseconds: attempts * 50));
       }
     }

@@ -92,7 +92,7 @@ class UserService {
       final response = await _apiClient.delete('/users/avatar', data: {});
       
       if (response.statusCode == 200) {
-        return ApiResponse.success(data: null);
+        return const ApiResponse.success(data: null);
       } else {
         return ApiResponse.error(
           message: response.data?['message'] ?? 'Failed to delete avatar',
@@ -117,7 +117,7 @@ class UserService {
       });
       
       if (response.statusCode == 200) {
-        return ApiResponse.success(data: null);
+        return const ApiResponse.success(data: null);
       } else {
         return ApiResponse.error(
           message: response.data?['message'] ?? 'Failed to change password',
@@ -224,7 +224,7 @@ class UserService {
       final response = await _apiClient.delete('/users/devices/$deviceId', data: {});
       
       if (response.statusCode == 200) {
-        return ApiResponse.success(data: null);
+        return const ApiResponse.success(data: null);
       } else {
         return ApiResponse.error(
           message: response.data?['message'] ?? 'Failed to remove device',
@@ -251,7 +251,7 @@ class UserService {
       if (response.statusCode == 200) {
         // Clear all local data
         await _secureStorage.deleteAll();
-        return ApiResponse.success(data: null);
+        return const ApiResponse.success(data: null);
       } else {
         return ApiResponse.error(
           message: response.data?['message'] ?? 'Failed to delete account',

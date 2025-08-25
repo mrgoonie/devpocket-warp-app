@@ -1,4 +1,5 @@
 import 'package:flutter_test/flutter_test.dart';
+import 'package:flutter/foundation.dart';
 
 import 'test_config.dart';
 import 'helpers/test_helpers.dart';
@@ -20,13 +21,13 @@ void main() {
   group('DevPocket Stable Test Suite', () {
     
     setUpAll(() {
-      print('Starting DevPocket Stable Test Suite');
-      print('CI Environment: ${TestConfig.isCIEnvironment}');
-      print('Test Timeouts: Short=${TestConfig.shortTimeout}, Medium=${TestConfig.mediumTimeout}, Long=${TestConfig.longTimeout}');
+      debugPrint('Starting DevPocket Stable Test Suite');
+      debugPrint('CI Environment: ${TestConfig.isCIEnvironment}');
+      debugPrint('Test Timeouts: Short=${TestConfig.shortTimeout}, Medium=${TestConfig.mediumTimeout}, Long=${TestConfig.longTimeout}');
     });
     
     tearDownAll(() {
-      print('DevPocket Stable Test Suite completed');
+      debugPrint('DevPocket Stable Test Suite completed');
     });
     
     group('Integration Tests (Stable)', () {
@@ -72,6 +73,6 @@ void main() {
     
     await TestHelpers.safePump(tester);
     
-    print('✓ Test environment health check passed');
+    debugPrint('✓ Test environment health check passed');
   });
 }

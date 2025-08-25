@@ -1,10 +1,12 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'dart:async';
 
-import '../../lib/models/ssh_profile_models.dart';
-import '../../lib/services/terminal_session_handler.dart';
-import '../../lib/services/terminal_websocket_service.dart';
-import '../../lib/services/websocket_manager.dart';
+import 'package:devpocket_warp_app/models/ssh_profile_models.dart';
+import 'package:devpocket_warp_app/services/terminal_session_handler.dart';
+import 'package:devpocket_warp_app/services/terminal_websocket_service.dart';
+import 'package:devpocket_warp_app/services/websocket_manager.dart';
+import '../helpers/test_helpers.dart';
+import '../helpers/stability_helpers.dart';
 
 /// Integration tests for SSH Terminal Implementation
 /// Tests WebSocket integration, session management, and terminal functionality
@@ -42,6 +44,11 @@ SshProfile createTestProfile({
 }
 
 void main() {
+  // Initialize test environment with Spot framework
+  setUpAll(() {
+    TestHelpers.initializeTestEnvironment();
+  });
+  
   group('SSH Terminal Integration Tests', () {
     late TerminalSessionHandler sessionHandler;
     late TerminalWebSocketService wsService;
@@ -57,25 +64,29 @@ void main() {
       // Clean up all active sessions
       await sessionHandler.stopAllSessions();
       await wsService.disconnect();
+      await StabilityHelpers.cleanupTestEnvironment();
     });
 
     group('WebSocket Terminal Integration', () {
       testWidgets('should integrate WebSocket API with terminal sessions', (WidgetTester tester) async {
-        final testProfile = createTestProfile(
-          id: 'ws-terminal-test-1',
-          name: 'WebSocket Terminal Test',
-          host: 'test.example.com',
-          username: 'testuser',
-          password: 'testpass',
-        );
+        await StabilityHelpers.runWebSocketTest(
+          'WebSocket terminal integration',
+          () async {
+            final testProfile = createTestProfile(
+              id: 'ws-terminal-test-1',
+              name: 'WebSocket Terminal Test',
+              host: 'test.example.com',
+              username: 'testuser',
+              password: 'testpass',
+            );
 
-        // Test WebSocket service initialization
-        expect(wsService.isConnected, isFalse);
-        expect(wsService.activeSessionCount, equals(0));
+            // Test WebSocket service initialization
+            expect(wsService.isConnected, isFalse);
+            expect(wsService.activeSessionCount, equals(0));
 
-        try {
-          // Attempt WebSocket connection (will fail if backend not available)
-          await wsService.connect();
+            try {
+              // Attempt WebSocket connection (will fail if backend not available)
+              await wsService.connect();
           
           if (wsService.isConnected) {
             // Test terminal session creation via WebSocket
@@ -101,14 +112,19 @@ void main() {
             await wsService.closeTerminalSession(sessionId);
             expect(wsService.activeSessionCount, equals(0));
           }
-        } catch (e) {
-          // WebSocket connection may fail in test environment
-          // This is acceptable as it tests error handling
-          expect(e, isA<Exception>());
-        }
+            } catch (e) {
+              // WebSocket connection may fail in test environment
+              // This is acceptable as it tests error handling
+              expect(e, isA<Exception>());
+            }
+          },
+        );
       });
 
       testWidgets('should handle WebSocket connection states', (WidgetTester tester) async {
+        await StabilityHelpers.runWebSocketTest(
+          'WebSocket connection state management',
+          () async {
         // Test connection state management
         expect(wsManager.state, equals(WebSocketState.disconnected));
         expect(wsManager.isConnected, isFalse);
@@ -122,13 +138,15 @@ void main() {
           expect(e, isA<Exception>());
         }
 
-        // Test state consistency
-        expect(wsManager.isConnected, equals(wsManager.state == WebSocketState.connected));
+            // Test state consistency
+            expect(wsManager.isConnected, equals(wsManager.state == WebSocketState.connected));
+          },
+        );
       });
     });
 
     group('Session Management Integration', () {
-      testWidgets('should create and manage SSH terminal sessions', (WidgetTester tester) async {
+      StabilityHelpers.stableSpotTestWidgets('should create and manage SSH terminal sessions', (WidgetTester tester) async {
         final testProfile = createTestProfile(
           id: 'session-test-1',
           name: 'Session Test',
@@ -171,7 +189,7 @@ void main() {
         }
       });
 
-      testWidgets('should handle multiple concurrent sessions', (WidgetTester tester) async {
+      StabilityHelpers.stableSpotTestWidgets('should handle multiple concurrent sessions', (WidgetTester tester) async {
         final testProfiles = List.generate(3, (index) => createTestProfile(
           id: 'concurrent-test-$index',
           name: 'Concurrent Test $index',
@@ -210,7 +228,7 @@ void main() {
         }
       });
 
-      testWidgets('should handle session lifecycle correctly', (WidgetTester tester) async {
+      StabilityHelpers.stableSpotTestWidgets('should handle session lifecycle correctly', (WidgetTester tester) async {
         final testProfile = createTestProfile(
           id: 'lifecycle-test-1',
           name: 'Lifecycle Test',
@@ -251,7 +269,7 @@ void main() {
     });
 
     group('Error Handling and Recovery', () {
-      testWidgets('should handle connection failures gracefully', (WidgetTester tester) async {
+      StabilityHelpers.stableSpotTestWidgets('should handle connection failures gracefully', (WidgetTester tester) async {
         final invalidProfile = createTestProfile(
           id: 'invalid-connection-test',
           name: 'Invalid Connection Test',
@@ -276,7 +294,7 @@ void main() {
         }
       });
 
-      testWidgets('should handle WebSocket disconnection', (WidgetTester tester) async {
+      StabilityHelpers.stableSpotTestWidgets('should handle WebSocket disconnection', (WidgetTester tester) async {
         final testProfile = createTestProfile(
           id: 'ws-disconnect-test',
           name: 'WebSocket Disconnect Test',
@@ -306,7 +324,7 @@ void main() {
         }
       });
 
-      testWidgets('should recover from network interruptions', (WidgetTester tester) async {
+      StabilityHelpers.stableSpotTestWidgets('should recover from network interruptions', (WidgetTester tester) async {
         // Test WebSocket reconnection logic
         expect(wsManager.state, equals(WebSocketState.disconnected));
 
@@ -331,7 +349,7 @@ void main() {
     });
 
     group('Performance and Resource Management', () {
-      testWidgets('should manage resources efficiently', (WidgetTester tester) async {
+      StabilityHelpers.stableSpotTestWidgets('should manage resources efficiently', (WidgetTester tester) async {
         // Test resource cleanup
         final initialSessions = sessionHandler.getActiveSessions().length;
 
@@ -357,7 +375,7 @@ void main() {
         expect(finalSessions, lessThanOrEqualTo(initialSessions));
       });
 
-      testWidgets('should handle session timeouts', (WidgetTester tester) async {
+      StabilityHelpers.stableSpotTestWidgets('should handle session timeouts', (WidgetTester tester) async {
         final testProfile = createTestProfile(
           id: 'timeout-test-1',
           name: 'Timeout Test',
@@ -380,7 +398,7 @@ void main() {
     });
 
     group('Terminal Output Streaming', () {
-      testWidgets('should stream terminal output correctly', (WidgetTester tester) async {
+      StabilityHelpers.stableSpotTestWidgets('should stream terminal output correctly', (WidgetTester tester) async {
         // Test output stream setup
         final outputStream = sessionHandler.output;
         expect(outputStream, isA<Stream<TerminalOutput>>());

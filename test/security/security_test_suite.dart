@@ -4,12 +4,12 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:mockito/mockito.dart';
 import 'package:mockito/annotations.dart';
 
-import '../../lib/services/crypto_service.dart';
-import '../../lib/services/command_validator.dart';
-import '../../lib/services/secure_storage_service.dart';
-import '../../lib/services/secure_ssh_service.dart';
-import '../../lib/services/enhanced_auth_service.dart';
-import '../../lib/models/enhanced_ssh_models.dart';
+import 'package:devpocket_warp_app/services/crypto_service.dart';
+import 'package:devpocket_warp_app/services/command_validator.dart';
+import 'package:devpocket_warp_app/services/secure_storage_service.dart';
+import 'package:devpocket_warp_app/services/secure_ssh_service.dart';
+import 'package:devpocket_warp_app/services/enhanced_auth_service.dart';
+import 'package:devpocket_warp_app/models/enhanced_ssh_models.dart';
 
 @GenerateMocks([
   CryptoService,
@@ -234,7 +234,7 @@ void commandValidationSecurityTests() {
     });
 
     test('validates command length limits', () {
-      final longCommand = 'echo ' + 'a' * 10000;
+      final longCommand = 'echo ${'a' * 10000}';
       
       final result = CommandValidator.validateCommand(longCommand);
       

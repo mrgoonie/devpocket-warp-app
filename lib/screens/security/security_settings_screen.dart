@@ -430,11 +430,11 @@ class _SecuritySettingsScreenState extends ConsumerState<SecuritySettingsScreen>
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Row(
+            const Row(
               children: [
                 Icon(Icons.info_outline, color: Colors.blue),
-                const SizedBox(width: 8),
-                const Text(
+                SizedBox(width: 8),
+                Text(
                   'Available Biometric Methods',
                   style: TextStyle(fontWeight: FontWeight.w600),
                 ),
@@ -483,11 +483,11 @@ class _SecuritySettingsScreenState extends ConsumerState<SecuritySettingsScreen>
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Row(
+            const Row(
               children: [
                 Icon(Icons.warning, color: Colors.red),
-                const SizedBox(width: 8),
-                const Text(
+                SizedBox(width: 8),
+                Text(
                   'Danger Zone',
                   style: TextStyle(
                     fontWeight: FontWeight.bold,

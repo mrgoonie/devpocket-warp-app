@@ -9,11 +9,16 @@ import '../../main.dart';
 import '../auth/login_screen.dart';
 import 'api_key_screen.dart';
 
-class SettingsScreen extends ConsumerWidget {
+class SettingsScreen extends ConsumerStatefulWidget {
   const SettingsScreen({super.key});
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  ConsumerState<SettingsScreen> createState() => _SettingsScreenState();
+}
+
+class _SettingsScreenState extends ConsumerState<SettingsScreen> {
+  @override
+  Widget build(BuildContext context) {
     final user = ref.watch(currentUserProvider);
     final themeMode = ref.watch(themeProvider);
     final hasValidKey = ref.watch(hasAiApiKeyProvider).maybeWhen(
@@ -73,7 +78,7 @@ class SettingsScreen extends ConsumerWidget {
             icon: Icons.color_lens,
             title: 'Theme',
             subtitle: _getThemeDescription(themeMode),
-            onTap: () => _showThemeDialog(context, ref),
+            onTap: () => _showThemeDialog(context),
           ),
           
           _buildSettingCard(
@@ -81,7 +86,7 @@ class SettingsScreen extends ConsumerWidget {
             icon: Icons.text_fields,
             title: 'Terminal Font',
             subtitle: 'JetBrains Mono - 14pt',
-            onTap: () => _showFontDialog(context, ref),
+            onTap: () => _showFontDialog(context),
           ),
           
           _buildSettingCard(
@@ -89,7 +94,7 @@ class SettingsScreen extends ConsumerWidget {
             icon: Icons.palette,
             title: 'Terminal Theme',
             subtitle: 'GitHub Dark',
-            onTap: () => _showTerminalThemeDialog(context, ref),
+            onTap: () => _showTerminalThemeDialog(context),
           ),
           
           const SizedBox(height: 24),
@@ -331,14 +336,14 @@ class SettingsScreen extends ConsumerWidget {
                     color: AppTheme.primaryColor.withValues(alpha: 0.2),
                   ),
                 ),
-                child: Row(
+                child: const Row(
                   children: [
                     Icon(
                       Icons.check_circle,
                       size: 16,
                       color: AppTheme.primaryColor,
                     ),
-                    const SizedBox(width: 8),
+                    SizedBox(width: 8),
                     Text(
                       'Ready to assist with terminal commands',
                       style: TextStyle(
@@ -407,11 +412,11 @@ class SettingsScreen extends ConsumerWidget {
   }
 
   Widget _buildLogoutButton(BuildContext context, WidgetRef ref) {
-    return Container(
+    return SizedBox(
       width: double.infinity,
       height: 48,
       child: OutlinedButton.icon(
-        onPressed: () => _handleLogout(context, ref),
+        onPressed: () => _handleLogout(context),
         icon: const Icon(Icons.logout, color: AppTheme.terminalRed),
         label: const Text(
           'Sign Out',
@@ -454,7 +459,7 @@ class SettingsScreen extends ConsumerWidget {
     }
   }
 
-  void _showThemeDialog(BuildContext context, WidgetRef ref) {
+  void _showThemeDialog(BuildContext context) {
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
@@ -502,13 +507,13 @@ class SettingsScreen extends ConsumerWidget {
     );
   }
 
-  void _showFontDialog(BuildContext context, WidgetRef ref) {
+  void _showFontDialog(BuildContext context) {
     ScaffoldMessenger.of(context).showSnackBar(
       const SnackBar(content: Text('Font settings coming soon!')),
     );
   }
 
-  void _showTerminalThemeDialog(BuildContext context, WidgetRef ref) {
+  void _showTerminalThemeDialog(BuildContext context) {
     ScaffoldMessenger.of(context).showSnackBar(
       const SnackBar(content: Text('Terminal theme settings coming soon!')),
     );
@@ -541,7 +546,7 @@ class SettingsScreen extends ConsumerWidget {
     // TODO: Open app store rating
   }
 
-  void _handleLogout(BuildContext context, WidgetRef ref) {
+  void _handleLogout(BuildContext context) {
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
@@ -555,11 +560,15 @@ class SettingsScreen extends ConsumerWidget {
           ),
           ElevatedButton(
             onPressed: () async {
+              Navigator.pop(context); // Close dialog first
               await ref.read(authProvider.notifier).logout();
-              Navigator.of(context).pushAndRemoveUntil(
-                MaterialPageRoute(builder: (_) => const LoginScreen()),
-                (route) => false,
-              );
+              if (mounted) {
+                // ignore: use_build_context_synchronously
+                Navigator.of(context).pushAndRemoveUntil(
+                  MaterialPageRoute(builder: (_) => const LoginScreen()),
+                  (route) => false,
+                );
+              }
             },
             style: ElevatedButton.styleFrom(
               backgroundColor: AppTheme.terminalRed,

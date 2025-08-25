@@ -147,7 +147,7 @@ class AppInitializationService {
       final isServerHealthy = sessionInfo != null;
       
       if (!isServerHealthy) {
-        return AppHealthStatus(
+        return const AppHealthStatus(
           isHealthy: false,
           message: 'Server is currently unavailable. Please try again later.',
           requiresUpdate: false,
@@ -157,7 +157,7 @@ class AppInitializationService {
       // TODO: Add version check and maintenance mode check
       // This would typically involve calling a version endpoint
       
-      return AppHealthStatus(
+      return const AppHealthStatus(
         isHealthy: true,
         message: 'App is healthy',
         requiresUpdate: false,

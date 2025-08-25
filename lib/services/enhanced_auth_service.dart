@@ -351,13 +351,13 @@ class EnhancedAuthService {
       );
       
       if (!biometricResult.success) {
-        throw AuthException('Biometric authentication required');
+        throw const AuthException('Biometric authentication required');
       }
     }
 
     try {
       final sessionData = await _getStoredSession();
-      if (sessionData == null) throw AuthException('Not authenticated');
+      if (sessionData == null) throw const AuthException('Not authenticated');
 
       final response = await _dio.put(
         '/auth/change-password',
@@ -391,7 +391,7 @@ class EnhancedAuthService {
   Future<TwoFactorSetupResult> setupTwoFactor() async {
     try {
       final sessionData = await _getStoredSession();
-      if (sessionData == null) throw AuthException('Not authenticated');
+      if (sessionData == null) throw const AuthException('Not authenticated');
 
       final response = await _dio.post(
         '/auth/2fa/setup',
@@ -413,7 +413,7 @@ class EnhancedAuthService {
         );
       }
       
-      return TwoFactorSetupResult(success: false);
+      return const TwoFactorSetupResult(success: false);
     } catch (e) {
       throw AuthException('Failed to setup 2FA: $e');
     }
@@ -445,7 +445,7 @@ class EnhancedAuthService {
     // Check network security
     final networkResult = await _checkNetworkSecurity();
     if (!networkResult.isSecure) {
-      return SecurityCheckResult(
+      return const SecurityCheckResult(
         passed: false,
         reason: 'Insecure network connection detected',
       );
@@ -454,13 +454,13 @@ class EnhancedAuthService {
     // Check device integrity
     final deviceResult = await _checkDeviceIntegrity();
     if (!deviceResult.isTrusted) {
-      return SecurityCheckResult(
+      return const SecurityCheckResult(
         passed: false,
         reason: 'Device security compromise detected',
       );
     }
 
-    return SecurityCheckResult(passed: true);
+    return const SecurityCheckResult(passed: true);
   }
 
   Future<NetworkSecurityResult> _checkNetworkSecurity() async {
@@ -479,7 +479,7 @@ class EnhancedAuthService {
         connectionType: connectivityResult,
       );
     } catch (e) {
-      return NetworkSecurityResult(isSecure: false);
+      return const NetworkSecurityResult(isSecure: false);
     }
   }
 
@@ -500,7 +500,7 @@ class EnhancedAuthService {
         isDebugging: isDebugging,
       );
     } catch (e) {
-      return DeviceIntegrityResult(isTrusted: false);
+      return const DeviceIntegrityResult(isTrusted: false);
     }
   }
 
@@ -651,7 +651,7 @@ class EnhancedAuthService {
 
   PasswordValidationResult _validatePasswordStrength(String password) {
     if (password.length < 12) {
-      return PasswordValidationResult(
+      return const PasswordValidationResult(
         isValid: false,
         message: 'Password must be at least 12 characters long',
       );
@@ -675,7 +675,7 @@ class EnhancedAuthService {
       );
     }
 
-    return PasswordValidationResult(isValid: true);
+    return const PasswordValidationResult(isValid: true);
   }
 
   Future<void> _storeSession({

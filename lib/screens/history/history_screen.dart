@@ -95,7 +95,7 @@ class HistoryScreen extends ConsumerWidget {
               ),
             ),
             const SizedBox(height: 24),
-            Text(
+            const Text(
               'No History Yet',
               style: TextStyle(
                 fontSize: 20,
@@ -104,7 +104,7 @@ class HistoryScreen extends ConsumerWidget {
               ),
             ),
             const SizedBox(height: 8),
-            Text(
+            const Text(
               'Your command and connection history will appear here',
               style: TextStyle(
                 fontSize: 16,
@@ -262,8 +262,8 @@ class HistoryScreen extends ConsumerWidget {
       builder: (context) => AlertDialog(
         backgroundColor: AppTheme.darkSurface,
         title: const Text('Search History'),
-        content: TextField(
-          decoration: const InputDecoration(
+        content: const TextField(
+          decoration: InputDecoration(
             hintText: 'Search commands, connections...',
             prefixIcon: Icon(Icons.search),
           ),

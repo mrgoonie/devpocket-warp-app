@@ -462,7 +462,7 @@ class _SshKeyCreateScreenState extends ConsumerState<SshKeyCreateScreen> {
         children: [
           Row(
             children: [
-              Icon(
+              const Icon(
                 Icons.info,
                 color: AppTheme.primaryColor,
                 size: 20,

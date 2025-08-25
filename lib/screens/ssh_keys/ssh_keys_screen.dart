@@ -617,12 +617,14 @@ class _SshKeysScreenState extends ConsumerState<SshKeysScreen> {
         
       case 'export':
         // TODO: Implement export functionality
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Export functionality coming soon'),
-            behavior: SnackBarBehavior.floating,
-          ),
-        );
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('Export functionality coming soon'),
+              behavior: SnackBarBehavior.floating,
+            ),
+          );
+        }
         break;
         
       case 'delete':
@@ -664,6 +666,7 @@ class _SshKeysScreenState extends ConsumerState<SshKeysScreen> {
               final deleted = await actions.deleteKey(key.id);
               
               if (mounted) {
+                // ignore: use_build_context_synchronously
                 ScaffoldMessenger.of(context).showSnackBar(
                   SnackBar(
                     content: Text(
@@ -706,12 +709,14 @@ class _SshKeysScreenState extends ConsumerState<SshKeysScreen> {
         
       case 'backup':
         // TODO: Implement backup functionality
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Backup functionality coming soon'),
-            behavior: SnackBarBehavior.floating,
-          ),
-        );
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('Backup functionality coming soon'),
+              behavior: SnackBarBehavior.floating,
+            ),
+          );
+        }
         break;
     }
   }

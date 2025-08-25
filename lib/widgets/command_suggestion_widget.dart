@@ -33,13 +33,13 @@ class CommandSuggestionWidget extends StatelessWidget {
             // Header
             Row(
               children: [
-                Icon(
+                const Icon(
                   Icons.lightbulb_outline,
                   color: AppTheme.primaryColor,
                   size: 20,
                 ),
                 const SizedBox(width: 8),
-                Text(
+                const Text(
                   'AI Suggestion',
                   style: TextStyle(
                     color: AppTheme.primaryColor,

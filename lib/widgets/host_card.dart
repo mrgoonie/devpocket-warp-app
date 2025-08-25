@@ -62,7 +62,7 @@ class HostCard extends StatelessWidget {
                   
                   // Actions menu
                   PopupMenuButton<String>(
-                    icon: Icon(
+                    icon: const Icon(
                       Icons.more_vert,
                       color: AppTheme.darkTextSecondary,
                     ),

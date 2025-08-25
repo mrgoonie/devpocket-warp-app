@@ -20,7 +20,7 @@ class AuthResult {
     this.user,
     this.error,
     this.accessToken,
-    this.refreshToken,
+    this.refreshToken, required String token,
   });
 
   AuthResult.success({

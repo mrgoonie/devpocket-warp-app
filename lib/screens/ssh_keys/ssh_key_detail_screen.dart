@@ -709,6 +709,7 @@ class _SshKeyDetailScreenState extends ConsumerState<SshKeyDetailScreen> {
                 );
                 
                 if (mounted) {
+                  // ignore: use_build_context_synchronously
                   ScaffoldMessenger.of(context).showSnackBar(
                     SnackBar(
                       content: Text(
@@ -766,6 +767,7 @@ class _SshKeyDetailScreenState extends ConsumerState<SshKeyDetailScreen> {
               final deleted = await actions.deleteKey(key.id);
               
               if (mounted) {
+                // ignore: use_build_context_synchronously
                 ScaffoldMessenger.of(context).showSnackBar(
                   SnackBar(
                     content: Text(

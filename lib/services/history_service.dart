@@ -112,7 +112,7 @@ class HistoryService {
       final response = await _apiClient.delete('/history/commands/$entryId');
       
       if (response.statusCode == 200) {
-        return ApiResponse.success(data: null);
+        return const ApiResponse.success(data: null);
       } else {
         return ApiResponse.error(
           message: response.data?['message'] ?? 'Failed to delete command entry',
@@ -323,7 +323,7 @@ class HistoryService {
       });
       
       if (response.statusCode == 200) {
-        return ApiResponse.success(data: null);
+        return const ApiResponse.success(data: null);
       } else {
         return ApiResponse.error(
           message: response.data?['message'] ?? 'Failed to delete history entries',
@@ -355,7 +355,7 @@ class HistoryService {
       final response = await _apiClient.delete('/history/commands', data: data);
       
       if (response.statusCode == 200) {
-        return ApiResponse.success(data: null);
+        return const ApiResponse.success(data: null);
       } else {
         return ApiResponse.error(
           message: response.data?['message'] ?? 'Failed to clear command history',
@@ -429,7 +429,7 @@ class HistoryService {
       final response = await _apiClient.post('/history/sync/trigger', data: {});
       
       if (response.statusCode == 200) {
-        return ApiResponse.success(data: null);
+        return const ApiResponse.success(data: null);
       } else {
         return ApiResponse.error(
           message: response.data?['message'] ?? 'Failed to trigger sync',

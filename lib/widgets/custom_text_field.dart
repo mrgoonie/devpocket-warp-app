@@ -363,7 +363,7 @@ class TerminalTextField extends StatelessWidget {
           prefixIcon: Container(
             width: 40,
             alignment: Alignment.center,
-            child: Text(
+            child: const Text(
               '\$',
               style: AppTheme.terminalPromptStyle,
             ),

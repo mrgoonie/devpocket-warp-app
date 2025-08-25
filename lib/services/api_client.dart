@@ -95,9 +95,29 @@ class ApiClient {
   }
   
   Future<void> _addAuthHeader(RequestOptions options) async {
-    final tokens = await _secureStorage.getAuthTokens();
-    if (tokens?['accessToken'] != null) {
-      options.headers['Authorization'] = 'Bearer ${tokens!['accessToken']}';
+    try {
+      debugPrint('[API] Adding auth header for: ${options.uri}');
+      final tokens = await _secureStorage.getAuthTokens();
+      
+      if (tokens == null) {
+        debugPrint('[API] Warning: No auth tokens found in secure storage');
+        return;
+      }
+      
+      debugPrint('[API] Auth tokens retrieved: ${tokens.keys.toList()}'); 
+      
+      if (tokens['accessToken'] != null) {
+        final accessToken = tokens['accessToken']!;
+        options.headers['Authorization'] = 'Bearer $accessToken';
+        debugPrint('[API] ✅ Authorization header added successfully (token length: ${accessToken.length})');
+      } else {
+        debugPrint('[API] ❌ Warning: Access token is null in retrieved tokens');
+      }
+    } catch (e, stackTrace) {
+      debugPrint('[API] ❌ Error adding auth header: $e');
+      debugPrint('[API] ❌ Stack trace: $stackTrace');
+      // Don't throw exception - let API call proceed without auth header
+      // The server will respond with 401 if auth is required
     }
   }
   

@@ -104,15 +104,15 @@ class _ApiKeyScreenState extends ConsumerState<ApiKeyScreen> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Row(
+          const Row(
             children: [
               Icon(
                 Icons.psychology,
                 color: AppTheme.primaryColor,
                 size: 32,
               ),
-              const SizedBox(width: 12),
-              const Expanded(
+              SizedBox(width: 12),
+              Expanded(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
@@ -125,7 +125,7 @@ class _ApiKeyScreenState extends ConsumerState<ApiKeyScreen> {
                     ),
                     Text(
                       'Bring Your Own Key (BYOK) Model',
-                      style: const TextStyle(
+                      style: TextStyle(
                         fontSize: 14,
                         color: AppTheme.darkTextSecondary,
                       ),
@@ -167,7 +167,7 @@ class _ApiKeyScreenState extends ConsumerState<ApiKeyScreen> {
           children: [
             Row(
               children: [
-                Icon(
+                const Icon(
                   Icons.vpn_key,
                   color: AppTheme.primaryColor,
                   size: 24,
@@ -286,14 +286,14 @@ class _ApiKeyScreenState extends ConsumerState<ApiKeyScreen> {
                     color: AppTheme.primaryColor.withValues(alpha: 0.3),
                   ),
                 ),
-                child: Row(
+                child: const Row(
                   children: [
                     Icon(
                       Icons.launch,
                       color: AppTheme.primaryColor,
                       size: 18,
                     ),
-                    const SizedBox(width: 8),
+                    SizedBox(width: 8),
                     Text(
                       'Get your API key from OpenRouter',
                       style: TextStyle(
@@ -399,15 +399,15 @@ class _ApiKeyScreenState extends ConsumerState<ApiKeyScreen> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Row(
+            const Row(
               children: [
                 Icon(
                   Icons.model_training,
                   color: AppTheme.primaryColor,
                   size: 24,
                 ),
-                const SizedBox(width: 12),
-                const Text(
+                SizedBox(width: 12),
+                Text(
                   'AI Model Selection',
                   style: TextStyle(
                     fontSize: 18,
@@ -512,7 +512,7 @@ class _ApiKeyScreenState extends ConsumerState<ApiKeyScreen> {
       ),
       child: Text(
         text,
-        style: TextStyle(
+        style: const TextStyle(
           fontSize: 10,
           color: AppTheme.primaryColor,
           fontWeight: FontWeight.w500,
@@ -539,7 +539,7 @@ class _ApiKeyScreenState extends ConsumerState<ApiKeyScreen> {
           children: [
             Row(
               children: [
-                Icon(
+                const Icon(
                   Icons.analytics,
                   color: AppTheme.primaryColor,
                   size: 24,
@@ -642,15 +642,15 @@ class _ApiKeyScreenState extends ConsumerState<ApiKeyScreen> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Row(
+            const Row(
               children: [
                 Icon(
                   Icons.tune,
                   color: AppTheme.primaryColor,
                   size: 24,
                 ),
-                const SizedBox(width: 12),
-                const Text(
+                SizedBox(width: 12),
+                Text(
                   'AI Features',
                   style: TextStyle(
                     fontSize: 18,
@@ -747,15 +747,15 @@ class _ApiKeyScreenState extends ConsumerState<ApiKeyScreen> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Row(
+            const Row(
               children: [
                 Icon(
                   Icons.help,
                   color: AppTheme.primaryColor,
                   size: 24,
                 ),
-                const SizedBox(width: 12),
-                const Text(
+                SizedBox(width: 12),
+                Text(
                   'Need Help?',
                   style: TextStyle(
                     fontSize: 18,

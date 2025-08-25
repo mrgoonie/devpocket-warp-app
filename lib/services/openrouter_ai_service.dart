@@ -177,7 +177,7 @@ class OpenRouterAiService {
     try {
       final hasKey = await hasApiKey();
       if (!hasKey) {
-        return ApiResponse.error(
+        return const ApiResponse.error(
           message: 'OpenRouter API key not configured. Please add your API key in Settings.',
           statusCode: 401,
         );
@@ -333,7 +333,7 @@ class OpenRouterAiService {
   /// Explain a command using AI
   Future<String?> explainCommand(String command, {String? context}) async {
     try {
-      final systemPrompt = '''
+      const systemPrompt = '''
 You are a command-line expert. Explain the given command in a clear, concise way.
 Include:
 1. What the command does

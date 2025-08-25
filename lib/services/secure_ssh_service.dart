@@ -211,6 +211,9 @@ class SecureSSHService {
     
     // Calculate fingerprint
     final fingerprint = _cryptoService.calculateSSHFingerprint(keyPair.publicKey);
+    if (fingerprint == null) {
+      throw const SSHException('Failed to generate SSH key fingerprint');
+    }
     
     // Store encrypted private key
     final keyId = const Uuid().v4();
@@ -266,6 +269,9 @@ class SecureSSHService {
     // Extract key type and size
     final keyInfo = _parseSSHKey(publicKey);
     final fingerprint = _cryptoService.calculateSSHFingerprint(publicKey);
+    if (fingerprint == null) {
+      throw const SSHException('Failed to calculate SSH key fingerprint for imported key');
+    }
     
     // Store encrypted private key
     final keyId = const Uuid().v4();
@@ -393,7 +399,7 @@ class SecureSSHService {
     if (host.requiresBiometric) {
       final biometricAvailable = await _secureStorage.isBiometricAvailable();
       if (!biometricAvailable) {
-        throw SSHSecurityException('Biometric authentication required but not available');
+        throw const SSHSecurityException('Biometric authentication required but not available');
       }
     }
     
@@ -409,15 +415,15 @@ class SecureSSHService {
   Future<void> _performCriticalSecurityChecks(SecureHost host) async {
     // Critical security requirements
     if (!host.strictHostKeyChecking) {
-      throw SSHSecurityException('Critical security level requires strict host key checking');
+      throw const SSHSecurityException('Critical security level requires strict host key checking');
     }
     
     if (host.authMethod == AuthMethod.password) {
-      throw SSHSecurityException('Critical security level prohibits password authentication');
+      throw const SSHSecurityException('Critical security level prohibits password authentication');
     }
     
     if (host.compressionEnabled) {
-      throw SSHSecurityException('Critical security level prohibits compression');
+      throw const SSHSecurityException('Critical security level prohibits compression');
     }
   }
 
@@ -534,25 +540,25 @@ class SecureSSHService {
 
   Future<String> _getPassword(SecureHost host) async {
     if (host.passwordHash == null) {
-      throw SSHException('Password authentication required but no password stored');
+      throw const SSHException('Password authentication required but no password stored');
     }
     
     // In a real implementation, you might prompt the user or use biometric auth
-    throw SSHException('Password retrieval not implemented');
+    throw const SSHException('Password retrieval not implemented');
   }
 
   Future<String> _getPrivateKey(SecureHost host, String? passphrase) async {
     if (host.privateKeyId == null) {
-      throw SSHException('Private key authentication required but no key stored');
+      throw const SSHException('Private key authentication required but no key stored');
     }
     
     if (passphrase == null) {
-      throw SSHException('Passphrase required for private key');
+      throw const SSHException('Passphrase required for private key');
     }
     
     final privateKey = await _secureStorage.getSSHKey(host.privateKeyId!, passphrase);
     if (privateKey == null) {
-      throw SSHException('Failed to retrieve private key');
+      throw const SSHException('Failed to retrieve private key');
     }
     
     return privateKey;
@@ -574,7 +580,7 @@ class SecureSSHService {
     return '${host.id}_${DateTime.now().millisecondsSinceEpoch}';
   }
 
-  String _hashPassphrase(String passphrase) {
+  String? _hashPassphrase(String passphrase) {
     final bytes = utf8.encode(passphrase);
     final digest = _cryptoService.calculateSSHFingerprint(base64.encode(bytes));
     return digest;
@@ -582,18 +588,18 @@ class SecureSSHService {
 
   void _validateSSHKey(String privateKey, String publicKey) {
     if (!privateKey.contains('BEGIN') || !privateKey.contains('PRIVATE KEY')) {
-      throw SSHException('Invalid private key format');
+      throw const SSHException('Invalid private key format');
     }
     
     if (!publicKey.startsWith('ssh-')) {
-      throw SSHException('Invalid public key format');
+      throw const SSHException('Invalid public key format');
     }
   }
 
   Map<String, dynamic> _parseSSHKey(String publicKey) {
     final parts = publicKey.split(' ');
     if (parts.length < 2) {
-      throw SSHException('Invalid SSH public key format');
+      throw const SSHException('Invalid SSH public key format');
     }
     
     final type = parts[0].replaceAll('ssh-', '');
@@ -711,7 +717,7 @@ class SecureSSHConnection {
       
       final stdout = await utf8.decoder.bind(session.stdout).join();
       final stderr = await utf8.decoder.bind(session.stderr).join();
-      final exitCode = await session.exitCode;
+      final exitCode = session.exitCode;
       
       commandCount++;
       
@@ -779,7 +785,7 @@ class SecureSSHConnection {
   }) async {
     // Security check for critical hosts
     if (host.securityLevel == SecurityLevel.critical) {
-      throw SSHSecurityException('File upload not allowed for critical security level');
+      throw const SSHSecurityException('File upload not allowed for critical security level');
     }
     
     final file = File(localPath);
@@ -997,8 +1003,7 @@ class SSHException implements Exception {
 }
 
 class SSHSecurityException extends SSHException {
-  const SSHSecurityException(String message, [Object? cause])
-      : super(message, cause);
+  const SSHSecurityException(super.message, [super.cause]);
 
   @override
   String toString() => 'SSHSecurityException: $message';

@@ -326,7 +326,7 @@ class BiometricService {
         );
       
       case BiometricAuthLevel.high:
-        return AuthenticationOptions(
+        return const AuthenticationOptions(
           biometricOnly: true, // No fallback for high security
           stickyAuth: true,
           useErrorDialogs: true,

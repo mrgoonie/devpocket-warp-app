@@ -157,7 +157,7 @@ void main() {
 
     group('Subscription Models', () {
       test('should serialize SubscriptionLimits to snake_case JSON', () {
-        final limits = SubscriptionLimits(
+        const limits = SubscriptionLimits(
           sshConnections: 10,
           aiRequests: 100,
           cloudHistory: true,
@@ -209,7 +209,7 @@ void main() {
           isActive: true,
           tier: SubscriptionTier.pro,
           expiresAt: DateTime(2024, 12, 31),
-          limits: SubscriptionLimits(
+          limits: const SubscriptionLimits(
             sshConnections: -1,
             aiRequests: -1,
             cloudHistory: true,
@@ -399,7 +399,7 @@ void main() {
       });
 
       test('should serialize SshKeyValidationResult to snake_case JSON', () {
-        final result = SshKeyValidationResult(
+        const result = SshKeyValidationResult(
           isValid: true,
           keyType: 'ed25519',
           keySize: 256,
@@ -415,7 +415,7 @@ void main() {
       });
 
       test('should serialize TerminalStats to snake_case JSON', () {
-        final stats = TerminalStats(
+        const stats = TerminalStats(
           totalSessions: 10,
           activeSessions: 2,
           totalCommands: 150,
@@ -449,7 +449,7 @@ void main() {
         expect(stats.totalSessions, 10);
         expect(stats.activeSessions, 2);
         expect(stats.totalCommands, 150);
-        expect(stats.totalUsageTime, Duration(hours: 5));
+        expect(stats.totalUsageTime, const Duration(hours: 5));
         expect(stats.topCommands, ['ls', 'cd', 'vim']);
         expect(stats.sessionsByType, {'ssh': 8, 'local': 2});
       });

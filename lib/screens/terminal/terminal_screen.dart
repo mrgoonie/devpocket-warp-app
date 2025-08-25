@@ -5,6 +5,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../themes/app_theme.dart';
 import '../../main.dart';
 import '../../models/ai_models.dart';
+import '../../models/ssh_profile_models.dart';
 import '../../providers/ai_provider.dart';
 import '../../screens/settings/api_key_screen.dart';
 import 'enhanced_terminal_screen.dart';
@@ -56,7 +57,9 @@ class TerminalBlock {
 }
 
 class TerminalScreen extends ConsumerStatefulWidget {
-  const TerminalScreen({super.key});
+  final SshProfile? sshProfile;
+  
+  const TerminalScreen({super.key, this.sshProfile});
 
   @override
   ConsumerState<TerminalScreen> createState() => _TerminalScreenState();
@@ -88,6 +91,13 @@ class _TerminalScreenState extends ConsumerState<TerminalScreen> {
     super.initState();
     _addWelcomeMessage();
     _loadSmartSuggestions();
+    
+    // Handle SSH profile connection if provided
+    if (widget.sshProfile != null) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        _connectToSshHost(widget.sshProfile!);
+      });
+    }
   }
 
   @override
@@ -397,13 +407,13 @@ Current directory: ${_currentContext.currentDirectory}
         children: [
           Row(
             children: [
-              Icon(
+              const Icon(
                 Icons.lightbulb_outline,
                 color: AppTheme.primaryColor,
                 size: 16,
               ),
               const SizedBox(width: 8),
-              Text(
+              const Text(
                 'AI Generated Command',
                 style: TextStyle(
                   color: AppTheme.primaryColor,
@@ -469,15 +479,15 @@ Current directory: ${_currentContext.currentDirectory}
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Row(
+          const Row(
             children: [
-              const Icon(
+              Icon(
                 Icons.help_outline,
                 color: Colors.red,
                 size: 16,
               ),
-              const SizedBox(width: 8),
-              const Text(
+              SizedBox(width: 8),
+              Text(
                 'AI Error Explanation',
                 style: TextStyle(
                   color: Colors.red,
@@ -1002,6 +1012,51 @@ mysql-pod-5678           1/1     Running   0          1h''';
         builder: (context) => const EnhancedTerminalScreen(),
       ),
     );
+  }
+  
+  /// Connect to SSH host using provided SSH profile
+  void _connectToSshHost(SshProfile sshProfile) {
+    debugPrint('[Terminal] Connecting to SSH host: ${sshProfile.name} (${sshProfile.host})');
+    
+    // Add connection status block
+    final connectionBlock = TerminalBlock(
+      id: 'ssh-connect-${DateTime.now().millisecondsSinceEpoch}',
+      input: 'ssh ${sshProfile.username}@${sshProfile.host}',
+      output: null,
+      error: null,
+      isExecuting: true,
+      isAgentCommand: false,
+      timestamp: DateTime.now(),
+    );
+    
+    setState(() {
+      _blocks.add(connectionBlock);
+    });
+    
+    // Scroll to show the new block
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _scrollToBottom();
+    });
+    
+    // TODO: Implement actual SSH connection logic
+    // For now, just simulate the connection attempt
+    Future.delayed(const Duration(seconds: 2), () {
+      setState(() {
+        final index = _blocks.indexWhere((b) => b.id == connectionBlock.id);
+        if (index != -1) {
+          _blocks[index] = connectionBlock.copyWith(
+            isExecuting: false,
+            output: 'Connected to ${sshProfile.host} as ${sshProfile.username}\n'
+                   'Welcome to ${sshProfile.name}\n'
+                   'Type commands to interact with the remote host.',
+          );
+        }
+      });
+      
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        _scrollToBottom();
+      });
+    });
   }
 
 }

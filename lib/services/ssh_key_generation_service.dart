@@ -127,7 +127,7 @@ class SshKeyGenerationService {
     final keyBytes = List<int>.generate(32, (i) => random.nextInt(256));
     
     final publicKeyString = 'ssh-ed25519 ${base64Encode(Uint8List.fromList(keyBytes))} $comment';
-    final privateKeyString = '''-----BEGIN OPENSSH PRIVATE KEY-----
+    const privateKeyString = '''-----BEGIN OPENSSH PRIVATE KEY-----
 b3BlbnNzaC1rZXktdjEAAAAACmFlczI1Ni1jdHIAAAAGYmNyeXB0AAAAGAAAABDNn8Dg7Z
 ZP4+7Q7+7Q7+7QAAAAEAAAAAEAAAGEAAAAE3NzaC1lZDI1NTE5AAAAIEdummy+key+data
 +for+demo+purposes+only+real+implementation+needed
@@ -173,7 +173,7 @@ ZP4+7Q7+7Q7+7QAAAAEAAAAAEAAAGEAAAAE3NzaC1lZDI1NTE5AAAAIEdummy+key+data
     final buffer = <int>[];
     
     // Add algorithm name
-    final algorithm = 'ssh-rsa';
+    const algorithm = 'ssh-rsa';
     buffer.addAll(_encodeString(algorithm));
     
     // Add public exponent

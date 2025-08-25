@@ -612,37 +612,41 @@ class _HostEditScreenState extends ConsumerState<HostEditScreen> {
         success = await ref.read(sshHostsProvider.notifier).addHost(host);
       }
 
-      if (success) {
-        Navigator.pop(context);
+      if (mounted) {
+        if (success) {
+          Navigator.pop(context);
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text(
+                widget.host != null 
+                    ? 'Host updated successfully' 
+                    : 'Host created successfully',
+              ),
+              backgroundColor: AppTheme.terminalGreen,
+            ),
+          );
+        } else {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text(
+                widget.host != null 
+                    ? 'Failed to update host' 
+                    : 'Failed to create host',
+              ),
+              backgroundColor: AppTheme.terminalRed,
+            ),
+          );
+        }
+      }
+    } catch (e) {
+      if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text(
-              widget.host != null 
-                  ? 'Host updated successfully' 
-                  : 'Host created successfully',
-            ),
-            backgroundColor: AppTheme.terminalGreen,
-          ),
-        );
-      } else {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(
-              widget.host != null 
-                  ? 'Failed to update host' 
-                  : 'Failed to create host',
-            ),
+            content: Text('Error: $e'),
             backgroundColor: AppTheme.terminalRed,
           ),
         );
       }
-    } catch (e) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('Error: $e'),
-          backgroundColor: AppTheme.terminalRed,
-        ),
-      );
     } finally {
       setState(() {
         _isLoading = false;
@@ -652,12 +656,14 @@ class _HostEditScreenState extends ConsumerState<HostEditScreen> {
 
   Future<void> _testConnection() async {
     if (!_formKey.currentState!.validate()) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Please fix the form errors first'),
-          backgroundColor: AppTheme.terminalRed,
-        ),
-      );
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Please fix the form errors first'),
+            backgroundColor: AppTheme.terminalRed,
+          ),
+        );
+      }
       return;
     }
 
@@ -704,11 +710,12 @@ class _HostEditScreenState extends ConsumerState<HostEditScreen> {
 
     try {
       final result = await ref.read(sshHostsProvider.notifier).testConnection(testHost);
-      Navigator.pop(context); // Close loading dialog
+      if (mounted) {
+        Navigator.pop(context); // Close loading dialog
 
-      // Show result dialog
-      showDialog(
-        context: context,
+        // Show result dialog
+        showDialog(
+          context: context,
         builder: (context) => AlertDialog(
           backgroundColor: AppTheme.darkSurface,
           title: Text(
@@ -749,14 +756,17 @@ class _HostEditScreenState extends ConsumerState<HostEditScreen> {
           ],
         ),
       );
+      }
     } catch (e) {
-      Navigator.pop(context); // Close loading dialog
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('Test failed: $e'),
-          backgroundColor: AppTheme.terminalRed,
-        ),
-      );
+      if (mounted) {
+        Navigator.pop(context); // Close loading dialog
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Test failed: $e'),
+            backgroundColor: AppTheme.terminalRed,
+          ),
+        );
+      }
     }
   }
 }

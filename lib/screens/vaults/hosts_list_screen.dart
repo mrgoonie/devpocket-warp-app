@@ -600,11 +600,12 @@ class _HostsListScreenState extends ConsumerState<HostsListScreen> {
 
     try {
       final result = await ref.read(sshHostsProvider.notifier).testConnection(host);
-      Navigator.pop(context); // Close loading dialog
+      if (mounted) {
+        Navigator.pop(context); // Close loading dialog
 
-      // Show result dialog
-      showDialog(
-        context: context,
+        // Show result dialog
+        showDialog(
+          context: context,
         builder: (context) => AlertDialog(
           backgroundColor: AppTheme.darkSurface,
           title: Text(
@@ -645,14 +646,17 @@ class _HostsListScreenState extends ConsumerState<HostsListScreen> {
           ],
         ),
       );
+      }
     } catch (e) {
-      Navigator.pop(context); // Close loading dialog
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('Test failed: $e'),
-          backgroundColor: AppTheme.terminalRed,
-        ),
-      );
+      if (mounted) {
+        Navigator.pop(context); // Close loading dialog
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Test failed: $e'),
+            backgroundColor: AppTheme.terminalRed,
+          ),
+        );
+      }
     }
   }
 
@@ -690,20 +694,24 @@ class _HostsListScreenState extends ConsumerState<HostsListScreen> {
             onPressed: () async {
               Navigator.pop(context);
               final success = await ref.read(sshHostsProvider.notifier).deleteHost(host.id);
-              if (success) {
-                ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(
-                    content: Text('Host deleted successfully'),
-                    backgroundColor: AppTheme.terminalGreen,
-                  ),
-                );
-              } else {
-                ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(
-                    content: Text('Failed to delete host'),
-                    backgroundColor: AppTheme.terminalRed,
-                  ),
-                );
+              if (mounted) {
+                if (success) {
+                  // ignore: use_build_context_synchronously
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(
+                      content: Text('Host deleted successfully'),
+                      backgroundColor: AppTheme.terminalGreen,
+                    ),
+                  );
+                } else {
+                  // ignore: use_build_context_synchronously
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(
+                      content: Text('Failed to delete host'),
+                      backgroundColor: AppTheme.terminalRed,
+                    ),
+                  );
+                }
               }
             },
             style: ElevatedButton.styleFrom(

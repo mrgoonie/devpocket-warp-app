@@ -165,7 +165,7 @@ class SshConnectionTestService {
     try {
       // Basic hostname validation
       if (hostname.isEmpty) {
-        return HostValidationResult(
+        return const HostValidationResult(
           isValid: false,
           error: 'Hostname cannot be empty',
         );
@@ -173,7 +173,7 @@ class SshConnectionTestService {
       
       // Port validation
       if (port < 1 || port > 65535) {
-        return HostValidationResult(
+        return const HostValidationResult(
           isValid: false,
           error: 'Port must be between 1 and 65535',
         );
@@ -200,7 +200,7 @@ class SshConnectionTestService {
         error: 'Host unreachable: ${e.message}',
       );
     } on TimeoutException {
-      return HostValidationResult(
+      return const HostValidationResult(
         isValid: false,
         error: 'Connection timeout - host may be unreachable',
       );

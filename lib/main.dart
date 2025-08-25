@@ -4,9 +4,12 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 
 import 'screens/auth/splash_screen.dart';
+import 'screens/terminal/terminal_screen.dart';
+import 'screens/vaults/vaults_screen.dart';
 import 'themes/app_theme.dart';
 import 'providers/theme_provider.dart';
 import 'services/secure_storage_service.dart';
+import 'models/ssh_profile_models.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -78,10 +81,7 @@ class DevPocketApp extends ConsumerWidget {
       },
       
       // Route configuration
-      onGenerateRoute: (settings) {
-        // Future: Add named routes if needed
-        return null;
-      },
+      onGenerateRoute: _onGenerateRoute,
       
       // Localization (future implementation)
       supportedLocales: const [
@@ -171,6 +171,37 @@ class DevPocketApp extends ConsumerWidget {
         ),
       ),
     );
+  }
+}
+
+/// Route generator function for handling navigation with arguments
+Route<dynamic>? _onGenerateRoute(RouteSettings settings) {
+  debugPrint('[Navigation] Generating route: ${settings.name}');
+  
+  switch (settings.name) {
+    case '/terminal':
+      final sshProfile = settings.arguments as SshProfile?;
+      debugPrint('[Navigation] Terminal route with SSH profile: ${sshProfile?.name ?? 'null'}');
+      return MaterialPageRoute(
+        builder: (context) => TerminalScreen(sshProfile: sshProfile),
+        settings: settings,
+      );
+    
+    case '/vaults':
+      return MaterialPageRoute(
+        builder: (context) => const VaultsScreen(),
+        settings: settings,
+      );
+    
+    case '/':
+      return MaterialPageRoute(
+        builder: (context) => const SplashScreen(),
+        settings: settings,
+      );
+    
+    default:
+      debugPrint('[Navigation] ❌ Unknown route: ${settings.name}');
+      return null;
   }
 }
 

@@ -1,0 +1,357 @@
+name: DevPocket CI Pipeline
+
+on:
+  push:
+    branches: [ main, develop ]
+  pull_request:
+    branches: [ main ]
+
+env:
+  FLUTTER_VERSION: '3.24.0'
+  JAVA_VERSION: '17'
+  ANDROID_API_LEVEL: '34'
+  ANDROID_BUILD_TOOLS: '34.0.0'
+
+jobs:
+  # Code Quality and Analysis
+  analyze:
+    name: Code Analysis
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Java JDK
+        uses: actions/setup-java@v4
+        with:
+          distribution: 'temurin'
+          java-version: ${{ env.JAVA_VERSION }}
+
+      - name: Setup Flutter SDK
+        uses: subosito/flutter-action@v2
+        with:
+          flutter-version: ${{ env.FLUTTER_VERSION }}
+          channel: 'stable'
+          cache: true
+
+      - name: Install dependencies
+        run: flutter pub get
+
+      - name: Verify formatting
+        run: dart format --output=none --set-exit-if-changed .
+
+      - name: Analyze project source
+        run: flutter analyze --fatal-infos
+
+      - name: Check for unused dependencies
+        run: dart pub deps
+
+  # Unit and Widget Tests
+  test:
+    name: Unit & Widget Tests
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Java JDK
+        uses: actions/setup-java@v4
+        with:
+          distribution: 'temurin'
+          java-version: ${{ env.JAVA_VERSION }}
+
+      - name: Setup Flutter SDK
+        uses: subosito/flutter-action@v2
+        with:
+          flutter-version: ${{ env.FLUTTER_VERSION }}
+          channel: 'stable'
+          cache: true
+
+      - name: Install dependencies
+        run: flutter pub get
+
+      - name: Run unit tests
+        run: flutter test --coverage --reporter=expanded
+
+      - name: Upload coverage to Codecov
+        uses: codecov/codecov-action@v3
+        with:
+          file: coverage/lcov.info
+          flags: unittests
+          name: codecov-umbrella
+
+      - name: Generate coverage report
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y lcov
+          genhtml coverage/lcov.info -o coverage/html
+
+      - name: Upload coverage report
+        uses: actions/upload-artifact@v4
+        with:
+          name: coverage-report
+          path: coverage/html
+
+  # Build verification
+  build-android:
+    name: Android Build
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    needs: [analyze, test]
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Java JDK
+        uses: actions/setup-java@v4
+        with:
+          distribution: 'temurin'
+          java-version: ${{ env.JAVA_VERSION }}
+
+      - name: Setup Android SDK
+        uses: android-actions/setup-android@v3
+
+      - name: Setup Flutter SDK
+        uses: subosito/flutter-action@v2
+        with:
+          flutter-version: ${{ env.FLUTTER_VERSION }}
+          channel: 'stable'
+          cache: true
+
+      - name: Install dependencies
+        run: flutter pub get
+
+      - name: Build Android APK (Debug)
+        run: flutter build apk --debug --verbose
+
+      - name: Build Android APK (Release)
+        run: flutter build apk --release --verbose
+
+      - name: Upload debug APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: android-debug-apk
+          path: build/app/outputs/flutter-apk/app-debug.apk
+
+      - name: Upload release APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: android-release-apk
+          path: build/app/outputs/flutter-apk/app-release.apk
+
+  # iOS Build (macOS only)
+  build-ios:
+    name: iOS Build
+    runs-on: macos-latest
+    timeout-minutes: 30
+    needs: [analyze, test]
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Flutter SDK
+        uses: subosito/flutter-action@v2
+        with:
+          flutter-version: ${{ env.FLUTTER_VERSION }}
+          channel: 'stable'
+          cache: true
+
+      - name: Install dependencies
+        run: flutter pub get
+
+      - name: Install iOS dependencies
+        run: |
+          cd ios
+          pod install
+
+      - name: Build iOS (Debug)
+        run: flutter build ios --debug --no-codesign --verbose
+
+      - name: Archive iOS app
+        run: |
+          cd ios
+          xcodebuild -workspace Runner.xcworkspace \
+                     -scheme Runner \
+                     -configuration Debug \
+                     -archivePath build/Runner.xcarchive \
+                     archive
+
+  # Integration Tests (Stable ones only)
+  integration-test:
+    name: Integration Tests
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    needs: [analyze]
+    if: github.event_name == 'push' || (github.event_name == 'pull_request' && contains(github.event.pull_request.labels.*.name, 'integration-tests'))
+
+    strategy:
+      matrix:
+        api-level: [29, 33]
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Java JDK
+        uses: actions/setup-java@v4
+        with:
+          distribution: 'temurin'
+          java-version: ${{ env.JAVA_VERSION }}
+
+      - name: Setup Flutter SDK
+        uses: subosito/flutter-action@v2
+        with:
+          flutter-version: ${{ env.FLUTTER_VERSION }}
+          channel: 'stable'
+          cache: true
+
+      - name: Install dependencies
+        run: flutter pub get
+
+      - name: Enable KVM group permissions
+        run: |
+          echo 'KERNEL=="kvm", GROUP="kvm", MODE="0666", OPTIONS+="static_node=kvm"' | sudo tee /etc/udev/rules.d/99-kvm4all.rules
+          sudo udevadm control --reload-rules
+          sudo udevadm trigger --name-match=kvm
+
+      - name: Run integration tests
+        uses: reactivecircus/android-emulator-runner@v2
+        with:
+          api-level: ${{ matrix.api-level }}
+          target: google_apis
+          arch: x86_64
+          profile: Nexus 6
+          script: |
+            flutter test test/stable_test_suite.dart --coverage
+            flutter test integration_test/main_tab_integration_test.dart
+
+  # Security Audit
+  security:
+    name: Security Audit
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Flutter SDK
+        uses: subosito/flutter-action@v2
+        with:
+          flutter-version: ${{ env.FLUTTER_VERSION }}
+          channel: 'stable'
+          cache: true
+
+      - name: Install dependencies
+        run: flutter pub get
+
+      - name: Run security audit
+        run: |
+          dart pub deps --json | dart pub global activate pana
+          dart pub global run pana --json
+
+      - name: Check for vulnerable dependencies
+        run: flutter pub deps --json | grep -i "vulnerabilit" || echo "No known vulnerabilities found"
+
+  # Performance Tests
+  performance:
+    name: Performance Tests
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    needs: [test]
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Java JDK
+        uses: actions/setup-java@v4
+        with:
+          distribution: 'temurin'
+          java-version: ${{ env.JAVA_VERSION }}
+
+      - name: Setup Flutter SDK
+        uses: subosito/flutter-action@v2
+        with:
+          flutter-version: ${{ env.FLUTTER_VERSION }}
+          channel: 'stable'
+          cache: true
+
+      - name: Install dependencies
+        run: flutter pub get
+
+      - name: Run performance tests
+        run: |
+          flutter test test/performance/ --reporter=expanded
+          
+      - name: Upload performance reports
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: performance-reports
+          path: test/performance/reports/
+
+  # Build Status Summary
+  build-status:
+    name: Build Status
+    runs-on: ubuntu-latest
+    needs: [analyze, test, build-android, build-ios, security]
+    if: always()
+
+    steps:
+      - name: Check build results
+        run: |
+          if [[ "${{ needs.analyze.result }}" == "success" && 
+                "${{ needs.test.result }}" == "success" && 
+                "${{ needs.build-android.result }}" == "success" && 
+                "${{ needs.build-ios.result }}" == "success" && 
+                "${{ needs.security.result }}" == "success" ]]; then
+            echo "✅ All builds successful"
+            echo "BUILD_STATUS=success" >> $GITHUB_ENV
+          else
+            echo "❌ Some builds failed"
+            echo "BUILD_STATUS=failure" >> $GITHUB_ENV
+            exit 1
+          fi
+
+      - name: Post build status comment (PR only)
+        if: github.event_name == 'pull_request'
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const buildStatus = process.env.BUILD_STATUS;
+            const emoji = buildStatus === 'success' ? '✅' : '❌';
+            const status = buildStatus === 'success' ? 'All checks passed' : 'Some checks failed';
+            
+            github.rest.issues.createComment({
+              issue_number: context.issue.number,
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              body: `${emoji} **DevPocket CI Pipeline**: ${status}\n\nView details in the [Actions tab](${context.payload.pull_request.html_url}/checks)`
+            });
+
+  # Cleanup old artifacts
+  cleanup:
+    name: Cleanup Artifacts
+    runs-on: ubuntu-latest
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    needs: [build-status]
+
+    steps:
+      - name: Delete old artifacts
+        uses: geekyeggo/delete-artifact@v2
+        with:
+          name: |
+            android-debug-apk
+            coverage-report
+            performance-reports
+          failOnError: false
+          useGlob: true
+          token: ${{ secrets.GITHUB_TOKEN }}
+          retentionDays: 7

@@ -75,7 +75,7 @@ class ApiResponse<T> {
   ApiResponse<R> transform<R>(R Function(T data) transformer) {
     if (isSuccess && data != null) {
       try {
-        final transformedData = transformer(data!);
+        final transformedData = transformer(data as T);
         return ApiResponse.success(
           data: transformedData,
           message: message,
@@ -99,7 +99,7 @@ class ApiResponse<T> {
   ApiResponse<R> map<R>(R Function(T) mapper) {
     if (isSuccess && data != null) {
       return ApiResponse.success(
-        data: mapper(data!),
+        data: mapper(data as T),
         message: message,
       );
     }
@@ -114,7 +114,7 @@ class ApiResponse<T> {
   /// Execute a callback if successful
   ApiResponse<T> onSuccess(void Function(T data) callback) {
     if (isSuccess && data != null) {
-      callback(data!);
+      callback(data as T);
     }
     return this;
   }

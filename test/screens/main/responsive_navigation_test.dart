@@ -194,7 +194,8 @@ void main() {
               final fontSize = widget.style.fontSize ?? 12.0;
               
               // Font size should be clamped between 8-11px
-              TestHelpers.verifyFontSizeInRange(widget.style, 8.0, 11.0);
+              expect(fontSize, inInclusiveRange(8.0, 11.0),
+                reason: 'Font size $fontSize should be between 8.0 and 11.0');
               
               if (testCase['shouldScale'] == true && tabWidth < 80) {
                 // Should be scaled down from base size
@@ -232,7 +233,9 @@ void main() {
             
             for (final element in textStyleWidgets.evaluate()) {
               final widget = element.widget as AnimatedDefaultTextStyle;
-              TestHelpers.verifyFontSizeInRange(widget.style, 8.0, 11.0);
+              final fontSize = widget.style.fontSize ?? 12.0;
+              expect(fontSize, inInclusiveRange(8.0, 11.0),
+                reason: 'Font size $fontSize should be between 8.0 and 11.0');
             }
           }
         }
@@ -254,9 +257,7 @@ void main() {
         await TestHelpers.pumpAndSettleWithAnimations(tester);
 
         // Verify text overflow for each tab label
-        for (final label in TestHelpers.tabLabels) {
-          TestHelpers.verifyTextOverflow(tester, label);
-        }
+        TestHelpers.verifyTextOverflow(tester);
       });
 
       testWidgets('should handle extremely narrow tabs gracefully',

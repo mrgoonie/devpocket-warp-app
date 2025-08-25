@@ -399,7 +399,7 @@ class AiCommandService {
     required int exitCode,
     TerminalContext? context,
   }) async {
-    final systemPrompt = '''
+    const systemPrompt = '''
 You are a command-line expert. Analyze the failed command and provide helpful diagnosis.
 
 Include:
@@ -445,7 +445,7 @@ Please diagnose this error and suggest solutions.
   }) async {
     if (recentCommands.isEmpty) return null;
     
-    final systemPrompt = '''
+    const systemPrompt = '''
 You are a command-line productivity expert. Analyze recent commands and suggest optimizations.
 
 Focus on:

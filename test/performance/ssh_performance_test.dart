@@ -1,7 +1,7 @@
 import 'package:flutter_test/flutter_test.dart';
 
-import '../../lib/models/ssh_profile_models.dart';
-import '../../lib/services/ssh_connection_manager.dart';
+import 'package:devpocket_warp_app/models/ssh_profile_models.dart';
+import 'package:devpocket_warp_app/services/ssh_connection_manager.dart';
 import '../helpers/test_helpers.dart';
 
 /// SSH connection performance tests

@@ -2,7 +2,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'dart:typed_data';
 import 'dart:convert';
 
-import '../../lib/services/crypto_service.dart';
+import 'package:devpocket_warp_app/services/crypto_service.dart';
 import '../helpers/test_helpers.dart';
 
 /// Encryption security tests

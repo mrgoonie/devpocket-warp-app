@@ -65,7 +65,7 @@ class SecureStorageService {
     if (requireBiometric) {
       final authenticated = await _authenticateWithBiometrics();
       if (!authenticated) {
-        throw SecureStorageException('Biometric authentication required');
+        throw const SecureStorageException('Biometric authentication required');
       }
     }
     
@@ -103,7 +103,7 @@ class SecureStorageService {
     if (metadata.requiresBiometric) {
       final authenticated = await _authenticateWithBiometrics();
       if (!authenticated) {
-        throw SecureStorageException('Biometric authentication required');
+        throw const SecureStorageException('Biometric authentication required');
       }
     }
     
@@ -322,7 +322,7 @@ class SecureStorageService {
     if (_deviceKey == null) {
       // Fallback to basic secure storage without additional encryption
       debugPrint('⚠️ Device key not initialized, using fallback storage');
-      throw SecureStorageException('Device key not initialized');
+      throw const SecureStorageException('Device key not initialized');
     }
     
     final valueBytes = utf8.encode(value);
@@ -335,7 +335,7 @@ class SecureStorageService {
   
   Future<String> _decryptValue(EncryptedData encryptedData) async {
     if (_deviceKey == null) {
-      throw SecureStorageException('Device key not initialized');
+      throw const SecureStorageException('Device key not initialized');
     }
     
     final decryptedBytes = await _cryptoService.decryptAESGCM(
@@ -351,7 +351,7 @@ class SecureStorageService {
     try {
       final isAvailable = await isBiometricAvailable();
       if (!isAvailable) {
-        throw SecureStorageException('Biometric authentication not available');
+        throw const SecureStorageException('Biometric authentication not available');
       }
       
       return await _localAuth.authenticate(
@@ -369,14 +369,41 @@ class SecureStorageService {
 
   // Authentication token management methods
   Future<Map<String, String>?> getAuthTokens() async {
-    final tokensJson = await getSecure('auth_tokens');
-    if (tokensJson == null) return null;
-    
     try {
+      debugPrint('[SecureStorage] Retrieving auth tokens...');
+      final tokensJson = await getSecure('auth_tokens');
+      
+      if (tokensJson == null) {
+        debugPrint('[SecureStorage] ❌ No auth tokens found in secure storage');
+        return null;
+      }
+      
+      debugPrint('[SecureStorage] ✅ Raw tokens retrieved from storage (length: ${tokensJson.length})');
+      
       final Map<String, dynamic> data = json.decode(tokensJson);
-      return data.cast<String, String>();
-    } catch (e) {
-      debugPrint('Error parsing auth tokens: $e');
+      final tokens = data.cast<String, String>();
+      
+      debugPrint('[SecureStorage] ✅ Auth tokens parsed successfully - Keys: ${tokens.keys.toList()}');
+      
+      // Check if tokens have expired (if expires_at is present)
+      if (tokens.containsKey('expires_at')) {
+        try {
+          final expiresAt = DateTime.parse(tokens['expires_at']!);
+          final now = DateTime.now();
+          if (now.isAfter(expiresAt)) {
+            debugPrint('[SecureStorage] ⚠️ Warning: Access token has expired (expired at: $expiresAt, now: $now)');
+          } else {
+            debugPrint('[SecureStorage] ✅ Access token is still valid (expires at: $expiresAt)');
+          }
+        } catch (e) {
+          debugPrint('[SecureStorage] ⚠️ Could not parse expiration date: $e');
+        }
+      }
+      
+      return tokens;
+    } catch (e, stackTrace) {
+      debugPrint('[SecureStorage] ❌ Error retrieving auth tokens: $e');
+      debugPrint('[SecureStorage] ❌ Stack trace: $stackTrace');
       return null;
     }
   }
