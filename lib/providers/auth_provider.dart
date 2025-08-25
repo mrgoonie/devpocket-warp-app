@@ -3,7 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import '../models/user_model.dart';
-import '../services/enhanced_auth_service_v2.dart';
+import '../services/enhanced_auth_service.dart';
 import '../main.dart';
 
 class AuthNotifier extends StateNotifier<AuthState> {
@@ -11,7 +11,7 @@ class AuthNotifier extends StateNotifier<AuthState> {
     _initialize();
   }
 
-  final EnhancedAuthServiceV2 _authService;
+  final EnhancedAuthService _authService;
 
   Future<void> _initialize() async {
     state = state.copyWith(status: AuthStatus.loading, isLoading: true);
@@ -245,9 +245,9 @@ class AuthNotifier extends StateNotifier<AuthState> {
 }
 
 // Providers
-final authServiceProvider = Provider<EnhancedAuthServiceV2>((ref) {
-  debugPrint('🌐 Using EnhancedAuthServiceV2');
-  return EnhancedAuthServiceV2.instance;
+final authServiceProvider = Provider<EnhancedAuthService>((ref) {
+  debugPrint('🌐 Using EnhancedAuthService');
+  return EnhancedAuthService.instance;
 });
 
 final authProvider = StateNotifierProvider<AuthNotifier, AuthState>((ref) {

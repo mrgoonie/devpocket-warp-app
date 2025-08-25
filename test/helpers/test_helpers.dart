@@ -5,10 +5,10 @@ import 'package:flutter_test/flutter_test.dart';
 
 import 'package:devpocket_warp_app/providers/auth_provider.dart';
 import 'package:devpocket_warp_app/models/user_model.dart';
-import 'package:devpocket_warp_app/services/enhanced_auth_service_v2.dart';
+import 'package:devpocket_warp_app/services/enhanced_auth_service.dart';
 
 /// Mock auth service for testing
-class MockAuthService implements EnhancedAuthServiceV2 {
+class MockAuthService implements EnhancedAuthService {
   User? _currentUser;
 
   void setCurrentUser(User? user) {
@@ -142,8 +142,7 @@ class MockAuthService implements EnhancedAuthServiceV2 {
     return true;
   }
 
-  @override
-  static EnhancedAuthServiceV2 get instance => MockAuthService();
+  static EnhancedAuthService get instance => MockAuthService();
 }
 
 /// Create a widget tester with mock providers - supports both named and positional parameters
