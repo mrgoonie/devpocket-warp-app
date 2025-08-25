@@ -10,11 +10,9 @@ import 'package:devpocket_warp_app/services/enhanced_auth_service_v2.dart';
 /// Mock auth service for testing
 class MockAuthService implements EnhancedAuthServiceV2 {
   User? _currentUser;
-  bool _isAuthenticated = false;
 
   void setCurrentUser(User? user) {
     _currentUser = user;
-    _isAuthenticated = user != null;
   }
 
   @override
