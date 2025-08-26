@@ -125,7 +125,19 @@ class SshConnectionManager {
       // Set up shell data handlers
       shell.stdout.cast<List<int>>().transform(utf8.decoder).listen(
         (data) {
+          // Write to overall buffer for backward compatibility
           session.outputBuffer.write(data);
+          
+          // Differentiate between welcome message and command output
+          // If welcome message hasn't been shown yet and this is initial connection,
+          // treat first output as welcome message
+          if (!session.welcomeMessageShown && session.commandBuffer.isEmpty) {
+            session.welcomeBuffer.write(data);
+          } else {
+            // This is command output
+            session.commandBuffer.write(data);
+          }
+          
           _emitEvent(SshConnectionEvent(
             type: SshConnectionEventType.dataReceived,
             data: data,
@@ -144,7 +156,12 @@ class SshConnectionManager {
       
       shell.stderr.cast<List<int>>().transform(utf8.decoder).listen(
         (data) {
+          // Write to overall buffer for backward compatibility
           session.outputBuffer.write(data);
+          
+          // Stderr always goes to command buffer
+          session.commandBuffer.write(data);
+          
           _emitEvent(SshConnectionEvent(
             type: SshConnectionEventType.dataReceived,
             data: data,
@@ -271,6 +288,14 @@ class SshConnectionManager {
     try {
       debugPrint('Sending command: $command');
       
+      // Clear command buffer before sending new command to avoid mixing outputs
+      session.clearCommandOutput();
+      
+      // Mark welcome message as shown after first command
+      if (!session.welcomeMessageShown) {
+        session.markWelcomeShown();
+      }
+      
       session.shell!.stdin.add(utf8.encode('$command\n'));
       
       _emitEvent(SshConnectionEvent(
@@ -342,6 +367,36 @@ class SshConnectionManager {
   void clearOutput(String sessionId) {
     final session = _connections[sessionId];
     session?.outputBuffer.clear();
+  }
+  
+  /// Clear command-specific output buffer
+  void clearCommandOutput(String sessionId) {
+    final session = _connections[sessionId];
+    session?.clearCommandOutput();
+  }
+  
+  /// Get command output without welcome messages
+  String getCommandOutput(String sessionId) {
+    final session = _connections[sessionId];
+    return session?.getCommandOutput() ?? '';
+  }
+  
+  /// Get welcome message
+  String getWelcomeMessage(String sessionId) {
+    final session = _connections[sessionId];
+    return session?.getWelcomeMessage() ?? '';
+  }
+  
+  /// Mark welcome message as shown to prevent repetition
+  void markWelcomeShown(String sessionId) {
+    final session = _connections[sessionId];
+    session?.markWelcomeShown();
+  }
+  
+  /// Check if welcome message was already shown
+  bool isWelcomeShown(String sessionId) {
+    final session = _connections[sessionId];
+    return session?.welcomeMessageShown ?? false;
   }
   
   /// Get all active sessions
@@ -429,8 +484,11 @@ class _ConnectionSession {
   final SSHClient? client;
   final SSHSession? shell;
   SshConnectionStatus status;
-  final StringBuffer outputBuffer;
+  final StringBuffer outputBuffer; // Overall buffer (for backward compatibility)
+  final StringBuffer welcomeBuffer; // Welcome message buffer
+  final StringBuffer commandBuffer; // Current command output buffer
   final DateTime createdAt;
+  bool welcomeMessageShown = false; // Track if welcome message was already shown
 
   _ConnectionSession({
     required this.id,
@@ -439,5 +497,27 @@ class _ConnectionSession {
     this.shell,
     required this.status,
   }) : outputBuffer = StringBuffer(),
+       welcomeBuffer = StringBuffer(),
+       commandBuffer = StringBuffer(),
        createdAt = DateTime.now();
+  
+  /// Clear command-specific output
+  void clearCommandOutput() {
+    commandBuffer.clear();
+  }
+  
+  /// Mark welcome message as shown
+  void markWelcomeShown() {
+    welcomeMessageShown = true;
+  }
+  
+  /// Get command output without welcome message
+  String getCommandOutput() {
+    return commandBuffer.toString();
+  }
+  
+  /// Get welcome message
+  String getWelcomeMessage() {
+    return welcomeBuffer.toString();
+  }
 }

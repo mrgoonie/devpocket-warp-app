@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
@@ -697,25 +698,37 @@ class _HostsListScreenState extends ConsumerState<HostsListScreen> {
           ElevatedButton(
             onPressed: () async {
               Navigator.pop(context);
-              final success = await ref.read(sshHostsProvider.notifier).deleteHost(host.id);
-              if (mounted) {
+              
+              // Store context before async operation
+              final scaffoldMessenger = ScaffoldMessenger.of(context);
+              
+              try {
+                final success = await ref.read(sshHostsProvider.notifier).deleteHost(host.id);
+                
+                // No need for mounted check with stored messenger
                 if (success) {
-                  // ignore: use_build_context_synchronously
-                  ScaffoldMessenger.of(context).showSnackBar(
+                  scaffoldMessenger.showSnackBar(
                     const SnackBar(
                       content: Text('Host deleted successfully'),
                       backgroundColor: AppTheme.terminalGreen,
                     ),
                   );
                 } else {
-                  // ignore: use_build_context_synchronously
-                  ScaffoldMessenger.of(context).showSnackBar(
+                  scaffoldMessenger.showSnackBar(
                     const SnackBar(
-                      content: Text('Failed to delete host'),
+                      content: Text('Failed to delete host. It may not exist on the server.'),
                       backgroundColor: AppTheme.terminalRed,
                     ),
                   );
                 }
+              } catch (e) {
+                debugPrint('Error deleting host: $e');
+                scaffoldMessenger.showSnackBar(
+                  SnackBar(
+                    content: Text('Error: ${e.toString()}'),
+                    backgroundColor: AppTheme.terminalRed,
+                  ),
+                );
               }
             },
             style: ElevatedButton.styleFrom(

@@ -65,40 +65,92 @@ class _SplashScreenState extends ConsumerState<SplashScreen>
     _splashTimer = Timer(const Duration(milliseconds: 2500), () async {
       if (!mounted) return;
 
-      // Check authentication and onboarding status
+      // Wait for auth initialization to complete
       final authState = ref.read(authProvider);
-      final onboardingCompleted = ref.read(onboardingProvider);
-      final isFirstLaunchAsync = ref.read(isFirstLaunchProvider);
       
-      final isFirstLaunch = isFirstLaunchAsync.when(
-        data: (value) => value,
-        loading: () => true,
-        error: (_, __) => true,
-      );
+      // If auth is still loading, wait for it to complete
+      if (authState.status == AuthStatus.loading || authState.status == AuthStatus.unknown) {
+        _waitForAuthCompletion();
+        return;
+      }
 
-      if (!mounted) return;
-
-      _navigateToNextScreen(authState, onboardingCompleted, isFirstLaunch);
+      await _proceedWithNavigation();
     });
+  }
+
+  void _waitForAuthCompletion() {
+    // Listen for auth state changes
+    ref.listen<AuthState>(authProvider, (previous, next) async {
+      if (!mounted) return;
+      
+      // Only proceed when auth is no longer loading
+      if (next.status != AuthStatus.loading && next.status != AuthStatus.unknown) {
+        await _proceedWithNavigation();
+      }
+    });
+    
+    // Safety timeout - if auth takes too long, proceed anyway
+    Timer(const Duration(seconds: 10), () {
+      if (mounted) {
+        _proceedWithNavigation();
+      }
+    });
+  }
+
+  Future<void> _proceedWithNavigation() async {
+    if (!mounted) return;
+
+    // Check authentication and onboarding status
+    final authState = ref.read(authProvider);
+    final onboardingCompleted = ref.read(onboardingProvider);
+    final isFirstLaunchAsync = ref.read(isFirstLaunchProvider);
+    
+    final isFirstLaunch = isFirstLaunchAsync.when(
+      data: (value) => value,
+      loading: () => false, // Default to false for returning users
+      error: (_, __) => false, // Default to false if error
+    );
+
+    debugPrint('🔍 Navigation Decision - Auth: ${authState.status}, Onboarding: $onboardingCompleted, FirstLaunch: $isFirstLaunch');
+
+    _navigateToNextScreen(authState, onboardingCompleted, isFirstLaunch);
   }
 
   void _navigateToNextScreen(AuthState authState, bool onboardingCompleted, bool isFirstLaunch) {
     Widget nextScreen;
 
-    if (isFirstLaunch && !onboardingCompleted) {
+    debugPrint('🚀 Navigation - Auth: ${authState.status}, User: ${authState.user?.email ?? 'null'}, Onboarding: $onboardingCompleted, FirstLaunch: $isFirstLaunch');
+
+    // Priority 1: If user is authenticated, ALWAYS go to main app (regardless of onboarding)
+    if (authState.status == AuthStatus.authenticated && authState.user != null) {
+      debugPrint('✅ User authenticated, going to main app');
+      nextScreen = const MainTabScreen();
+    }
+    // Priority 2: Show onboarding ONLY for truly new users (first launch AND not completed AND not authenticated)
+    else if (isFirstLaunch && !onboardingCompleted && authState.status == AuthStatus.unauthenticated) {
+      debugPrint('📱 Showing onboarding for new user');
       nextScreen = const OnboardingScreen();
-    } else {
+    }
+    // Priority 3: For all other cases, show login
+    else {
       switch (authState.status) {
-        case AuthStatus.authenticated:
-          nextScreen = const MainTabScreen();
-          break;
         case AuthStatus.unauthenticated:
+          debugPrint('❌ User not authenticated, going to login');
           nextScreen = const LoginScreen();
           break;
         case AuthStatus.loading:
         case AuthStatus.unknown:
-        case AuthStatus.error:
+          debugPrint('⏳ Auth still loading, going to login as fallback');
           nextScreen = const LoginScreen();
+          break;
+        case AuthStatus.error:
+          debugPrint('💥 Auth error, going to login');
+          nextScreen = const LoginScreen();
+          break;
+        case AuthStatus.authenticated:
+          // This should be handled above, but just in case
+          debugPrint('✅ User authenticated (fallback), going to main app');
+          nextScreen = const MainTabScreen();
           break;
       }
     }

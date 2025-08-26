@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../themes/app_theme.dart';
 import '../../main.dart';
+import '../../providers/auth_provider.dart';
 import '../vaults/vaults_screen.dart';
 import '../terminal/terminal_screen.dart';
 import '../history/history_screen.dart';
@@ -65,6 +66,23 @@ class _MainTabScreenState extends ConsumerState<MainTabScreen>
       vsync: this,
     );
     _animationController.forward();
+    
+    // Ensure onboarding is marked as completed when authenticated user reaches main screen
+    _ensureOnboardingCompleted();
+  }
+  
+  void _ensureOnboardingCompleted() {
+    WidgetsBinding.instance.addPostFrameCallback((_) async {
+      try {
+        final onboardingCompleted = ref.read(onboardingProvider);
+        if (!onboardingCompleted) {
+          debugPrint('🔧 Marking onboarding as completed for authenticated user');
+          await ref.read(onboardingProvider.notifier).completeOnboarding();
+        }
+      } catch (e) {
+        debugPrint('Error ensuring onboarding completion: $e');
+      }
+    });
   }
 
   @override

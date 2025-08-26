@@ -125,7 +125,12 @@ class ApiClient {
     try {
       final tokens = await _secureStorage.getAuthTokens();
       final refreshToken = tokens?['refreshToken'];
-      if (refreshToken == null) return false;
+      if (refreshToken == null) {
+        debugPrint('[API] ❌ No refresh token available for token refresh');
+        return false;
+      }
+      
+      debugPrint('[API] 🔄 Attempting token refresh...');
       
       final response = await _dio.post(
         '/auth/refresh',
@@ -137,9 +142,25 @@ class ApiClient {
       
       if (response.statusCode == 200) {
         final data = response.data;
-        final newAccessToken = data['data']['accessToken'];
-        final newRefreshToken = data['data']['refreshToken'];
+        debugPrint('[API] 📝 Token refresh response: ${data.toString()}');
+        
+        // Handle API response format: data.data.access_token (not accessToken)
+        final responseData = data['data'] ?? data;
+        final newAccessToken = responseData['access_token'] ?? responseData['accessToken'];
+        
+        // Handle case where refresh_token might not be returned - reuse existing
+        final newRefreshToken = responseData['refresh_token'] ?? 
+                               responseData['refreshToken'] ?? 
+                               refreshToken; // fallback to existing refresh token
+        
         final userId = tokens?['userId'] ?? '';
+        
+        if (newAccessToken == null) {
+          debugPrint('[API] ❌ Token refresh failed: no access_token in response');
+          return false;
+        }
+        
+        debugPrint('[API] ✅ Token refresh successful, storing new tokens');
         
         await _secureStorage.storeAuthTokens(
           accessToken: newAccessToken,
@@ -150,9 +171,11 @@ class ApiClient {
         return true;
       }
       
+      debugPrint('[API] ❌ Token refresh failed with status: ${response.statusCode}');
       return false;
-    } catch (e) {
-      debugPrint('Token refresh failed: $e');
+    } catch (e, stackTrace) {
+      debugPrint('[API] ❌ Token refresh failed: $e');
+      debugPrint('[API] ❌ Stack trace: $stackTrace');
       await _clearTokens();
       return false;
     }
@@ -165,6 +188,11 @@ class ApiClient {
   /// Clear authentication tokens (public method)
   Future<void> clearTokens() async {
     await _clearTokens();
+  }
+  
+  /// Expose token refresh functionality
+  Future<bool> refreshTokens() async {
+    return await _handleTokenRefresh();
   }
   
   // GET request

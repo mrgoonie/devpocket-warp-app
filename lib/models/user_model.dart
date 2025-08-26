@@ -93,13 +93,13 @@ class User {
 
   factory User.fromJson(Map<String, dynamic> json) {
     return User(
-      id: json['id'],
-      username: json['username'],
-      email: json['email'],
+      id: json['id'] ?? '',
+      username: json['username'] ?? json['email']?.split('@')[0] ?? 'user',
+      email: json['email'] ?? '',
       emailVerified: json['email_verified'] ?? json['emailVerified'] ?? false,
       avatarUrl: json['avatar_url'] ?? json['avatarUrl'],
-      createdAt: DateTime.parse(json['created_at'] ?? json['createdAt']),
-      updatedAt: DateTime.parse(json['updated_at'] ?? json['updatedAt'] ?? json['created_at'] ?? json['createdAt']),
+      createdAt: DateTime.parse(json['created_at'] ?? json['createdAt'] ?? DateTime.now().toIso8601String()),
+      updatedAt: DateTime.parse(json['updated_at'] ?? json['updatedAt'] ?? json['created_at'] ?? json['createdAt'] ?? DateTime.now().toIso8601String()),
       subscriptionTier: json['subscription_tier'] ?? json['subscriptionTier'] ?? 'free',
       isInTrial: json['is_in_trial'] ?? json['isInTrial'] ?? false,
       trialEndsAt: json['trial_ends_at'] != null || json['trialEndsAt'] != null

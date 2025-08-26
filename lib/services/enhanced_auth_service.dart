@@ -26,17 +26,46 @@ class EnhancedAuthService {
     try {
       final response = await _apiClient.get<User>(
         '/auth/me',
-        fromJson: (json) => User.fromJson(json),
+        fromJson: (json) {
+          // Handle nested user object in response
+          final userData = json is Map<String, dynamic> && json.containsKey('user') 
+              ? json['user'] 
+              : json;
+          return User.fromJson(userData);
+        },
       );
       
       if (response.isSuccess) {
         return response.data;
       }
       
-      // If authentication failed, clear any invalid tokens
-      if (response.errorMessage.contains('Authentication failed') ||
-          response.errorMessage.contains('AUTH_FAILED')) {
-        debugPrint('Authentication failed, clearing tokens...');
+      // Check if it's an auth failure that might be resolved by refresh
+      if (response.errorMessage.contains('AUTH_FAILED') || 
+          response.statusCode == 401) {
+        debugPrint('Auth failed, attempting token refresh...');
+        
+        // Attempt token refresh
+        final refreshed = await refreshTokens();
+        if (refreshed) {
+          // Retry the request with new tokens
+          final retryResponse = await _apiClient.get<User>(
+            '/auth/me',
+            fromJson: (json) {
+              // Handle nested user object in response
+              final userData = json is Map<String, dynamic> && json.containsKey('user') 
+                  ? json['user'] 
+                  : json;
+              return User.fromJson(userData);
+            },
+          );
+          
+          if (retryResponse.isSuccess) {
+            return retryResponse.data;
+          }
+        }
+        
+        // If refresh failed or retry failed, clear tokens
+        debugPrint('Token refresh failed, clearing tokens...');
         await _clearInvalidTokens();
       }
       
@@ -291,6 +320,16 @@ class EnhancedAuthService {
       return response.isSuccess;
     } catch (e) {
       debugPrint('Resend email verification error: $e');
+      return false;
+    }
+  }
+  
+  /// Refresh authentication tokens
+  Future<bool> refreshTokens() async {
+    try {
+      return await _apiClient.refreshTokens();
+    } catch (e) {
+      debugPrint('Token refresh failed in auth service: $e');
       return false;
     }
   }

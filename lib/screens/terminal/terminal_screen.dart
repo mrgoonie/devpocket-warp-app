@@ -7,8 +7,10 @@ import '../../main.dart';
 import '../../models/ai_models.dart';
 import '../../models/ssh_profile_models.dart';
 import '../../providers/ai_provider.dart';
+import '../../providers/ssh_connection_providers.dart';
+import '../../providers/ssh_host_providers.dart';
 import '../../screens/settings/api_key_screen.dart';
-import 'enhanced_terminal_screen.dart';
+import '../main/main_tab_screen.dart';
 
 // Terminal Block Model for tracking command execution
 @immutable
@@ -76,6 +78,8 @@ class _TerminalScreenState extends ConsumerState<TerminalScreen> {
   bool _isAgentMode = false;
   bool _showSuggestions = false;
   List<CommandSuggestion> _currentSuggestions = [];
+  bool _initialSetupDone = false;
+  bool _welcomeMessageShown = false; // Track if welcome message was already shown
 
   // Mock context for now - in real app this would come from SSH connection
   final CommandContext _currentContext = const CommandContext(
@@ -89,14 +93,97 @@ class _TerminalScreenState extends ConsumerState<TerminalScreen> {
   @override
   void initState() {
     super.initState();
-    _addWelcomeMessage();
-    _loadSmartSuggestions();
+    // Remove provider access from initState() to avoid Riverpod dependency issue
+    // These will be called in build() after providers are available
+  }
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    // No provider access here to avoid Riverpod dependency issues
+    // All provider-dependent initialization moved to build() method
+  }
+
+  void _handleSshProfileConnection() {
+    final currentProfile = ref.read(currentSshProfileProvider);
+    final connectionState = ref.read(sshTerminalConnectionProvider);
     
-    // Handle SSH profile connection if provided
-    if (widget.sshProfile != null) {
+    if (currentProfile != null && !connectionState.isConnected && !connectionState.isConnecting) {
       WidgetsBinding.instance.addPostFrameCallback((_) {
-        _connectToSshHost(widget.sshProfile!);
+        _connectToSshProfile(currentProfile);
       });
+    }
+    
+    // Also handle direct widget SSH profile
+    if (widget.sshProfile != null && !connectionState.isConnected && !connectionState.isConnecting) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        _connectToSshProfile(widget.sshProfile!);
+      });
+    }
+  }
+
+  void _setupListeners(WidgetRef ref) {
+    // Listen to SSH connection status changes
+    ref.listen<SshTerminalConnectionState>(
+      sshTerminalConnectionProvider,
+      (previous, next) {
+        _handleSshConnectionStateChange(previous, next);
+      },
+    );
+    
+    // Listen to SSH output changes
+    ref.listen<String>(
+      sshTerminalOutputProvider,
+      (previous, next) {
+        if (next.isNotEmpty && next != previous) {
+          _handleSshOutput(next);
+        }
+      },
+    );
+  }
+
+  void _handleSshConnectionStateChange(SshTerminalConnectionState? previous, SshTerminalConnectionState next) {
+    if (previous?.status != next.status) {
+      switch (next.status) {
+        case SshTerminalConnectionStatus.connecting:
+          _addSshStatusBlock('Connecting to ${next.profile?.connectionString}...', isExecuting: true);
+          break;
+        case SshTerminalConnectionStatus.connected:
+          // Only show welcome message once per connection
+          if (!_welcomeMessageShown) {
+            _addSshWelcomeMessage(next.profile);
+            _welcomeMessageShown = true;
+          }
+          _updateLastSshStatusBlock('Connected to ${next.profile?.connectionString}', isExecuting: false);
+          break;
+        case SshTerminalConnectionStatus.error:
+          _updateLastSshStatusBlock('Connection failed: ${next.error}', isExecuting: false, isError: true);
+          break;
+        case SshTerminalConnectionStatus.disconnected:
+          if (previous?.status != SshTerminalConnectionStatus.error) {
+            _addSshStatusBlock('Disconnected from SSH host', isExecuting: false);
+          }
+          // Reset welcome message flag for new connections
+          _welcomeMessageShown = false;
+          break;
+        case SshTerminalConnectionStatus.reconnecting:
+          _addSshStatusBlock('Reconnecting to SSH host...', isExecuting: true);
+          break;
+      }
+    }
+  }
+
+  void _handleSshOutput(String output) {
+    // Update the last command block with SSH output
+    if (_blocks.isNotEmpty) {
+      final lastBlock = _blocks.last;
+      if (lastBlock.isExecuting) {
+        _updateBlock(
+          lastBlock.id,
+          output: output,
+          isExecuting: false,
+        );
+      }
     }
   }
 
@@ -109,16 +196,32 @@ class _TerminalScreenState extends ConsumerState<TerminalScreen> {
   }
 
   void _addWelcomeMessage() {
-    final welcomeBlock = TerminalBlock(
-      id: 'welcome',
-      input: '',
-      output: '''DevPocket Terminal v1.0.0 - AI-Powered SSH Client
-Connected to ${_currentContext.hostname} (${_currentContext.operatingSystem})
+    final isConnectedToSsh = ref.read(isConnectedToSshProvider);
+    final sshProfile = ref.read(sshConnectedProfileProvider);
+    
+    String welcomeMessage;
+    if (isConnectedToSsh && sshProfile != null) {
+      welcomeMessage = '''DevPocket Terminal v1.0.0 - SSH Connected
+Connected to ${sshProfile.host} as ${sshProfile.username}
+SSH Profile: ${sshProfile.name}
+
+💡 Switch to Agent Mode to use natural language commands
+⚙️  Configure AI features in Settings > AI Configuration
+''';
+    } else {
+      welcomeMessage = '''DevPocket Terminal v1.0.0 - AI-Powered SSH Client
+Local Terminal Mode (${_currentContext.operatingSystem})
 Current directory: ${_currentContext.currentDirectory}
 
 💡 Switch to Agent Mode to use natural language commands
 ⚙️  Configure AI features in Settings > AI Configuration
-''',
+''';
+    }
+    
+    final welcomeBlock = TerminalBlock(
+      id: 'welcome',
+      input: '',
+      output: welcomeMessage,
       timestamp: DateTime.now(),
     );
 
@@ -129,12 +232,30 @@ Current directory: ${_currentContext.currentDirectory}
 
   @override
   Widget build(BuildContext context) {
+    // Perform one-time setup after providers are available
+    if (!_initialSetupDone) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted) {
+          _addWelcomeMessage();
+          _loadSmartSuggestions();
+          _handleSshProfileConnection();
+        }
+      });
+      _initialSetupDone = true;
+    }
+    
+    // Add this at the beginning of build
+    _setupListeners(ref);
+    
     final aiEnabled = ref.watch(aiEnabledProvider);
     final hasValidKey = ref.watch(hasValidApiKeyProvider);
     final isNearLimit = ref.watch(isNearCostLimitProvider);
+    
+    // SSH connection state - used in _buildAppBar  
+    final isConnectedToSsh = ref.watch(isConnectedToSshProvider);
 
     return Scaffold(
-      appBar: _buildAppBar(aiEnabled, hasValidKey, isNearLimit),
+      appBar: _buildAppBar(aiEnabled, hasValidKey, isNearLimit, isConnectedToSsh),
       body: Column(
         children: [
           // AI Status Banner (if needed)
@@ -173,12 +294,40 @@ Current directory: ${_currentContext.currentDirectory}
     );
   }
 
-  PreferredSizeWidget _buildAppBar(bool aiEnabled, bool hasValidKey, bool isNearLimit) {
+  PreferredSizeWidget _buildAppBar(bool aiEnabled, bool hasValidKey, bool isNearLimit, bool isConnectedToSsh) {
+    final sshConnectionState = ref.watch(sshTerminalConnectionProvider);
+    final connectedProfile = sshConnectionState.profile;
+    
     return AppBar(
-      title: const Text('Terminal'),
+      title: isConnectedToSsh && connectedProfile != null
+          ? Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                const Text('Terminal', style: TextStyle(fontSize: 16)),
+                Text(
+                  'SSH: ${connectedProfile.name}',
+                  style: const TextStyle(
+                    fontSize: 12,
+                    color: Colors.green,
+                    fontWeight: FontWeight.normal,
+                  ),
+                ),
+              ],
+            )
+          : const Text('Terminal'),
       centerTitle: true,
       backgroundColor: Colors.transparent,
       elevation: 0,
+      leading: isConnectedToSsh
+          ? IconButton(
+              onPressed: () {
+                final connectionNotifier = ref.read(sshTerminalConnectionProvider.notifier);
+                connectionNotifier.disconnect();
+              },
+              icon: const Icon(Icons.close, color: Colors.red),
+              tooltip: 'Disconnect SSH',
+            )
+          : null,
       actions: [
         // AI Mode toggle
         if (hasValidKey) ...[
@@ -223,13 +372,23 @@ Current directory: ${_currentContext.currentDirectory}
           ),
         ),
         
-        // SSH Terminal button
+        // SSH Connection button
         TextButton.icon(
-          onPressed: _openSshTerminal,
-          icon: const Icon(Icons.terminal, size: 16),
-          label: const Text('SSH', style: TextStyle(fontSize: 12)),
+          onPressed: _handleSshConnection,
+          icon: Icon(
+            isConnectedToSsh ? Icons.link_off : Icons.link,
+            size: 16,
+            color: isConnectedToSsh ? Colors.green : AppTheme.primaryColor,
+          ),
+          label: Text(
+            isConnectedToSsh ? 'SSH' : 'Connect',
+            style: TextStyle(
+              fontSize: 12,
+              color: isConnectedToSsh ? Colors.green : AppTheme.primaryColor,
+            ),
+          ),
           style: TextButton.styleFrom(
-            foregroundColor: AppTheme.primaryColor,
+            foregroundColor: isConnectedToSsh ? Colors.green : AppTheme.primaryColor,
             padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
           ),
         ),
@@ -761,13 +920,17 @@ Current directory: ${_currentContext.currentDirectory}
 
   String _getInputHint() {
     final hasValidKey = ref.read(hasValidApiKeyProvider);
+    final isConnectedToSsh = ref.read(isConnectedToSshProvider);
+    final sshProfile = ref.read(sshConnectedProfileProvider);
     
     if (_isAgentMode && hasValidKey) {
       return 'Ask AI: "show running processes" or "find large files"';
     } else if (_isAgentMode && !hasValidKey) {
       return 'AI mode disabled - configure API key in settings';
+    } else if (isConnectedToSsh && sshProfile != null) {
+      return '\$ SSH (${sshProfile.username}@${sshProfile.host}) Enter command...';
     } else {
-      return '\$ Enter command...';
+      return '\$ Local terminal - Enter command...';
     }
   }
 
@@ -858,36 +1021,72 @@ Current directory: ${_currentContext.currentDirectory}
   }
 
   Future<void> _handleRegularCommand(String blockId, String command) async {
-    // Simulate command execution
-    await Future.delayed(const Duration(milliseconds: 500));
+    final isConnectedToSsh = ref.read(isConnectedToSshProvider);
+    final connectionNotifier = ref.read(sshTerminalConnectionProvider.notifier);
+    
+    if (isConnectedToSsh) {
+      // Execute command over SSH
+      try {
+        await connectionNotifier.sendCommand(command);
+        // Output will be handled by SSH event listener
+      } catch (e) {
+        _updateBlock(
+          blockId,
+          isExecuting: false,
+          error: 'SSH command error: $e',
+        );
+        
+        // Generate AI explanation for SSH errors
+        await _explainError(blockId, command, e.toString());
+      }
+    } else {
+      // Fall back to simulated command execution for local terminal
+      await Future.delayed(const Duration(milliseconds: 500));
 
-    // Simulate some outputs based on command
-    String output = _simulateCommandOutput(command);
-    String? error;
+      String output = _simulateCommandOutput(command);
+      String? error;
 
-    // Simulate occasional errors
-    if (command.contains('invalid') || command.startsWith('badcommand')) {
-      error = 'Command not found: $command';
-      output = '';
-      
-      // Generate AI explanation for errors
-      await _explainError(blockId, command, error);
+      // Simulate occasional errors
+      if (command.contains('invalid') || command.startsWith('badcommand')) {
+        error = 'Command not found: $command';
+        output = '';
+        
+        // Generate AI explanation for errors
+        await _explainError(blockId, command, error);
+      }
+
+      _updateBlock(
+        blockId,
+        isExecuting: false,
+        output: output,
+        error: error,
+      );
     }
-
-    _updateBlock(
-      blockId,
-      isExecuting: false,
-      output: output,
-      error: error,
-    );
   }
 
   Future<void> _executeGeneratedCommand(String blockId, String command) async {
-    // Simulate executing the AI-generated command
-    await Future.delayed(const Duration(milliseconds: 800));
+    final isConnectedToSsh = ref.read(isConnectedToSshProvider);
+    final connectionNotifier = ref.read(sshTerminalConnectionProvider.notifier);
     
-    final output = _simulateCommandOutput(command);
-    _updateBlock(blockId, isExecuting: false, output: output);
+    if (isConnectedToSsh) {
+      // Execute AI-generated command over SSH
+      try {
+        await connectionNotifier.sendCommand(command);
+        // Output will be handled by SSH event listener
+      } catch (e) {
+        _updateBlock(
+          blockId,
+          isExecuting: false,
+          error: 'SSH command error: $e',
+        );
+      }
+    } else {
+      // Fall back to simulated execution for local terminal
+      await Future.delayed(const Duration(milliseconds: 800));
+      
+      final output = _simulateCommandOutput(command);
+      _updateBlock(blockId, isExecuting: false, output: output);
+    }
   }
 
   Future<void> _explainError(String blockId, String command, String error) async {
@@ -1005,58 +1204,168 @@ mysql-pod-5678           1/1     Running   0          1h''';
     });
   }
 
-  void _openSshTerminal() {
-    Navigator.push(
-      context,
-      MaterialPageRoute(
-        builder: (context) => const EnhancedTerminalScreen(),
+  /// Add SSH welcome message block (shown once per connection)
+  void _addSshWelcomeMessage(SshProfile? profile) {
+    if (profile == null) return;
+    
+    final welcomeMessage = '''SSH Connected to ${profile.name}
+Host: ${profile.host}:${profile.port}
+User: ${profile.username}
+
+💡 You are now connected to the remote server
+⚙️  Type commands to interact with the remote host
+''';
+    
+    final welcomeBlock = TerminalBlock(
+      id: 'ssh-welcome-${DateTime.now().millisecondsSinceEpoch}',
+      input: '',
+      output: welcomeMessage,
+      timestamp: DateTime.now(),
+    );
+
+    setState(() {
+      _blocks.add(welcomeBlock);
+    });
+    _scrollToBottom();
+  }
+
+  /// Add SSH status block for connection updates
+  void _addSshStatusBlock(String message, {bool isExecuting = false}) {
+    final statusBlock = TerminalBlock(
+      id: 'ssh-status-${DateTime.now().millisecondsSinceEpoch}',
+      input: '',
+      output: message,
+      isExecuting: isExecuting,
+      timestamp: DateTime.now(),
+    );
+
+    setState(() {
+      _blocks.add(statusBlock);
+    });
+    _scrollToBottom();
+  }
+
+  /// Update the last SSH status block
+  void _updateLastSshStatusBlock(String message, {bool isExecuting = false, bool isError = false}) {
+    if (_blocks.isEmpty) return;
+    
+    final lastBlock = _blocks.last;
+    if (lastBlock.input.isEmpty) { // This is a status block
+      setState(() {
+        final index = _blocks.length - 1;
+        _blocks[index] = lastBlock.copyWith(
+          output: message,
+          error: isError ? message : null,
+          isExecuting: isExecuting,
+        );
+      });
+      _scrollToBottom();
+    } else {
+      // Add new status block if last wasn't a status block
+      _addSshStatusBlock(message, isExecuting: isExecuting);
+    }
+  }
+
+  /// Handle SSH connection and disconnection
+  void _handleSshConnection() {
+    final connectionState = ref.read(sshTerminalConnectionProvider);
+    final connectionNotifier = ref.read(sshTerminalConnectionProvider.notifier);
+    
+    if (connectionState.isConnected) {
+      // Disconnect
+      connectionNotifier.disconnect();
+    } else if (connectionState.canConnect) {
+      // Show SSH profiles for connection
+      _showSshConnectionOptions();
+    }
+  }
+
+  /// Show SSH connection options
+  void _showSshConnectionOptions() async {
+    final hostsAsync = ref.read(sshHostsProvider);
+    final hosts = hostsAsync.valueOrNull ?? [];
+    
+    if (hosts.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('No SSH hosts configured. Add hosts in the Vaults tab.'),
+          duration: Duration(seconds: 3),
+        ),
+      );
+      return;
+    }
+    
+    // Show bottom sheet with SSH host options
+    showModalBottomSheet(
+      context: context,
+      builder: (context) => Container(
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const Text(
+              'Connect to SSH Host',
+              style: TextStyle(
+                fontSize: 18,
+                fontWeight: FontWeight.bold,
+              ),
+            ),
+            const SizedBox(height: 16),
+            ...hosts.take(5).map((host) => ListTile(
+              leading: CircleAvatar(
+                backgroundColor: _getStatusColor(host.status),
+                child: const Icon(Icons.computer, color: Colors.white),
+              ),
+              title: Text(host.name),
+              subtitle: Text('${host.username}@${host.host}'),
+              onTap: () {
+                Navigator.pop(context);
+                _connectToSshProfile(host);
+              },
+            )),
+            if (hosts.length > 5) ...[
+              const Divider(),
+              ListTile(
+                leading: const Icon(Icons.more_horiz),
+                title: const Text('View all hosts'),
+                onTap: () {
+                  Navigator.pop(context);
+                  // Navigate to Vaults tab
+                  TabNavigationHelper.navigateToTab(context, TabNavigationHelper.vaultsTab);
+                },
+              ),
+            ],
+          ],
+        ),
       ),
     );
   }
   
+  Color _getStatusColor(SshProfileStatus status) {
+    switch (status) {
+      case SshProfileStatus.active:
+        return Colors.green;
+      case SshProfileStatus.failed:
+        return Colors.red;
+      case SshProfileStatus.testing:
+        return Colors.orange;
+      default:
+        return Colors.grey;
+    }
+  }
+
+  
   /// Connect to SSH host using provided SSH profile
-  void _connectToSshHost(SshProfile sshProfile) {
+  void _connectToSshProfile(SshProfile sshProfile) async {
     debugPrint('[Terminal] Connecting to SSH host: ${sshProfile.name} (${sshProfile.host})');
     
-    // Add connection status block
-    final connectionBlock = TerminalBlock(
-      id: 'ssh-connect-${DateTime.now().millisecondsSinceEpoch}',
-      input: 'ssh ${sshProfile.username}@${sshProfile.host}',
-      output: null,
-      error: null,
-      isExecuting: true,
-      isAgentCommand: false,
-      timestamp: DateTime.now(),
-    );
+    // Set the current SSH profile in provider
+    ref.read(currentSshProfileProvider.notifier).state = sshProfile;
     
-    setState(() {
-      _blocks.add(connectionBlock);
-    });
-    
-    // Scroll to show the new block
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      _scrollToBottom();
-    });
-    
-    // TODO: Implement actual SSH connection logic
-    // For now, just simulate the connection attempt
-    Future.delayed(const Duration(seconds: 2), () {
-      setState(() {
-        final index = _blocks.indexWhere((b) => b.id == connectionBlock.id);
-        if (index != -1) {
-          _blocks[index] = connectionBlock.copyWith(
-            isExecuting: false,
-            output: 'Connected to ${sshProfile.host} as ${sshProfile.username}\n'
-                   'Welcome to ${sshProfile.name}\n'
-                   'Type commands to interact with the remote host.',
-          );
-        }
-      });
-      
-      WidgetsBinding.instance.addPostFrameCallback((_) {
-        _scrollToBottom();
-      });
-    });
+    // Connect using SSH connection manager
+    final connectionNotifier = ref.read(sshTerminalConnectionProvider.notifier);
+    await connectionNotifier.connect(sshProfile);
   }
 
 }

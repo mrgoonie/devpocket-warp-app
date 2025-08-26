@@ -419,44 +419,70 @@ class AppTheme {
     return MaterialColor(color.toARGB32(), swatch);
   }
 
-  // Terminal-specific text styles
+  // Terminal-specific text styles with font fallbacks for better character rendering
+  static const List<String> terminalFontFallbacks = [
+    'JetBrainsMono',
+    'RobotoMono',
+    'Menlo',           // macOS fallback
+    'Monaco',          // macOS fallback
+    'Consolas',        // Windows fallback
+    'Courier New',     // Cross-platform fallback
+    'monospace',       // Generic monospace fallback
+  ];
+
   static const TextStyle terminalTextStyle = TextStyle(
     fontFamily: terminalFont,
+    fontFamilyFallback: terminalFontFallbacks,
     fontSize: 14,
     height: 1.2,
-    letterSpacing: 0,
+    letterSpacing: 0.5,
+    // Improve character rendering
+    decoration: TextDecoration.none,
+    textBaseline: TextBaseline.alphabetic,
   );
 
   static const TextStyle terminalPromptStyle = TextStyle(
     fontFamily: terminalFont,
+    fontFamilyFallback: terminalFontFallbacks,
     fontSize: 14,
     height: 1.2,
-    letterSpacing: 0,
+    letterSpacing: 0.5,
     color: terminalGreen,
     fontWeight: FontWeight.w500,
+    decoration: TextDecoration.none,
+    textBaseline: TextBaseline.alphabetic,
   );
 
   static const TextStyle terminalCommandStyle = TextStyle(
     fontFamily: terminalFont,
+    fontFamilyFallback: terminalFontFallbacks,
     fontSize: 14,
     height: 1.2,
-    letterSpacing: 0,
+    letterSpacing: 0.5,
     fontWeight: FontWeight.w400,
+    decoration: TextDecoration.none,
+    textBaseline: TextBaseline.alphabetic,
   );
 
   static const TextStyle terminalErrorStyle = TextStyle(
     fontFamily: terminalFont,
+    fontFamilyFallback: terminalFontFallbacks,
     fontSize: 14,
     height: 1.2,
-    letterSpacing: 0,
+    letterSpacing: 0.5,
     color: terminalRed,
+    decoration: TextDecoration.none,
+    textBaseline: TextBaseline.alphabetic,
   );
 
   static const TextStyle terminalSuccessStyle = TextStyle(
     fontFamily: terminalFont,
+    fontFamilyFallback: terminalFontFallbacks,
     fontSize: 14,
     height: 1.2,
-    letterSpacing: 0,
+    letterSpacing: 0.5,
     color: terminalGreen,
+    decoration: TextDecoration.none,
+    textBaseline: TextBaseline.alphabetic,
   );
 }
