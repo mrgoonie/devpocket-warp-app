@@ -13,6 +13,7 @@ import '../../services/persistent_process_detector.dart';
 import '../../services/active_block_manager.dart';
 import '../../services/pty_focus_manager.dart';
 import '../../providers/theme_provider.dart';
+import '../../services/welcome_block_layout_manager.dart';
 import 'terminal_block.dart';
 import 'enhanced_terminal_block.dart';
 
@@ -592,58 +593,11 @@ class _SshTerminalWidgetState extends ConsumerState<SshTerminalWidget> {
   Widget _buildBlockBasedTerminalContent() {
     return Column(
       children: [
-        // Welcome message display - make it scrollable if needed
+        // Welcome message display - using intelligent layout manager
         if (_welcomeMessage.isNotEmpty)
-          Container(
-            width: double.infinity,
-            margin: const EdgeInsets.only(bottom: 8),
-            padding: const EdgeInsets.all(12),
-            constraints: const BoxConstraints(minHeight: 100), // Allow full welcome message display
-            decoration: BoxDecoration(
-              color: AppTheme.darkSurface,
-              border: Border.all(color: AppTheme.darkBorderColor),
-              borderRadius: BorderRadius.circular(8),
-            ),
-            child: SingleChildScrollView(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  const Row(
-                    children: [
-                      Icon(
-                        Icons.info_outline,
-                        size: 16,
-                        color: AppTheme.terminalBlue,
-                      ),
-                      SizedBox(width: 6),
-                      Text(
-                        'Welcome Message',
-                        style: TextStyle(
-                          color: AppTheme.terminalBlue,
-                          fontSize: 12,
-                          fontWeight: FontWeight.w500,
-                        ),
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 8),
-                  Consumer(
-                    builder: (context, ref, child) {
-                      final fontFamily = ref.watch(fontFamilyProvider);
-                      final fontSize = ref.watch(fontSizeProvider);
-                      return Text(
-                        _welcomeMessage,
-                        style: TextStyle(
-                          color: AppTheme.darkTextPrimary,
-                          fontSize: fontSize * 0.8, // Slightly smaller for welcome message
-                          fontFamily: fontFamily,
-                        ),
-                      );
-                    },
-                  ),
-                ],
-              ),
-            ),
+          WelcomeBlockLayoutManager.createWelcomeWidget(
+            content: _welcomeMessage,
+            context: context,
           ),
         
         // Terminal blocks - takes remaining space

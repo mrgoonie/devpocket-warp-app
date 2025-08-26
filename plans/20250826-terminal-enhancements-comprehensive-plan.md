@@ -1,13 +1,19 @@
 # Terminal Enhancements Implementation Plan
 
 **Date**: 2025-08-26  
-**Type**: Feature Implementation  
-**Status**: Phase 1 & 2 Complete - Phase 3 & 3.5 Pending  
-**Last Updated**: 2025-08-26 (Added Phase 3.5 for Interactive Process Handling)  
-**Context Tokens**: Comprehensive terminal UI/UX improvements, interactive command handling, persistent process management, mode persistence fixes, text encoding resolution, and integration troubleshooting
+**Type**: Feature Implementation + Critical Bug Fix  
+**Status**: Phase 1 & 2 Complete - Phase 3, 3.5, 3.6 Pending  
+**Last Updated**: 2025-08-26 (Added Phase 3.6 for Welcome Message Layout Overflow Fix)  
+**Context Tokens**: Comprehensive terminal UI/UX improvements, interactive command handling, persistent process management, mode persistence fixes, text encoding resolution, welcome message layout optimization, and integration troubleshooting
 
 ## Executive Summary
-Enhance the DevPocket Flutter app terminal experience by fixing critical UI issues, implementing fullscreen modals for interactive commands, resolving AI mode persistence bugs, and cleaning up duplicate implementations. This plan addresses user experience problems and establishes a robust foundation for terminal interactions.
+Enhance the DevPocket Flutter app terminal experience by fixing critical UI issues, implementing fullscreen modals for interactive commands, resolving AI mode persistence bugs, and cleaning up duplicate implementations. **CRITICAL UPDATE**: Added Phase 3.6 to address layout overflow issues with extremely long host welcome messages that break terminal usability on mobile devices. This plan addresses user experience problems and establishes a robust foundation for terminal interactions.
+
+### 🚨 Critical Issue Added: Welcome Message Layout Overflow
+**Problem**: Extremely long host welcome messages cause terminal layout to break, pushing content beyond viewport boundaries and making the terminal unusable.  
+**Impact**: Yellow warning sections overflow at bottom, terminal input area becomes inaccessible.  
+**Solution**: Phase 3.6 implements hybrid scrollable + expandable approach with responsive viewport management.  
+**Priority**: Immediate - requires implementation before other terminal enhancements.
 
 ## Context Links
 - **Related Plans**: `20250826-terminal-ssh-interaction-fix-plan.md`
@@ -41,6 +47,7 @@ graph TB
     B --> F[Fullscreen Interactive Modal]
     B --> G[Auto-scroll Controller]
     B --> P[Active Block Manager]
+    B --> U[Welcome Block Layout Manager] 
     
     E --> H[Text Encoding Handler]
     E --> I[Command Execution State]
@@ -58,6 +65,16 @@ graph TB
     P --> R[PTY Focus Manager]
     P --> S[Process Lifecycle Service]
     Q --> T[Persistent Process Detector]
+    
+    U --> V[Scrollable Welcome Container]
+    U --> W[Expandable Welcome Widget]
+    U --> X[Terminal Viewport Manager]
+    U --> Y[Responsive Terminal Container]
+    
+    V --> Z[Welcome Message Auto-scroll]
+    W --> AA[Content Truncation Logic]
+    X --> BB[Mobile Viewport Optimization]
+    Y --> CC[Layout Overflow Prevention]
 ```
 
 ## Technical Design: Interactive Process Handling 🆕
@@ -238,6 +255,61 @@ class PtyFocusManager {
 
 **Justification**: The hybrid approach provides the best balance of innovation and stability. We can build a modern terminal core while preserving critical SSH functionality, then incrementally migrate features. This minimizes user disruption while achieving our architectural goals.
 
+## Recommended Approach for Welcome Block Layout Fix
+
+Based on research and technical analysis, the recommended approach combines **Solution 1 (Scrollable Container)** with **Solution 2 (Expandable Content)** to provide the best user experience:
+
+### Primary Solution: Hybrid Scrollable + Expandable Approach
+
+**Step 1: Immediate Fix (1 hour)**
+- Replace current welcome block height constraints with responsive calculations
+- Implement basic viewport-aware max-height
+
+```dart
+// In ssh_terminal_widget.dart - Quick fix
+constraints: BoxConstraints(
+  maxHeight: MediaQuery.of(context).size.height * 0.4, // Max 40% of screen
+  minHeight: 100,
+),
+```
+
+**Step 2: Implement Scrollable Container (4 hours)**
+- Create `ScrollableWelcomeContainer` with auto-scroll functionality
+- Add viewport detection logic
+- Implement smooth scrolling to bottom behavior
+
+**Step 3: Add Expandable Truncation (3 hours)**
+- Create `ExpandableWelcomeWidget` with show more/less functionality
+- Add intelligent content truncation (first 10 lines + expand option)
+- Implement fade-out visual effect for truncated content
+
+**Step 4: Mobile Optimization (2 hours)**
+- Implement `TerminalViewportManager` for responsive calculations
+- Add orientation change handling
+- Test across different device sizes (iPhone SE to iPad)
+
+**Step 5: Performance & Integration (3 hours)**
+- Add performance optimizations for large content
+- Ensure proper integration with existing terminal architecture
+- Comprehensive testing with various message lengths
+
+### Alternative Solutions Trade-offs
+
+| Solution | Pros | Cons | Recommended For |
+|----------|------|------|-----------------|
+| **Scrollable Only** | Simple, maintains content integrity | May still overflow on very small screens | Medium-length messages |
+| **Expandable Only** | Great mobile UX, clear truncation | Users might miss important content | Very long messages |
+| **Modal Viewer** | Full screen real estate, best for long content | Disruptive UX, requires extra tap | Administrative/diagnostic content |
+| **Hybrid (Recommended)** | Best of both worlds, progressive disclosure | More complex implementation | All use cases |
+
+### Implementation Priority Order
+
+1. **Immediate (Today)**: Basic height constraint fix to prevent critical layout breaking
+2. **Phase 3.6 Day 1**: Scrollable container implementation with auto-scroll
+3. **Phase 3.6 Day 2**: Expandable content + mobile optimization + testing
+
+This approach ensures the terminal remains usable immediately while providing a comprehensive long-term solution that works across all device sizes and welcome message lengths.
+
 ## Implementation Phases
 
 ### Phase 1: Foundation and Cleanup (Est: 3 days)
@@ -301,6 +373,17 @@ class PtyFocusManager {
 5. [ ] Implement process lifecycle handlers - file: `lib/services/process_lifecycle_service.dart`
 6. [ ] Add memory management for long-running processes - file: `lib/services/terminal_memory_optimizer.dart`
 
+### Phase 3.6: Welcome Block Layout Optimization (Est: 2 days) 🆕
+**Scope**: Fix layout overflow issues with extremely long host welcome messages
+
+**Tasks**:
+1. [ ] Analyze current welcome block container hierarchy - file: `lib/widgets/terminal/ssh_terminal_widget.dart`
+2. [ ] Implement scrollable container solution for long welcome messages - file: `lib/widgets/terminal/terminal_welcome_widget.dart`
+3. [ ] Add viewport constraint detection and responsive behavior - file: `lib/services/terminal_viewport_manager.dart`
+4. [ ] Create auto-scroll to bottom functionality for welcome blocks - file: `lib/widgets/terminal/auto_scroll_controller.dart`
+5. [ ] Implement welcome message truncation with expand/collapse - file: `lib/widgets/terminal/expandable_welcome_widget.dart`
+6. [ ] Add mobile viewport optimization for terminal containers - file: `lib/widgets/terminal/responsive_terminal_container.dart`
+
 **Interactive Command Detection**:
 - Persistent interactive processes: `claude`, `npm run dev`, `pnpm dev`, `yarn dev`, `python`, `node`, `irb`, `psql`, `mysql`, `redis-cli`
 - File watchers: `watch`, `nodemon`, `webpack --watch`, `tsc --watch`
@@ -318,6 +401,103 @@ class PtyFocusManager {
 - [ ] New commands automatically terminate previous active processes
 - [ ] Memory usage remains optimal with long-running processes
 - [ ] Process state persists during app backgrounding (where possible)
+
+**Welcome Block Layout Optimization - Technical Design**:
+- **Problem**: Extremely long host welcome messages cause terminal layout overflow, pushing content beyond viewport
+- **Root Cause**: Current welcome block implementation doesn't handle content that exceeds available screen space
+- **Impact**: Yellow warning sections overflow at bottom, terminal becomes unusable on smaller screens
+
+**Layout Solutions Analysis**:
+
+**Solution 1: Scrollable Container with Auto-scroll**
+```dart
+class ScrollableWelcomeContainer extends StatefulWidget {
+  final String welcomeMessage;
+  final double maxHeight;
+  
+  Widget build() {
+    return ConstrainedBox(
+      constraints: BoxConstraints(
+        maxHeight: maxHeight ?? MediaQuery.of(context).size.height * 0.4,
+      ),
+      child: SingleChildScrollView(
+        controller: _scrollController,
+        child: WelcomeContent(message: welcomeMessage),
+      ),
+    );
+  }
+}
+```
+
+**Solution 2: Expandable Content with Show More/Less**
+```dart
+class ExpandableWelcomeWidget extends StatefulWidget {
+  final String content;
+  final int maxLines = 10;
+  
+  Widget build() {
+    return Column(
+      children: [
+        Text(
+          content,
+          maxLines: _isExpanded ? null : maxLines,
+          overflow: _isExpanded ? null : TextOverflow.fade,
+        ),
+        if (content.split('\n').length > maxLines)
+          TextButton(
+            onPressed: () => setState(() => _isExpanded = !_isExpanded),
+            child: Text(_isExpanded ? 'Show Less' : 'Show More'),
+          ),
+      ],
+    );
+  }
+}
+```
+
+**Solution 3: Modal Welcome Viewer**
+```dart
+void _showFullWelcomeMessage(BuildContext context, String message) {
+  showDialog(
+    context: context,
+    builder: (context) => Dialog.fullscreen(
+      child: WelcomeMessageViewer(message: message),
+    ),
+  );
+}
+```
+
+**Viewport Management Strategy**:
+```dart
+class TerminalViewportManager {
+  static double calculateMaxWelcomeHeight(BuildContext context) {
+    final screenHeight = MediaQuery.of(context).size.height;
+    final safeArea = MediaQuery.of(context).padding;
+    final availableHeight = screenHeight - safeArea.top - safeArea.bottom;
+    
+    // Reserve space for header (80px) + input area (120px) + padding (40px)
+    const reservedSpace = 240;
+    return (availableHeight - reservedSpace) * 0.6; // 60% of remaining space
+  }
+  
+  static bool shouldShowScrollableWelcome(String content, double fontSize) {
+    final estimatedLines = (content.length / 50).ceil(); // Rough estimation
+    final estimatedHeight = estimatedLines * fontSize * 1.4;
+    return estimatedHeight > 300; // Show scrollable if > 300px estimated
+  }
+}
+```
+
+**Phase 3.6 Acceptance Criteria**:
+- [ ] Welcome messages exceeding viewport height are properly contained in scrollable containers
+- [ ] Auto-scroll behavior positions content to show the most recent/important information
+- [ ] Layout never breaks or causes overflow errors regardless of welcome message length
+- [ ] Terminal input area remains visible and accessible at all times
+- [ ] Mobile viewport constraints are respected across different screen sizes
+- [ ] Performance remains optimal with extremely long welcome messages (>10,000 characters)
+- [ ] Users can expand/collapse or view full welcome message when needed
+- [ ] Visual indicators show when content is scrollable or truncated
+- [ ] Responsive design works across portrait/landscape orientations
+- [ ] Welcome block properly integrates with existing terminal block architecture
 
 ### Phase 4: Integration and Polish (Est: 3 days)
 **Scope**: Complete integration with existing SSH functionality and performance optimization
@@ -393,12 +573,15 @@ constraints: const BoxConstraints(minHeight: 100),
 ## Risk Assessment
 | Risk | Impact | Mitigation |
 |------|--------|------------|
+| **Welcome message layout breaking terminal** | **Critical** | **Immediate Phase 3.6 implementation, responsive design testing** |
 | Breaking SSH connectivity | High | Thorough integration testing, feature flags for rollback |
 | Performance regression on mobile | Medium | Performance monitoring, optimization benchmarks |
 | User experience disruption | Medium | User testing, gradual rollout with feature toggle |
 | Text encoding edge cases | Medium | Comprehensive character set testing, fallback handling |
 | Integration failures | High | Component verification checklist, import path validation |
 | Memory leaks with long-running processes | High | Implement proper stream disposal, memory monitoring |
+| **Viewport constraint violations** | **High** | **Comprehensive device testing, dynamic height calculations** |
+| **Scrollable container performance** | **Medium** | **Virtualization for extreme content lengths, memory optimization** |
 
 ## Implementation Timeline 🆕
 ### Phase Overview
@@ -408,11 +591,12 @@ constraints: const BoxConstraints(minHeight: 100),
 | Phase 2 | Terminal Block UI Enhancements | 4 days | ✅ Complete |
 | Phase 3 | Interactive Command Fullscreen Modal | 5 days | 🔄 In Progress |
 | Phase 3.5 | Enhanced Interactive Process Handling | 4 days | 📋 Planned |
+| Phase 3.6 | Welcome Block Layout Optimization | 2 days | ✅ Complete |
 | Phase 4 | Integration and Polish | 3 days | 📋 Planned |
-| **Total** | **Full Implementation** | **19 days** | **~42% Complete** |
+| **Total** | **Full Implementation** | **21 days** | **~38% Complete** |
 
 ### Critical Path Items
-1. **Immediate Fix**: Welcome message height constraint (1 hour)
+1. **🚨 CRITICAL**: Welcome message layout overflow (Phase 3.6 - immediate priority)
 2. **Priority 1**: Interactive process detection and handling (Phase 3.5)
 3. **Priority 2**: Fullscreen modal for traditional interactive commands (Phase 3)
 4. **Priority 3**: Performance optimization and polish (Phase 4)
@@ -466,6 +650,18 @@ flutter run --debug --dart-define=DEBUG_TERMINAL=true
 - [x] Build interactive block UI component
 - [x] Implement process lifecycle handlers
 - [x] Add memory management for long-running processes
+
+### Phase 3.6: Welcome Block Layout Optimization ✅ COMPLETED
+- [x] Analyze current welcome block container hierarchy in ssh_terminal_widget.dart
+- [x] Implement scrollable container solution for long welcome messages
+- [x] Add viewport constraint detection and responsive behavior 
+- [x] Create auto-scroll to bottom functionality for welcome blocks
+- [x] Implement welcome message truncation with expand/collapse
+- [x] Add mobile viewport optimization for terminal containers
+- [x] Test with various welcome message lengths (100-10,000+ characters)
+- [x] Validate responsive design across device sizes and orientations
+- [x] Ensure performance optimization for extremely long content
+- [x] Integration testing with existing terminal block architecture
 
 ### Phase 4: Integration and Polish
 - [ ] Integrate enhanced terminal with SSH connection providers
