@@ -1,4 +1,4 @@
 ---
-description: Stage, commit and push all code in the current branch
+description: Stage all files and create a commit.
 ---
-Use `git-manager` agent to stage all files, create a commit and push to remote repository.
+Use `git-manager` agent to stage all files and create a commit.
