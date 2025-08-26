@@ -23,12 +23,12 @@ class _SplashScreenState extends ConsumerState<SplashScreen>
   late Animation<double> _scaleAnimation;
   late Animation<double> _opacityAnimation;
   Timer? _splashTimer;
+  bool _hasNavigated = false;
 
   @override
   void initState() {
     super.initState();
     _setupAnimations();
-    _startSplashFlow();
   }
 
   void _setupAnimations() {
@@ -60,43 +60,6 @@ class _SplashScreenState extends ConsumerState<SplashScreen>
     _animationController.forward();
   }
 
-  void _startSplashFlow() {
-    // Use Timer instead of Future.delayed so we can cancel it
-    _splashTimer = Timer(const Duration(milliseconds: 2500), () async {
-      if (!mounted) return;
-
-      // Wait for auth initialization to complete
-      final authState = ref.read(authProvider);
-      
-      // If auth is still loading, wait for it to complete
-      if (authState.status == AuthStatus.loading || authState.status == AuthStatus.unknown) {
-        _waitForAuthCompletion();
-        return;
-      }
-
-      await _proceedWithNavigation();
-    });
-  }
-
-  void _waitForAuthCompletion() {
-    // Listen for auth state changes
-    ref.listen<AuthState>(authProvider, (previous, next) async {
-      if (!mounted) return;
-      
-      // Only proceed when auth is no longer loading
-      if (next.status != AuthStatus.loading && next.status != AuthStatus.unknown) {
-        await _proceedWithNavigation();
-      }
-    });
-    
-    // Safety timeout - if auth takes too long, proceed anyway
-    Timer(const Duration(seconds: 10), () {
-      if (mounted) {
-        _proceedWithNavigation();
-      }
-    });
-  }
-
   Future<void> _proceedWithNavigation() async {
     if (!mounted) return;
 
@@ -113,7 +76,36 @@ class _SplashScreenState extends ConsumerState<SplashScreen>
 
     debugPrint('🔍 Navigation Decision - Auth: ${authState.status}, Onboarding: $onboardingCompleted, FirstLaunch: $isFirstLaunch');
 
+    // If auth is still loading, wait a bit more and retry
+    if (authState.status == AuthStatus.loading || authState.status == AuthStatus.unknown) {
+      debugPrint('⏳ Auth still loading, waiting another 2 seconds...');
+      Timer(const Duration(seconds: 2), () async {
+        if (mounted) {
+          await _proceedWithNavigation();
+        }
+      });
+      return;
+    }
+
     _navigateToNextScreen(authState, onboardingCompleted, isFirstLaunch);
+  }
+
+  void _checkAndNavigate(AuthState authState) {
+    // Only check for navigation after minimum splash time
+    Timer(const Duration(milliseconds: 2500), () {
+      if (!mounted || _hasNavigated) return;
+      
+      // If auth is still loading, wait a bit more
+      if (authState.status == AuthStatus.loading || authState.status == AuthStatus.unknown) {
+        Timer(const Duration(milliseconds: 1500), () {
+          if (!mounted || _hasNavigated) return;
+          _proceedWithNavigation();
+        });
+        return;
+      }
+      
+      _proceedWithNavigation();
+    });
   }
 
   void _navigateToNextScreen(AuthState authState, bool onboardingCompleted, bool isFirstLaunch) {
@@ -155,6 +147,7 @@ class _SplashScreenState extends ConsumerState<SplashScreen>
       }
     }
 
+    _hasNavigated = true;
     Navigator.of(context).pushReplacement(
       PageRouteBuilder(
         pageBuilder: (context, animation, secondaryAnimation) => nextScreen,
@@ -186,6 +179,16 @@ class _SplashScreenState extends ConsumerState<SplashScreen>
 
   @override
   Widget build(BuildContext context) {
+    // Watch auth state and navigate when ready
+    final authState = ref.watch(authProvider);
+    
+    // Set up navigation after initial delay and when auth state changes
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!_hasNavigated) {
+        _checkAndNavigate(authState);
+      }
+    });
+
     return Scaffold(
       backgroundColor: AppTheme.darkBackground,
       body: Center(
