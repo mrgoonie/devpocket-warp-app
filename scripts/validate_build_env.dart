@@ -5,6 +5,8 @@
 /// This script validates that all required tools and dependencies
 /// are properly installed and configured for DevPocket development.
 
+// ignore_for_file: dangling_library_doc_comments
+
 import 'dart:io';
 import 'dart:convert';
 

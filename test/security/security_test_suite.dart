@@ -388,14 +388,14 @@ void injectionAttackTests() {
 
 bool _containsSQLInjection(String input) {
   const sqlPatterns = [
-    r"';",
-    r"' OR ",
-    r"DROP TABLE",
-    r"INSERT INTO",
-    r"DELETE FROM",
-    r"UPDATE.*SET",
-    r"--",
-    r"/\*",
+    r';',
+    r' OR ',
+    r'DROP TABLE',
+    r'INSERT INTO',
+    r'DELETE FROM',
+    r'UPDATE.*SET',
+    r'--',
+    r'/\*',
   ];
   
   for (final pattern in sqlPatterns) {

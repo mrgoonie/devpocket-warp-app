@@ -1,3 +1,5 @@
+// ignore_for_file: unnecessary_brace_in_string_interps
+
 import 'package:flutter/material.dart';
 import 'package:flutter/rendering.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -139,6 +141,12 @@ class MockAuthService implements EnhancedAuthService {
   @override
   Future<bool> resendEmailVerification() async {
     // Mock resend verification - always succeeds
+    return true;
+  }
+
+  @override
+  Future<bool> refreshTokens() async {
+    // Mock token refresh - always succeeds
     return true;
   }
 

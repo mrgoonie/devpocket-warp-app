@@ -486,7 +486,7 @@ NhAAAAAwEAAQAAAQEAtest-private-key-data-here
           '<script>alert("xss")</script>',
           'DROP TABLE users;--',
           '../../../etc/passwd',
-          (" " * 10000), // Very long input
+          (' ' * 10000), // Very long input
           '\x00\x01\x02', // Binary data
           'user\npassword', // Newline injection
         ];

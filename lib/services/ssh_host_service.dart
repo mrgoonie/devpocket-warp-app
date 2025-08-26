@@ -1,3 +1,5 @@
+// ignore_for_file: unused_element
+
 import 'package:flutter/foundation.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'dart:convert';
@@ -225,10 +227,16 @@ class SshHostService {
         return true;
       }
       
-      debugPrint('Delete SSH host failed: ${response.errorMessage}');
+      // Check if it's a 404 (profile doesn't exist)
+      if (response.statusCode == 404 || 
+          response.errorMessage.contains('not found')) {
+        debugPrint('SSH profile not found on server, removing from cache');
+        await _removeFromCache(id);
+        return true; // Consider it successful if already deleted
+      }
       
-      // Even if API fails, remove from local cache
-      await _removeFromCache(id);
+      debugPrint('Delete SSH host failed: ${response.errorMessage}');
+      // Don't remove from cache for other errors
       return false;
       
     } catch (e) {

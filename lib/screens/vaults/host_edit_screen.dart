@@ -343,7 +343,7 @@ class _HostEditScreenState extends ConsumerState<HostEditScreen> {
             // Remove obscureText for SSH keys as they need to be multiline and visible
             // SSH keys should be visible for proper formatting verification
             suffixIcon: IconButton(
-              icon: Icon(
+              icon: const Icon(
                 Icons.copy,
                 color: AppTheme.darkTextSecondary,
               ),
