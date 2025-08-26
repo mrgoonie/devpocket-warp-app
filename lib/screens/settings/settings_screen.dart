@@ -21,6 +21,8 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
   Widget build(BuildContext context) {
     final user = ref.watch(currentUserProvider);
     final themeMode = ref.watch(themeProvider);
+    final fontFamily = ref.watch(fontFamilyProvider);
+    final fontSize = ref.watch(fontSizeProvider);
     final hasValidKey = ref.watch(hasAiApiKeyProvider).maybeWhen(
       data: (hasKey) => hasKey,
       orElse: () => false,
@@ -85,7 +87,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
             context: context,
             icon: Icons.text_fields,
             title: 'Terminal Font',
-            subtitle: 'JetBrains Mono - 14pt',
+            subtitle: '${TerminalFont.getByFontFamily(fontFamily).displayName} - ${fontSize.toInt()}pt',
             onTap: () => _showFontDialog(context),
           ),
           
@@ -508,8 +510,118 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
   }
 
   void _showFontDialog(BuildContext context) {
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text('Font settings coming soon!')),
+    final currentFontFamily = ref.read(fontFamilyProvider);
+    final currentFontSize = ref.read(fontSizeProvider);
+
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        backgroundColor: AppTheme.darkSurface,
+        title: const Text('Terminal Font Settings'),
+        content: SizedBox(
+          width: double.maxFinite,
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              // Font family selection
+              const Text(
+                'Font Family',
+                style: TextStyle(
+                  fontWeight: FontWeight.w600,
+                  fontSize: 16,
+                ),
+              ),
+              const SizedBox(height: 8),
+              SizedBox(
+                height: 200,
+                child: ListView.builder(
+                  itemCount: TerminalFont.availableFonts.length,
+                  itemBuilder: (context, index) {
+                    final font = TerminalFont.availableFonts[index];
+                    final isSelected = font.fontFamily == currentFontFamily;
+                    
+                    return Container(
+                      margin: const EdgeInsets.only(bottom: 4),
+                      decoration: BoxDecoration(
+                        color: isSelected 
+                            ? AppTheme.primaryColor.withValues(alpha: 0.1)
+                            : Colors.transparent,
+                        borderRadius: BorderRadius.circular(8),
+                        border: isSelected
+                            ? Border.all(color: AppTheme.primaryColor, width: 1)
+                            : null,
+                      ),
+                      child: ListTile(
+                        title: Text(
+                          font.displayName,
+                          style: TextStyle(
+                            fontFamily: font.fontFamily,
+                            color: isSelected 
+                                ? AppTheme.primaryColor
+                                : AppTheme.darkTextPrimary,
+                            fontWeight: isSelected ? FontWeight.w600 : FontWeight.normal,
+                          ),
+                        ),
+                        subtitle: Text(
+                          'The quick brown fox jumps over the lazy dog',
+                          style: TextStyle(
+                            fontFamily: font.fontFamily,
+                            fontSize: 12,
+                            color: AppTheme.darkTextSecondary,
+                          ),
+                        ),
+                        onTap: () {
+                          ref.read(fontPreferencesProvider.notifier).setFontFamily(font.fontFamily);
+                          Navigator.pop(context);
+                        },
+                        trailing: isSelected
+                            ? const Icon(Icons.check, color: AppTheme.primaryColor)
+                            : null,
+                      ),
+                    );
+                  },
+                ),
+              ),
+              
+              const SizedBox(height: 16),
+              
+              // Font size selection
+              const Text(
+                'Font Size',
+                style: TextStyle(
+                  fontWeight: FontWeight.w600,
+                  fontSize: 16,
+                ),
+              ),
+              const SizedBox(height: 8),
+              Row(
+                children: [
+                  Text('${currentFontSize.toInt()}pt'),
+                  Expanded(
+                    child: Slider(
+                      value: currentFontSize,
+                      min: 10,
+                      max: 24,
+                      divisions: 14,
+                      label: '${currentFontSize.toInt()}pt',
+                      onChanged: (value) {
+                        ref.read(fontPreferencesProvider.notifier).setFontSize(value);
+                      },
+                    ),
+                  ),
+                ],
+              ),
+            ],
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('Close'),
+          ),
+        ],
+      ),
     );
   }
 

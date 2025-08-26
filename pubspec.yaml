@@ -81,3 +81,66 @@ flutter:
           weight: 700
         - asset: assets/fonts/JetBrainsMono-Italic.ttf
           style: italic
+    
+    # Terminal Fonts
+    - family: UbuntuMono
+      fonts:
+        - asset: assets/fonts/Ubuntu Mono derivative Powerline.ttf
+        - asset: assets/fonts/Ubuntu Mono derivative Powerline Bold.ttf
+          weight: 700
+        - asset: assets/fonts/Ubuntu Mono derivative Powerline Italic.ttf
+          style: italic
+
+    - family: SourceCodePro
+      fonts:
+        - asset: assets/fonts/Source Code Pro for Powerline.otf
+        - asset: assets/fonts/Source Code Pro Bold for Powerline.otf
+          weight: 700
+        - asset: assets/fonts/Source Code Pro Powerline Italic.otf
+          style: italic
+
+    - family: FiraMono
+      fonts:
+        - asset: assets/fonts/FuraMono-Regular Powerline.otf
+        - asset: assets/fonts/FuraMono-Bold Powerline.otf
+          weight: 700
+        - asset: assets/fonts/FuraMono-Medium Powerline.otf
+          weight: 500
+
+    - family: DroidSansMono
+      fonts:
+        - asset: assets/fonts/Droid Sans Mono for Powerline.otf
+        - asset: assets/fonts/Droid Sans Mono Dotted for Powerline.ttf
+        - asset: assets/fonts/Droid Sans Mono Slashed for Powerline.ttf
+
+    - family: AnonymicePowerline
+      fonts:
+        - asset: assets/fonts/Anonymice Powerline.ttf
+        - asset: assets/fonts/Anonymice Powerline Bold.ttf
+          weight: 700
+        - asset: assets/fonts/Anonymice Powerline Italic.ttf
+          style: italic
+
+    - family: RobotoMono
+      fonts:
+        - asset: assets/fonts/Roboto Mono for Powerline.ttf
+        - asset: assets/fonts/Roboto Mono Bold for Powerline.ttf
+          weight: 700
+        - asset: assets/fonts/Roboto Mono Italic for Powerline.ttf
+          style: italic
+
+    - family: MesloLG
+      fonts:
+        - asset: assets/fonts/Meslo LG L Regular for Powerline.ttf
+        - asset: assets/fonts/Meslo LG L Bold for Powerline.ttf
+          weight: 700
+        - asset: assets/fonts/Meslo LG L Italic for Powerline.ttf
+          style: italic
+
+    - family: SpaceMono
+      fonts:
+        - asset: assets/fonts/Space Mono for Powerline.ttf
+        - asset: assets/fonts/Space Mono Bold for Powerline.ttf
+          weight: 700
+        - asset: assets/fonts/Space Mono Italic for Powerline.ttf
+          style: italic

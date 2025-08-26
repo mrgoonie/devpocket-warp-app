@@ -93,11 +93,79 @@ final terminalThemeProvider = StateNotifierProvider<TerminalThemeNotifier, Termi
   return TerminalThemeNotifier();
 });
 
+// Available terminal fonts
+class TerminalFont {
+  final String displayName;
+  final String fontFamily;
+  final String assetPath;
+
+  const TerminalFont({
+    required this.displayName,
+    required this.fontFamily,
+    required this.assetPath,
+  });
+
+  static const List<TerminalFont> availableFonts = [
+    TerminalFont(
+      displayName: 'Ubuntu Mono Powerline',
+      fontFamily: 'UbuntuMono',
+      assetPath: 'assets/fonts/Ubuntu Mono derivative Powerline.ttf',
+    ),
+    TerminalFont(
+      displayName: 'JetBrains Mono',
+      fontFamily: 'JetBrainsMono',
+      assetPath: 'assets/fonts/JetBrainsMono-Regular.ttf',
+    ),
+    TerminalFont(
+      displayName: 'Source Code Pro',
+      fontFamily: 'SourceCodePro',
+      assetPath: 'assets/fonts/Source Code Pro for Powerline.otf',
+    ),
+    TerminalFont(
+      displayName: 'Fira Code',
+      fontFamily: 'FiraMono',
+      assetPath: 'assets/fonts/FuraMono-Regular Powerline.otf',
+    ),
+    TerminalFont(
+      displayName: 'Droid Sans Mono',
+      fontFamily: 'DroidSansMono',
+      assetPath: 'assets/fonts/Droid Sans Mono for Powerline.otf',
+    ),
+    TerminalFont(
+      displayName: 'Anonymice Powerline',
+      fontFamily: 'AnonymicePowerline',
+      assetPath: 'assets/fonts/Anonymice Powerline.ttf',
+    ),
+    TerminalFont(
+      displayName: 'Roboto Mono',
+      fontFamily: 'RobotoMono',
+      assetPath: 'assets/fonts/Roboto Mono for Powerline.ttf',
+    ),
+    TerminalFont(
+      displayName: 'Meslo LG',
+      fontFamily: 'MesloLG',
+      assetPath: 'assets/fonts/Meslo LG L Regular for Powerline.ttf',
+    ),
+    TerminalFont(
+      displayName: 'Space Mono',
+      fontFamily: 'SpaceMono',
+      assetPath: 'assets/fonts/Space Mono for Powerline.ttf',
+    ),
+  ];
+
+  static TerminalFont getByFontFamily(String fontFamily) {
+    return availableFonts.firstWhere(
+      (font) => font.fontFamily == fontFamily,
+      orElse: () => availableFonts.first, // Default to Ubuntu Mono
+    );
+  }
+}
+
 // Font preferences
 class FontPreferencesNotifier extends StateNotifier<Map<String, dynamic>> {
   FontPreferencesNotifier() : super({
     'fontSize': 14.0,
-    'fontFamily': 'JetBrainsMono',
+    'fontFamily': 'UbuntuMono', // Default to Ubuntu Mono Powerline
   }) {
     _loadFontPreferences();
   }
@@ -109,7 +177,7 @@ class FontPreferencesNotifier extends StateNotifier<Map<String, dynamic>> {
     try {
       final prefs = await SharedPreferences.getInstance();
       final fontSize = prefs.getDouble(_fontSizeKey) ?? 14.0;
-      final fontFamily = prefs.getString(_fontFamilyKey) ?? 'JetBrainsMono';
+      final fontFamily = prefs.getString(_fontFamilyKey) ?? 'UbuntuMono'; // Default to Ubuntu Mono
       
       state = {
         'fontSize': fontSize,
@@ -118,7 +186,7 @@ class FontPreferencesNotifier extends StateNotifier<Map<String, dynamic>> {
     } catch (e) {
       state = {
         'fontSize': 14.0,
-        'fontFamily': 'JetBrainsMono',
+        'fontFamily': 'UbuntuMono', // Default to Ubuntu Mono
       };
     }
   }

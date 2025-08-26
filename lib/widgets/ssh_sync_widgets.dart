@@ -1,5 +1,6 @@
 /// SSH Profile Synchronization UI Widgets
 /// Provides UI components for displaying sync status, handling conflicts, and managing sync operations
+library;
 
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';

@@ -414,8 +414,8 @@ class SshConnectionErrorDialog extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return AlertDialog(
-      title: Row(
-        children: const [
+      title: const Row(
+        children: [
           Icon(
             Icons.error_outline,
             color: Colors.red,
@@ -637,7 +637,7 @@ class SshConnectionProgressIndicator extends StatelessWidget {
             LinearProgressIndicator(
               value: progress,
               backgroundColor: Colors.grey.withValues(alpha: 0.2),
-              valueColor: AlwaysStoppedAnimation<Color>(AppTheme.primaryColor),
+              valueColor: const AlwaysStoppedAnimation<Color>(AppTheme.primaryColor),
             ),
             const SizedBox(height: 16),
           ],

@@ -6,6 +6,10 @@ import 'dart:async';
 import '../../themes/app_theme.dart';
 import '../../models/ssh_profile_models.dart';
 import '../../services/terminal_session_handler.dart';
+import '../../services/ssh_connection_manager.dart';
+import '../../services/terminal_input_mode_service.dart';
+import '../../providers/theme_provider.dart';
+import 'terminal_block.dart';
 
 /// SSH Terminal Widget using xterm.dart
 class SshTerminalWidget extends ConsumerStatefulWidget {
@@ -31,21 +35,42 @@ class _SshTerminalWidgetState extends ConsumerState<SshTerminalWidget> {
   late TerminalController _controller;
   String? _currentSessionId;
   StreamSubscription<TerminalOutput>? _outputSubscription;
+  StreamSubscription<SshConnectionEvent>? _sshEventSubscription;
+  StreamSubscription<TerminalInputModeEvent>? _inputModeSubscription;
+  
   final TerminalSessionHandler _sessionHandler = TerminalSessionHandler.instance;
+  final SshConnectionManager _sshManager = SshConnectionManager.instance;
+  final TerminalInputModeService _inputModeService = TerminalInputModeService.instance;
+  final TextEditingController _inputController = TextEditingController();
+  final ScrollController _blocksScrollController = ScrollController();
   
   bool _isConnected = false;
   String _status = 'Initializing...';
+  String _welcomeMessage = '';
+  final List<TerminalBlockData> _terminalBlocks = [];
+  int _blockCounter = 0;
+  TerminalInputMode _currentInputMode = TerminalInputMode.command;
+  
+  // Block-based terminal state
+  bool _useBlockUI = true;
+  StreamController<String>? _currentOutputController;
 
   @override
   void initState() {
     super.initState();
     _initializeTerminal();
+    _setupInputModeService();
     _setupSession();
   }
 
   @override
   void dispose() {
     _outputSubscription?.cancel();
+    _sshEventSubscription?.cancel();
+    _inputModeSubscription?.cancel();
+    _currentOutputController?.close();
+    _inputController.dispose();
+    _blocksScrollController.dispose();
     _disconnectSession();
     super.dispose();
   }
@@ -57,9 +82,9 @@ class _SshTerminalWidgetState extends ConsumerState<SshTerminalWidget> {
     
     _controller = TerminalController();
     
-    // Handle terminal input
+    // Handle terminal input (for fallback xterm mode)
     _terminal.onOutput = (data) {
-      if (_isConnected && _currentSessionId != null) {
+      if (_isConnected && _currentSessionId != null && !_useBlockUI) {
         _sendData(data);
       }
     };
@@ -68,6 +93,20 @@ class _SshTerminalWidgetState extends ConsumerState<SshTerminalWidget> {
       // Handle terminal resize if needed
     };
   }
+  
+  void _setupInputModeService() {
+    // Listen to input mode changes
+    _inputModeSubscription = _inputModeService.modeStream.listen((event) {
+      if (mounted) {
+        setState(() {
+          _currentInputMode = event.mode;
+        });
+      }
+    });
+    
+    // Initialize with current mode
+    _currentInputMode = _inputModeService.currentMode;
+  }
 
 
   Future<void> _setupSession() async {
@@ -75,77 +114,103 @@ class _SshTerminalWidgetState extends ConsumerState<SshTerminalWidget> {
       if (widget.sessionId != null) {
         // Use existing session
         _currentSessionId = widget.sessionId;
-        _isConnected = _sessionHandler.isSessionRunning(_currentSessionId!);
+        _isConnected = _sshManager.isConnected(_currentSessionId!);
       } else if (widget.profile != null) {
-        // Create new SSH session
+        // Create new SSH session with enhanced connection manager
         setState(() {
           _status = 'Connecting to ${widget.profile!.connectionString}...';
         });
         
-        _currentSessionId = await _sessionHandler.createSshSession(widget.profile!);
+        _currentSessionId = await _sshManager.connect(widget.profile!);
         _isConnected = true;
+        
+        // Setup SSH event listening
+        _sshEventSubscription = _sshManager.events.listen(_handleSshEvent);
+        
       } else {
-        // Create local session
+        // Create local session via session handler
         setState(() {
           _status = 'Starting local terminal...';
         });
         
         _currentSessionId = await _sessionHandler.createLocalSession();
         _isConnected = true;
+        
+        // Listen to session handler output for local sessions
+        _outputSubscription = _sessionHandler.output.listen(
+          _handleTerminalOutput,
+          onError: (error) {
+            _handleError('Terminal error: $error');
+          },
+        );
       }
-      
-      // Listen to terminal output
-      _outputSubscription = _sessionHandler.output.listen(
-        _handleTerminalOutput,
-        onError: (error) {
-          _terminal.write('Terminal error: $error\r\n');
-          setState(() {
-            _status = 'Error: $error';
-            _isConnected = false;
-          });
-        },
-      );
       
       setState(() {
         _status = 'Connected';
       });
       
-      // Show welcome message
-      if (widget.profile != null) {
-        _terminal.write('Connected to ${widget.profile!.connectionString}\r\n');
-      } else {
-        _terminal.write('Terminal session started\r\n');
+      // Get and display welcome message for SSH sessions
+      if (widget.profile != null && _currentSessionId != null) {
+        // Wait a moment for welcome message to be captured
+        Future.delayed(const Duration(milliseconds: 1000), () {
+          if (mounted && _currentSessionId != null) {
+            final welcomeMsg = _sshManager.getWelcomeMessage(_currentSessionId!);
+            if (welcomeMsg.isNotEmpty) {
+              setState(() {
+                _welcomeMessage = welcomeMsg;
+              });
+            }
+          }
+        });
       }
       
     } catch (e) {
-      setState(() {
-        _status = 'Connection failed: $e';
-        _isConnected = false;
-      });
-      
-      _terminal.write('Connection failed: $e\r\n');
-      _terminal.write('Press Ctrl+R to retry or Ctrl+Q to close\r\n');
+      _handleError('Connection failed: $e');
     }
   }
 
   void _handleTerminalOutput(TerminalOutput output) {
-    switch (output.type) {
-      case TerminalOutputType.stdout:
-      case TerminalOutputType.stderr:
-        _terminal.write(output.data);
-        break;
-        
-      case TerminalOutputType.info:
-        _terminal.write('\x1b[36m${output.data}\x1b[0m'); // Cyan for info
-        break;
-        
-      case TerminalOutputType.error:
-        _terminal.write('\x1b[31m${output.data}\x1b[0m'); // Red for errors
-        break;
-        
-      case TerminalOutputType.command:
-        // Don't echo commands as they're already shown by the shell
-        break;
+    if (_useBlockUI) {
+      // Handle output in block-based UI
+      switch (output.type) {
+        case TerminalOutputType.stdout:
+        case TerminalOutputType.stderr:
+          _currentOutputController?.add(output.data);
+          break;
+          
+        case TerminalOutputType.info:
+          _currentOutputController?.add('\x1b[36m${output.data}\x1b[0m');
+          break;
+          
+        case TerminalOutputType.error:
+          _currentOutputController?.add('\x1b[31m${output.data}\x1b[0m');
+          _updateCurrentBlockStatus(TerminalBlockStatus.failed);
+          break;
+          
+        case TerminalOutputType.command:
+          // Commands are handled separately in block UI
+          break;
+      }
+    } else {
+      // Fallback to xterm display
+      switch (output.type) {
+        case TerminalOutputType.stdout:
+        case TerminalOutputType.stderr:
+          _terminal.write(output.data);
+          break;
+          
+        case TerminalOutputType.info:
+          _terminal.write('\x1b[36m${output.data}\x1b[0m'); // Cyan for info
+          break;
+          
+        case TerminalOutputType.error:
+          _terminal.write('\x1b[31m${output.data}\x1b[0m'); // Red for errors
+          break;
+          
+        case TerminalOutputType.command:
+          // Don't echo commands as they're already shown by the shell
+          break;
+      }
     }
   }
 
@@ -153,9 +218,15 @@ class _SshTerminalWidgetState extends ConsumerState<SshTerminalWidget> {
     if (!_isConnected || _currentSessionId == null) return;
     
     try {
-      await _sessionHandler.sendData(_currentSessionId!, data);
+      if (widget.profile != null) {
+        // Use SSH connection manager for SSH sessions
+        await _sshManager.sendData(_currentSessionId!, data);
+      } else {
+        // Use session handler for local sessions
+        await _sessionHandler.sendData(_currentSessionId!, data);
+      }
     } catch (e) {
-      _terminal.write('\r\nError sending data: $e\r\n');
+      _handleError('Error sending data: $e');
     }
   }
 
@@ -163,14 +234,99 @@ class _SshTerminalWidgetState extends ConsumerState<SshTerminalWidget> {
   Future<void> _disconnectSession() async {
     if (_currentSessionId != null) {
       try {
-        await _sessionHandler.stopSession(_currentSessionId!);
+        if (widget.profile != null) {
+          // SSH session - use SSH connection manager
+          await _sshManager.disconnect(_currentSessionId!);
+        } else {
+          // Local session - use session handler
+          await _sessionHandler.stopSession(_currentSessionId!);
+        }
+        
         _currentSessionId = null;
         _isConnected = false;
+        _currentOutputController?.close();
+        _currentOutputController = null;
+        
         widget.onSessionClosed?.call();
       } catch (e) {
         debugPrint('Error disconnecting session: $e');
       }
     }
+  }
+  
+  /// Handle SSH connection events for enhanced feedback
+  void _handleSshEvent(SshConnectionEvent event) {
+    if (!mounted) return;
+    
+    switch (event.type) {
+      case SshConnectionEventType.dataReceived:
+        if (event.data != null) {
+          _currentOutputController?.add(event.data!);
+        }
+        break;
+        
+      case SshConnectionEventType.error:
+        if (event.error != null) {
+          _handleError('SSH Error: ${event.error!}');
+        }
+        break;
+        
+      case SshConnectionEventType.statusChanged:
+        if (event.status != null) {
+          setState(() {
+            switch (event.status!) {
+              case SshConnectionStatus.connecting:
+                _status = 'Connecting...';
+                break;
+              case SshConnectionStatus.authenticating:
+                _status = 'Authenticating...';
+                break;
+              case SshConnectionStatus.connected:
+                _status = 'Connected';
+                _isConnected = true;
+                break;
+              case SshConnectionStatus.disconnected:
+                _status = 'Disconnected';
+                _isConnected = false;
+                break;
+              case SshConnectionStatus.failed:
+                _status = 'Connection Failed';
+                _isConnected = false;
+                break;
+              case SshConnectionStatus.reconnecting:
+                _status = 'Reconnecting...';
+                break;
+            }
+          });
+        }
+        break;
+        
+      case SshConnectionEventType.closed:
+        setState(() {
+          _status = 'Connection Closed';
+          _isConnected = false;
+        });
+        break;
+        
+      default:
+        break;
+    }
+  }
+  
+  /// Handle errors with consistent error display
+  void _handleError(String error) {
+    debugPrint('SSH Terminal Error: $error');
+    
+    if (_useBlockUI) {
+      _currentOutputController?.add('\x1b[31m$error\x1b[0m\n');
+      _updateCurrentBlockStatus(TerminalBlockStatus.failed);
+    } else {
+      _terminal.write('\x1b[31m$error\x1b[0m\r\n');
+    }
+    
+    setState(() {
+      _status = 'Error';
+    });
   }
 
   Future<void> _reconnectSession() async {
@@ -190,6 +346,130 @@ class _SshTerminalWidgetState extends ConsumerState<SshTerminalWidget> {
       });
     }
   }
+  
+  /// Create a new terminal block for command execution
+  void _createCommandBlock(String command) {
+    if (!mounted) return;
+    
+    // Close previous output controller if exists
+    _currentOutputController?.close();
+    
+    // Create new output stream controller for this block
+    _currentOutputController = StreamController<String>.broadcast();
+    
+    final blockData = TerminalBlockData(
+      id: 'block_${_blockCounter++}',
+      command: command,
+      status: TerminalBlockStatus.running,
+      timestamp: DateTime.now(),
+      isInteractive: _isInteractiveCommand(command),
+      index: _terminalBlocks.length + 1,
+    );
+    
+    setState(() {
+      _terminalBlocks.add(blockData);
+    });
+    
+    // Auto-scroll to bottom
+    Future.delayed(const Duration(milliseconds: 100), () {
+      if (_blocksScrollController.hasClients) {
+        _blocksScrollController.animateTo(
+          _blocksScrollController.position.maxScrollExtent,
+          duration: const Duration(milliseconds: 300),
+          curve: Curves.easeOut,
+        );
+      }
+    });
+  }
+  
+  /// Check if command is interactive
+  bool _isInteractiveCommand(String command) {
+    final interactiveCommands = ['vi', 'vim', 'nano', 'emacs', 'htop', 'top', 'less', 'more'];
+    return interactiveCommands.any((cmd) => command.trim().startsWith(cmd));
+  }
+  
+  /// Update current block status
+  void _updateCurrentBlockStatus(TerminalBlockStatus status) {
+    if (_terminalBlocks.isEmpty) return;
+    
+    setState(() {
+      final lastBlock = _terminalBlocks.last;
+      _terminalBlocks[_terminalBlocks.length - 1] = lastBlock.copyWith(status: status);
+    });
+    
+    // Close output controller if command is completed
+    if (status == TerminalBlockStatus.completed || status == TerminalBlockStatus.failed || status == TerminalBlockStatus.cancelled) {
+      _currentOutputController?.close();
+      _currentOutputController = null;
+    }
+  }
+  
+  /// Send command through the terminal
+  Future<void> _sendCommand(String command) async {
+    if (!_isConnected || _currentSessionId == null || command.trim().isEmpty) return;
+    
+    try {
+      // Process command through input mode service
+      final processedCommand = await _inputModeService.processInput(command, sessionId: _currentSessionId);
+      final finalCommand = processedCommand ?? command;
+      
+      // Create command block
+      if (_useBlockUI) {
+        _createCommandBlock(finalCommand);
+      }
+      
+      // Send command to session
+      if (widget.profile != null) {
+        await _sshManager.sendCommand(_currentSessionId!, finalCommand);
+      } else {
+        await _sessionHandler.sendCommand(_currentSessionId!, finalCommand);
+      }
+      
+      // Clear input field
+      _inputController.clear();
+      
+    } catch (e) {
+      _handleError('Failed to send command: $e');
+    }
+  }
+  
+  /// Handle interactive input for running command blocks
+  Future<void> _sendInteractiveInput(String input, String blockId) async {
+    if (!_isConnected || _currentSessionId == null) return;
+    
+    try {
+      if (widget.profile != null) {
+        await _sshManager.sendData(_currentSessionId!, input);
+      } else {
+        await _sessionHandler.sendData(_currentSessionId!, input);
+      }
+    } catch (e) {
+      _handleError('Failed to send interactive input: $e');
+    }
+  }
+  
+  /// Toggle input mode between command and AI
+  Future<void> _toggleInputMode() async {
+    await _inputModeService.toggleMode(_currentSessionId);
+  }
+  
+  /// Rerun a command from a block
+  void _rerunCommand(String command) {
+    _inputController.text = command;
+    _sendCommand(command);
+  }
+  
+  /// Cancel current running command
+  void _cancelCurrentCommand() {
+    if (_terminalBlocks.isNotEmpty) {
+      final lastBlock = _terminalBlocks.last;
+      if (lastBlock.status == TerminalBlockStatus.running) {
+        _updateCurrentBlockStatus(TerminalBlockStatus.cancelled);
+        // Send Ctrl+C to interrupt
+        _sendData('\x03');
+      }
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -197,28 +477,167 @@ class _SshTerminalWidgetState extends ConsumerState<SshTerminalWidget> {
       children: [
         _buildStatusBar(),
         Expanded(
-          child: Container(
-            decoration: BoxDecoration(
-              color: AppTheme.darkBackground,
-              border: Border.all(
-                color: AppTheme.darkBorderColor,
-              ),
-              borderRadius: BorderRadius.circular(8),
-            ),
-            child: ClipRRect(
-              borderRadius: BorderRadius.circular(8),
-              child: TerminalView(
-                _terminal,
-                controller: _controller,
-                autofocus: true,
-                backgroundOpacity: 1.0,
-                onSecondaryTapDown: widget.enableInput ? (details, offset) => _showContextMenu(details) : null,
-              ),
-            ),
-          ),
+          child: _useBlockUI
+              ? _buildBlockBasedTerminalContent()
+              : _buildXtermFallbackContent(),
         ),
         if (widget.enableInput) _buildInputControls(),
       ],
+    );
+  }
+  
+  Widget _buildBlockBasedTerminalContent() {
+    return Column(
+      children: [
+        // Welcome message display - make it scrollable if needed
+        if (_welcomeMessage.isNotEmpty)
+          Container(
+            width: double.infinity,
+            margin: const EdgeInsets.only(bottom: 8),
+            padding: const EdgeInsets.all(12),
+            constraints: const BoxConstraints(maxHeight: 200), // Limit welcome message height
+            decoration: BoxDecoration(
+              color: AppTheme.darkSurface,
+              border: Border.all(color: AppTheme.darkBorderColor),
+              borderRadius: BorderRadius.circular(8),
+            ),
+            child: SingleChildScrollView(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const Row(
+                    children: [
+                      Icon(
+                        Icons.info_outline,
+                        size: 16,
+                        color: AppTheme.terminalBlue,
+                      ),
+                      SizedBox(width: 6),
+                      Text(
+                        'Welcome Message',
+                        style: TextStyle(
+                          color: AppTheme.terminalBlue,
+                          fontSize: 12,
+                          fontWeight: FontWeight.w500,
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 8),
+                  Consumer(
+                    builder: (context, ref, child) {
+                      final fontFamily = ref.watch(fontFamilyProvider);
+                      final fontSize = ref.watch(fontSizeProvider);
+                      return Text(
+                        _welcomeMessage,
+                        style: TextStyle(
+                          color: AppTheme.darkTextPrimary,
+                          fontSize: fontSize * 0.8, // Slightly smaller for welcome message
+                          fontFamily: fontFamily,
+                        ),
+                      );
+                    },
+                  ),
+                ],
+              ),
+            ),
+          ),
+        
+        // Terminal blocks - takes remaining space
+        Expanded(
+          child: Container(
+            decoration: BoxDecoration(
+              color: AppTheme.darkBackground,
+              border: Border.all(color: AppTheme.darkBorderColor),
+              borderRadius: BorderRadius.circular(8),
+            ),
+            child: _terminalBlocks.isEmpty
+                ? _buildEmptyBlocksState()
+                : _buildBlocksList(),
+          ),
+        ),
+      ],
+    );
+  }
+
+  
+  Widget _buildXtermFallbackContent() {
+    return Container(
+      decoration: BoxDecoration(
+        color: AppTheme.darkBackground,
+        border: Border.all(color: AppTheme.darkBorderColor),
+        borderRadius: BorderRadius.circular(8),
+      ),
+      child: ClipRRect(
+        borderRadius: BorderRadius.circular(8),
+        child: TerminalView(
+          _terminal,
+          controller: _controller,
+          autofocus: true,
+          backgroundOpacity: 1.0,
+          onSecondaryTapDown: widget.enableInput ? (details, offset) => _showContextMenu(details) : null,
+        ),
+      ),
+    );
+  }
+
+  
+  Widget _buildEmptyBlocksState() {
+    return Center(
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          Icon(
+            Icons.terminal,
+            size: 48,
+            color: AppTheme.darkTextSecondary,
+          ),
+          const SizedBox(height: 12),
+          Text(
+            'Terminal Ready',
+            style: TextStyle(
+              color: AppTheme.darkTextSecondary,
+              fontSize: 16,
+              fontWeight: FontWeight.w500,
+            ),
+          ),
+          const SizedBox(height: 4),
+          Text(
+            'Enter a command to get started',
+            style: TextStyle(
+              color: AppTheme.darkTextSecondary,
+              fontSize: 12,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+  
+  Widget _buildBlocksList() {
+    return Scrollbar(
+      controller: _blocksScrollController,
+      child: ListView.builder(
+        controller: _blocksScrollController,
+        padding: const EdgeInsets.all(8),
+        itemCount: _terminalBlocks.length,
+        itemBuilder: (context, index) {
+          final block = _terminalBlocks[index];
+          return TerminalBlock(
+            key: Key(block.id),
+            command: block.command,
+            status: block.status,
+            timestamp: block.timestamp,
+            output: block.output,
+            outputStream: (index == _terminalBlocks.length - 1) ? _currentOutputController?.stream : null,
+            blockIndex: block.index,
+            isInteractive: block.isInteractive,
+            onRerun: () => _rerunCommand(block.command),
+            onCancel: (block.status == TerminalBlockStatus.running) ? _cancelCurrentCommand : null,
+            onInputSubmit: (input) => _sendInteractiveInput(input, block.id),
+          );
+        },
+      ),
     );
   }
 
@@ -247,6 +666,7 @@ class _SshTerminalWidgetState extends ConsumerState<SshTerminalWidget> {
           Expanded(
             child: Text(
               widget.profile?.connectionString ?? 'Local Terminal',
+              overflow: TextOverflow.ellipsis,
               style: const TextStyle(
                 color: AppTheme.darkTextPrimary,
                 fontWeight: FontWeight.w500,
@@ -254,14 +674,63 @@ class _SshTerminalWidgetState extends ConsumerState<SshTerminalWidget> {
               ),
             ),
           ),
-          Text(
-            _status,
-            style: const TextStyle(
-              color: AppTheme.darkTextSecondary,
-              fontSize: 11,
+          if (_useBlockUI) ...[
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+              decoration: BoxDecoration(
+                color: _currentInputMode == TerminalInputMode.ai 
+                    ? AppTheme.primaryColor.withValues(alpha: 0.2) 
+                    : AppTheme.terminalGreen.withValues(alpha: 0.2),
+                borderRadius: BorderRadius.circular(4),
+              ),
+              child: Text(
+                _inputModeService.getModeLabel(_currentInputMode),
+                style: TextStyle(
+                  color: _currentInputMode == TerminalInputMode.ai 
+                      ? AppTheme.primaryColor 
+                      : AppTheme.terminalGreen,
+                  fontSize: 10,
+                  fontWeight: FontWeight.w500,
+                ),
+              ),
+            ),
+            const SizedBox(width: 4),
+            // Only show block count on larger screens to prevent overflow
+            if (MediaQuery.of(context).size.width > 380) ...[
+              Text(
+                '${_terminalBlocks.length} blocks',
+                style: const TextStyle(
+                  color: AppTheme.darkTextSecondary,
+                  fontSize: 10,
+                ),
+              ),
+              const SizedBox(width: 4),
+            ],
+          ],
+          Flexible(
+            child: Text(
+              _status,
+              overflow: TextOverflow.ellipsis,
+              style: const TextStyle(
+                color: AppTheme.darkTextSecondary,
+                fontSize: 11,
+              ),
             ),
           ),
-          const SizedBox(width: 8),
+          const SizedBox(width: 4),
+          if (_useBlockUI)
+            IconButton(
+              icon: Icon(_useBlockUI ? Icons.view_list : Icons.terminal),
+              iconSize: 16,
+              padding: EdgeInsets.zero,
+              constraints: const BoxConstraints(minWidth: 24, minHeight: 24),
+              onPressed: () {
+                setState(() {
+                  _useBlockUI = !_useBlockUI;
+                });
+              },
+              tooltip: _useBlockUI ? 'Switch to Terminal View' : 'Switch to Block View',
+            ),
           IconButton(
             icon: const Icon(Icons.more_horiz),
             iconSize: 16,
@@ -275,6 +744,163 @@ class _SshTerminalWidgetState extends ConsumerState<SshTerminalWidget> {
   }
 
   Widget _buildInputControls() {
+    if (_useBlockUI) {
+      return _buildEnhancedInputControls();
+    } else {
+      return _buildLegacyInputControls();
+    }
+  }
+  
+  Widget _buildEnhancedInputControls() {
+    return Container(
+      padding: const EdgeInsets.all(8),
+      decoration: BoxDecoration(
+        color: AppTheme.darkSurface,
+        border: Border.all(color: AppTheme.darkBorderColor),
+        borderRadius: const BorderRadius.vertical(
+          bottom: Radius.circular(8),
+        ),
+      ),
+      child: Column(
+        children: [
+          // Input mode toggle and command input
+          Row(
+            children: [
+              // Input mode toggle button
+              InkWell(
+                onTap: _toggleInputMode,
+                borderRadius: BorderRadius.circular(6),
+                child: Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                  decoration: BoxDecoration(
+                    color: _currentInputMode == TerminalInputMode.ai 
+                        ? AppTheme.primaryColor 
+                        : AppTheme.darkBackground,
+                    borderRadius: BorderRadius.circular(6),
+                    border: Border.all(
+                      color: _currentInputMode == TerminalInputMode.ai 
+                          ? AppTheme.primaryColor 
+                          : AppTheme.darkBorderColor,
+                    ),
+                  ),
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Text(
+                        _inputModeService.getModeIcon(_currentInputMode),
+                        style: const TextStyle(fontSize: 12),
+                      ),
+                      const SizedBox(width: 4),
+                      Text(
+                        _inputModeService.getModeLabel(_currentInputMode),
+                        style: TextStyle(
+                          color: _currentInputMode == TerminalInputMode.ai 
+                              ? Colors.white 
+                              : AppTheme.darkTextPrimary,
+                          fontSize: 11,
+                          fontWeight: FontWeight.w500,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+              const SizedBox(width: 8),
+              
+              // Command input field
+              Expanded(
+                child: TextField(
+                  controller: _inputController,
+                  enabled: _isConnected,
+                  style: TextStyle(
+                    color: AppTheme.darkTextPrimary,
+                    fontSize: ref.watch(fontSizeProvider) * 0.9, // Slightly smaller for input
+                    fontFamily: ref.watch(fontFamilyProvider),
+                  ),
+                  decoration: InputDecoration(
+                    hintText: _inputModeService.getInputPlaceholder(_currentInputMode),
+                    hintStyle: TextStyle(
+                      color: AppTheme.darkTextSecondary,
+                      fontSize: 13,
+                    ),
+                    border: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(6),
+                      borderSide: BorderSide(color: AppTheme.darkBorderColor),
+                    ),
+                    enabledBorder: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(6),
+                      borderSide: BorderSide(color: AppTheme.darkBorderColor),
+                    ),
+                    focusedBorder: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(6),
+                      borderSide: BorderSide(color: AppTheme.primaryColor),
+                    ),
+                    contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                    isDense: true,
+                  ),
+                  onSubmitted: (value) {
+                    if (value.isNotEmpty) {
+                      _sendCommand(value);
+                    }
+                  },
+                ),
+              ),
+              const SizedBox(width: 8),
+              
+              // Send button
+              IconButton(
+                icon: const Icon(Icons.send, size: 18),
+                onPressed: _isConnected ? () {
+                  final command = _inputController.text.trim();
+                  if (command.isNotEmpty) {
+                    _sendCommand(command);
+                  }
+                } : null,
+                tooltip: 'Send Command',
+                color: AppTheme.primaryColor,
+              ),
+            ],
+          ),
+          
+          const SizedBox(height: 8),
+          
+          // Control keys and shortcuts
+          Row(
+            children: [
+              _buildControlKey('Ctrl'),
+              _buildControlKey('Alt'),
+              _buildControlKey('Esc'),
+              const Spacer(),
+              IconButton(
+                icon: const Icon(Icons.keyboard_arrow_up, size: 16),
+                onPressed: () => _sendData('\x1b[A'), // Up arrow
+                tooltip: 'Up Arrow',
+              ),
+              IconButton(
+                icon: const Icon(Icons.keyboard_arrow_down, size: 16),
+                onPressed: () => _sendData('\x1b[B'), // Down arrow
+                tooltip: 'Down Arrow',
+              ),
+              IconButton(
+                icon: const Icon(Icons.keyboard_tab, size: 16),
+                onPressed: () => _sendData('\t'), // Tab
+                tooltip: 'Tab',
+              ),
+              IconButton(
+                icon: const Icon(Icons.clear, size: 16),
+                onPressed: _isConnected ? () {
+                  _sendCommand('clear');
+                } : null,
+                tooltip: 'Clear Screen',
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+  
+  Widget _buildLegacyInputControls() {
     return Container(
       height: 40,
       padding: const EdgeInsets.symmetric(horizontal: 8),
@@ -423,6 +1049,65 @@ class _SshTerminalWidgetState extends ConsumerState<SshTerminalWidget> {
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
+            if (_useBlockUI) ...[
+              ListTile(
+                leading: Icon(
+                  _currentInputMode == TerminalInputMode.ai ? Icons.computer : Icons.psychology,
+                  color: _currentInputMode == TerminalInputMode.ai ? AppTheme.primaryColor : AppTheme.terminalGreen,
+                ),
+                title: Text(
+                  'Switch to ${_currentInputMode == TerminalInputMode.ai ? 'Command' : 'AI'} Mode',
+                  style: const TextStyle(color: AppTheme.darkTextPrimary),
+                ),
+                onTap: () {
+                  Navigator.pop(context);
+                  _toggleInputMode();
+                },
+              ),
+              ListTile(
+                leading: const Icon(Icons.clear_all, color: AppTheme.terminalYellow),
+                title: const Text(
+                  'Clear All Blocks',
+                  style: TextStyle(color: AppTheme.darkTextPrimary),
+                ),
+                onTap: () {
+                  Navigator.pop(context);
+                  setState(() {
+                    _terminalBlocks.clear();
+                    _blockCounter = 0;
+                  });
+                },
+              ),
+              ListTile(
+                leading: Icon(
+                  _useBlockUI ? Icons.terminal : Icons.view_list,
+                  color: AppTheme.primaryColor,
+                ),
+                title: Text(
+                  'Switch to ${_useBlockUI ? 'Terminal' : 'Block'} View',
+                  style: const TextStyle(color: AppTheme.darkTextPrimary),
+                ),
+                onTap: () {
+                  Navigator.pop(context);
+                  setState(() {
+                    _useBlockUI = !_useBlockUI;
+                  });
+                },
+              ),
+            ],
+            if (!_useBlockUI) ...[
+              ListTile(
+                leading: const Icon(Icons.clear, color: AppTheme.terminalYellow),
+                title: const Text(
+                  'Clear Terminal',
+                  style: TextStyle(color: AppTheme.darkTextPrimary),
+                ),
+                onTap: () {
+                  Navigator.pop(context);
+                  _terminal.eraseDisplay();
+                },
+              ),
+            ],
             ListTile(
               leading: Icon(
                 _isConnected ? Icons.wifi_off : Icons.wifi,
@@ -439,31 +1124,6 @@ class _SshTerminalWidgetState extends ConsumerState<SshTerminalWidget> {
                 } else {
                   _reconnectSession();
                 }
-              },
-            ),
-            ListTile(
-              leading: const Icon(Icons.clear, color: AppTheme.terminalYellow),
-              title: const Text(
-                'Clear Terminal',
-                style: TextStyle(color: AppTheme.darkTextPrimary),
-              ),
-              onTap: () {
-                Navigator.pop(context);
-                _terminal.eraseDisplay();
-              },
-            ),
-            ListTile(
-              leading: const Icon(Icons.fullscreen, color: AppTheme.primaryColor),
-              title: const Text(
-                'Fullscreen',
-                style: TextStyle(color: AppTheme.darkTextPrimary),
-              ),
-              onTap: () {
-                Navigator.pop(context);
-                // TODO: Implement fullscreen mode
-                ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(content: Text('Fullscreen mode coming soon')),
-                );
               },
             ),
             ListTile(

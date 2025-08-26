@@ -92,6 +92,8 @@ After implementation:
 
 Follow strictly to the codebase summary, code structure and code standards in `./docs`.
 
+**[IMPORTANT]** Do not just simulate the implementation or mocking them, always implement the real code.
+
 ### File Organization
 - Controllers: Handle HTTP requests/responses
 - Services: Business logic layer
@@ -147,7 +149,7 @@ Before completing any task, ensure:
 - Use `context7` MCP tool for latest package documentation
 - Use `senera` MCP tool for semantic code analysis
 - Use `psql` for database debugging
-- Send progress updates via `./.claude/send-discord.sh`
+- Send progress updates via `./.claude/send-discord.sh "Your message here"`
 - Provide clear, actionable summary reports
 - Escalate blockers immediately
 

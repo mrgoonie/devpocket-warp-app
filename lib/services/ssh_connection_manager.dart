@@ -110,7 +110,7 @@ class SshConnectionManager {
           break;
       }
       
-      // Create terminal session
+      // Create terminal session with PTY support for interactive commands
       final shell = await client.shell();
       
       // Create connection session
@@ -122,19 +122,24 @@ class SshConnectionManager {
         status: SshConnectionStatus.connected,
       );
       
-      // Set up shell data handlers
+      // Set up shell data handlers with enhanced stream processing
       shell.stdout.cast<List<int>>().transform(utf8.decoder).listen(
         (data) {
           // Write to overall buffer for backward compatibility
           session.outputBuffer.write(data);
           
-          // Differentiate between welcome message and command output
-          // If welcome message hasn't been shown yet and this is initial connection,
-          // treat first output as welcome message
-          if (!session.welcomeMessageShown && session.commandBuffer.isEmpty) {
+          // Enhanced welcome message detection with timeout mechanism
+          if (!session.welcomeMessageShown) {
             session.welcomeBuffer.write(data);
+            
+            // Start welcome message timeout if not already started
+            if (session.welcomeTimeout == null) {
+              session.welcomeTimeout = Timer(const Duration(seconds: 3), () {
+                session.markWelcomeShown();
+              });
+            }
           } else {
-            // This is command output
+            // This is command output after welcome period
             session.commandBuffer.write(data);
           }
           
@@ -240,7 +245,7 @@ class SshConnectionManager {
     }
   }
   
-  /// Disconnect from SSH host
+  /// Disconnect from SSH host with proper resource cleanup
   Future<void> disconnect(String sessionId) async {
     final session = _connections[sessionId];
     if (session == null) return;
@@ -248,9 +253,7 @@ class SshConnectionManager {
     debugPrint('Disconnecting SSH session: $sessionId');
     
     try {
-      session.shell?.close();
-      session.client?.close();
-      
+      session.dispose();
       _connections.remove(sessionId);
       
       _emitEvent(SshConnectionEvent(
@@ -274,7 +277,7 @@ class SshConnectionManager {
     }
   }
   
-  /// Send command to SSH session
+  /// Send command to SSH session with enhanced command tracking
   Future<void> sendCommand(String sessionId, String command) async {
     final session = _connections[sessionId];
     if (session == null) {
@@ -291,7 +294,10 @@ class SshConnectionManager {
       // Clear command buffer before sending new command to avoid mixing outputs
       session.clearCommandOutput();
       
-      // Mark welcome message as shown after first command
+      // Set the current command for tracking
+      session.setCurrentCommand(command);
+      
+      // Mark welcome message as shown after first command and cancel timeout
       if (!session.welcomeMessageShown) {
         session.markWelcomeShown();
       }
@@ -399,6 +405,39 @@ class SshConnectionManager {
     return session?.welcomeMessageShown ?? false;
   }
   
+  /// Check if session is in interactive mode
+  bool isInInteractiveMode(String sessionId) {
+    final session = _connections[sessionId];
+    return session?.isInInteractiveMode ?? false;
+  }
+  
+  /// Get current executing command
+  String? getCurrentCommand(String sessionId) {
+    final session = _connections[sessionId];
+    return session?.getCurrentCommand();
+  }
+  
+  /// Get session statistics
+  Map<String, dynamic> getSessionStats(String sessionId) {
+    final session = _connections[sessionId];
+    if (session == null) return {};
+    
+    return {
+      'id': session.id,
+      'status': session.status.name,
+      'createdAt': session.createdAt.toIso8601String(),
+      'welcomeShown': session.welcomeMessageShown,
+      'interactiveMode': session.isInInteractiveMode,
+      'currentCommand': session.getCurrentCommand(),
+      'profile': {
+        'host': session.profile.host,
+        'port': session.profile.port,
+        'username': session.profile.username,
+        'name': session.profile.name,
+      },
+    };
+  }
+  
   /// Get all active sessions
   List<String> getActiveSessions() {
     return _connections.keys.toList();
@@ -470,14 +509,41 @@ class SshConnectionManager {
     _eventController.add(event);
   }
   
-  /// Dispose resources
+  /// Dispose resources with proper cleanup
   void dispose() {
     disconnectAll();
     _eventController.close();
   }
+  
+  /// Force disconnect session with cleanup
+  Future<void> forceDisconnect(String sessionId) async {
+    final session = _connections[sessionId];
+    if (session == null) return;
+    
+    debugPrint('Force disconnecting SSH session: $sessionId');
+    
+    try {
+      session.dispose();
+      _connections.remove(sessionId);
+      
+      _emitEvent(SshConnectionEvent(
+        type: SshConnectionEventType.statusChanged,
+        status: SshConnectionStatus.disconnected,
+        timestamp: DateTime.now(),
+      ));
+      
+      _emitEvent(SshConnectionEvent(
+        type: SshConnectionEventType.closed,
+        timestamp: DateTime.now(),
+      ));
+      
+    } catch (e) {
+      debugPrint('Error force disconnecting SSH session: $e');
+    }
+  }
 }
 
-/// Internal connection session
+/// Internal connection session with enhanced PTY session management
 class _ConnectionSession {
   final String id;
   final SshProfile profile;
@@ -489,6 +555,9 @@ class _ConnectionSession {
   final StringBuffer commandBuffer; // Current command output buffer
   final DateTime createdAt;
   bool welcomeMessageShown = false; // Track if welcome message was already shown
+  Timer? welcomeTimeout; // Timeout for welcome message detection
+  bool isInteractiveMode = false; // Track if currently in interactive command mode
+  String? currentCommand; // Track the current executing command
 
   _ConnectionSession({
     required this.id,
@@ -504,11 +573,23 @@ class _ConnectionSession {
   /// Clear command-specific output
   void clearCommandOutput() {
     commandBuffer.clear();
+    currentCommand = null;
+    isInteractiveMode = false;
   }
   
-  /// Mark welcome message as shown
+  /// Mark welcome message as shown and cancel timeout
   void markWelcomeShown() {
     welcomeMessageShown = true;
+    welcomeTimeout?.cancel();
+    welcomeTimeout = null;
+  }
+  
+  /// Set current executing command
+  void setCurrentCommand(String command) {
+    currentCommand = command;
+    // Detect interactive commands
+    final interactiveCommands = ['vi', 'vim', 'nano', 'emacs', 'htop', 'top', 'less', 'more'];
+    isInteractiveMode = interactiveCommands.any((cmd) => command.trim().startsWith(cmd));
   }
   
   /// Get command output without welcome message
@@ -519,5 +600,18 @@ class _ConnectionSession {
   /// Get welcome message
   String getWelcomeMessage() {
     return welcomeBuffer.toString();
+  }
+  
+  /// Check if currently in interactive mode
+  bool get isInInteractiveMode => isInteractiveMode;
+  
+  /// Get current executing command
+  String? getCurrentCommand() => currentCommand;
+  
+  /// Dispose session resources
+  void dispose() {
+    welcomeTimeout?.cancel();
+    shell?.close();
+    client?.close();
   }
 }

@@ -22,7 +22,7 @@ class _SplashScreenState extends ConsumerState<SplashScreen>
   late AnimationController _animationController;
   late Animation<double> _scaleAnimation;
   late Animation<double> _opacityAnimation;
-  Timer? _splashTimer;
+  final List<Timer> _activeTimers = [];
   bool _hasNavigated = false;
 
   @override
@@ -79,11 +79,12 @@ class _SplashScreenState extends ConsumerState<SplashScreen>
     // If auth is still loading, wait a bit more and retry
     if (authState.status == AuthStatus.loading || authState.status == AuthStatus.unknown) {
       debugPrint('⏳ Auth still loading, waiting another 2 seconds...');
-      Timer(const Duration(seconds: 2), () async {
+      final timer = Timer(const Duration(seconds: 2), () async {
         if (mounted) {
           await _proceedWithNavigation();
         }
       });
+      _activeTimers.add(timer);
       return;
     }
 
@@ -92,20 +93,22 @@ class _SplashScreenState extends ConsumerState<SplashScreen>
 
   void _checkAndNavigate(AuthState authState) {
     // Only check for navigation after minimum splash time
-    Timer(const Duration(milliseconds: 2500), () {
+    final initialTimer = Timer(const Duration(milliseconds: 2500), () {
       if (!mounted || _hasNavigated) return;
       
       // If auth is still loading, wait a bit more
       if (authState.status == AuthStatus.loading || authState.status == AuthStatus.unknown) {
-        Timer(const Duration(milliseconds: 1500), () {
+        final delayedTimer = Timer(const Duration(milliseconds: 1500), () {
           if (!mounted || _hasNavigated) return;
           _proceedWithNavigation();
         });
+        _activeTimers.add(delayedTimer);
         return;
       }
       
       _proceedWithNavigation();
     });
+    _activeTimers.add(initialTimer);
   }
 
   void _navigateToNextScreen(AuthState authState, bool onboardingCompleted, bool isFirstLaunch) {
@@ -172,7 +175,11 @@ class _SplashScreenState extends ConsumerState<SplashScreen>
 
   @override
   void dispose() {
-    _splashTimer?.cancel();
+    // Cancel all active timers to prevent memory leaks and test failures
+    for (final timer in _activeTimers) {
+      timer.cancel();
+    }
+    _activeTimers.clear();
     _animationController.dispose();
     super.dispose();
   }

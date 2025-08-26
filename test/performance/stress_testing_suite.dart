@@ -2,7 +2,6 @@ import 'package:flutter_test/flutter_test.dart';
 import 'dart:typed_data';
 import 'dart:math' as math;
 
-import 'package:devpocket_warp_app/services/ssh_connection_manager.dart';
 import 'package:devpocket_warp_app/services/terminal_websocket_service.dart';
 import 'package:devpocket_warp_app/services/terminal_session_handler.dart';
 import 'package:devpocket_warp_app/services/crypto_service.dart';

@@ -4,7 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 
 import 'screens/auth/splash_screen.dart';
-import 'screens/terminal/terminal_screen.dart';
+import 'screens/terminal/enhanced_terminal_screen.dart';
 import 'screens/vaults/vaults_screen.dart';
 import 'themes/app_theme.dart';
 import 'providers/theme_provider.dart';
@@ -183,7 +183,7 @@ Route<dynamic>? _onGenerateRoute(RouteSettings settings) {
       final sshProfile = settings.arguments as SshProfile?;
       debugPrint('[Navigation] Terminal route with SSH profile: ${sshProfile?.name ?? 'null'}');
       return MaterialPageRoute(
-        builder: (context) => TerminalScreen(sshProfile: sshProfile),
+        builder: (context) => EnhancedTerminalScreen(initialProfile: sshProfile),
         settings: settings,
       );
     

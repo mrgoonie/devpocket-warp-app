@@ -6,7 +6,7 @@ import '../../themes/app_theme.dart';
 import '../../main.dart';
 import '../../providers/auth_provider.dart';
 import '../vaults/vaults_screen.dart';
-import '../terminal/terminal_screen.dart';
+import '../terminal/enhanced_terminal_screen.dart';
 import '../history/history_screen.dart';
 import '../settings/settings_screen.dart';
 import 'coming_soon_screen.dart';
@@ -35,7 +35,7 @@ class _MainTabScreenState extends ConsumerState<MainTabScreen>
       icon: Icons.terminal,
       activeIcon: Icons.terminal,
       label: 'Terminal',
-      screen: const TerminalScreen(),
+      screen: const EnhancedTerminalScreen(),
     ),
     TabItem(
       icon: Icons.history,

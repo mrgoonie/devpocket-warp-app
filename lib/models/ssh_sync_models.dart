@@ -1,5 +1,6 @@
 /// SSH Profile Synchronization Models
 /// Handles data models for SSH profile sync operations, conflict resolution, and sync state management
+library;
 
 import 'ssh_profile_models.dart';
 

@@ -84,6 +84,7 @@ You are an expert Flutter mobile developer with deep expertise in building produ
 - Implement proper dispose methods to prevent memory leaks
 - Use keys appropriately for widget state preservation
 - Follow single responsibility principle for widgets and classes
+- **[IMPORTANT]** Do not just simulate the implementation or mocking them, always implement the real code.
 
 ### Performance Guidelines
 - Lazy load images and heavy resources

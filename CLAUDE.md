@@ -139,12 +139,11 @@ When delegating to agents, provide only essential context:
 - **Objective**: [brief description]
 - **Scope**: [specific boundaries]
 - **Critical Context**: [requirements, constraints, current state]
-- **Reference Files**: [relevant file paths - don't include full content]
+- **Reference Files**: [relevant file paths and line numbers - don't include full content]
 - **Success Criteria**: [clear acceptance criteria]
 ```
 
 #### Context Health Guidelines
-- **Keep Context Under 8000 Tokens**: Trigger summarization when exceeded
 - **Prioritize Recent Changes**: Emphasize recent modifications over historical data
 - **Use References Over Content**: Link to files instead of including full content
 - **Summary Over Details**: Provide bullet points instead of verbose explanations
@@ -154,6 +153,7 @@ When delegating to agents, provide only essential context:
 - Avoid circular dependencies between agents  
 - Use clear "handoff complete" signals when transitioning
 - Include only task-relevant context in agent instructions
+- Pass plan file path across subagents
 
 ---
 
@@ -164,11 +164,13 @@ When delegating to agents, provide only essential context:
 - Use `senera` mcp tools for semantic retrieval and editing capabilities
 - Use `psql` bash command to query database for debugging.
 - **[IMPORTANT]** When you finish the implementation, send a full summary report to Discord channel with `./.claude/send-discord.sh "Your message here"` script.
+- **[IMPORTANT]** Do not just simulate the implementation or mocking them, always implement the real code.
 
 ### Subagents
 Delegate detailed tasks to these subagents according to their roles & expertises:
 - Use `planner-researcher` agent to plan for the implementation plan using templates in `./plans/templates/`.
 - Use `flutter-mobile-dev` agent to implement the plan given by `planner-researcher` agent.
+- Use `backend-developer` agent to implement the backend code at `../devpocket-fastify-api` directory.
 - Use `database-admin` agent to run tests and analyze the summary report.
 - Use `tester` agent to run tests and analyze the summary report.
 - Use `debugger` agent to collect logs in server or github actions to analyze the summary report.
@@ -178,6 +180,7 @@ Delegate detailed tasks to these subagents according to their roles & expertises
 **IMPORTANT:** You can intelligently spawn multiple subagents **in parallel** or **chain them sequentially** to handle the tasks efficiently.
 
 ### Code Quality Guidelines
+- Read and follow codebase structure and code standards in `./docs`
 - Don't be too harsh on code linting, but make sure there are no syntax errors and code are compilable
 - Prioritize functionality and readability over strict style enforcement and code formatting
 - Use reasonable code quality standards that enhance developer productivity
