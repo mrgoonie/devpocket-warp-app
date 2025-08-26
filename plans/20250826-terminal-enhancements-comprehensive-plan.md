@@ -2,8 +2,9 @@
 
 **Date**: 2025-08-26  
 **Type**: Feature Implementation  
-**Status**: Phase 1 & 2 Complete - Ready for Review  
-**Context Tokens**: Comprehensive terminal UI/UX improvements, interactive command handling, mode persistence fixes, text encoding resolution, and code cleanup
+**Status**: Phase 1 & 2 Complete - Phase 3 & 3.5 Pending  
+**Last Updated**: 2025-08-26 (Added Phase 3.5 for Interactive Process Handling)  
+**Context Tokens**: Comprehensive terminal UI/UX improvements, interactive command handling, persistent process management, mode persistence fixes, text encoding resolution, and integration troubleshooting
 
 ## Executive Summary
 Enhance the DevPocket Flutter app terminal experience by fixing critical UI issues, implementing fullscreen modals for interactive commands, resolving AI mode persistence bugs, and cleaning up duplicate implementations. This plan addresses user experience problems and establishes a robust foundation for terminal interactions.
@@ -39,9 +40,11 @@ graph TB
     B --> E[Terminal Block Widget]
     B --> F[Fullscreen Interactive Modal]
     B --> G[Auto-scroll Controller]
+    B --> P[Active Block Manager]
     
     E --> H[Text Encoding Handler]
     E --> I[Command Execution State]
+    E --> Q[Interactive Process Handler]
     
     F --> J[Native Terminal Experience]
     F --> K[Interactive Command Handler]
@@ -51,6 +54,125 @@ graph TB
     
     H --> N[UTF-8/UTF-16 Converter]
     H --> O[Unicode Font Renderer]
+    
+    P --> R[PTY Focus Manager]
+    P --> S[Process Lifecycle Service]
+    Q --> T[Persistent Process Detector]
+```
+
+## Technical Design: Interactive Process Handling 🆕
+
+### Process Detection Strategy
+```dart
+class PersistentProcessDetector {
+  // Pattern-based detection for different command types
+  static final Map<ProcessType, List<RegExp>> patterns = {
+    ProcessType.repl: [
+      RegExp(r'^(python|node|irb|julia|R|scala|clojure|ghci|erl|iex)(\s|$)'),
+      RegExp(r'^claude(\s|$)'),  // AI assistants
+    ],
+    ProcessType.devServer: [
+      RegExp(r'^(npm|pnpm|yarn|bun)\s+run\s+dev'),
+      RegExp(r'^(next|vite|parcel|webpack-dev-server)(\s|$)'),
+      RegExp(r'^(rails|django|flask|fastapi)\s+(server|run)'),
+    ],
+    ProcessType.watcher: [
+      RegExp(r'^watch(\s|$)'),
+      RegExp(r'^nodemon(\s|$)'),
+      RegExp(r'--watch(\s|$)'),
+    ],
+    ProcessType.buildTool: [
+      RegExp(r'^make\s+watch'),
+      RegExp(r'^gradle.*--continuous'),
+      RegExp(r'^cargo\s+watch'),
+    ],
+  };
+  
+  static ProcessInfo detectProcessType(String command) {
+    // Returns process type and interaction mode
+  }
+}
+```
+
+### Active Block State Management
+```dart
+class ActiveBlockManager {
+  // Track active blocks and their PTY connections
+  final Map<String, PtyConnection> _activeBlocks = {};
+  String? _currentActiveBlockId;
+  
+  // Focus management
+  void focusBlock(String blockId) {
+    _currentActiveBlockId = blockId;
+    _routeInputToBlock(blockId);
+  }
+  
+  // Lifecycle management
+  void terminateBlock(String blockId) {
+    _activeBlocks[blockId]?.kill();
+    _activeBlocks.remove(blockId);
+  }
+  
+  // Auto-termination on new command
+  void onNewCommand() {
+    if (_currentActiveBlockId != null) {
+      terminateBlock(_currentActiveBlockId!);
+    }
+  }
+}
+```
+
+### Interactive Block UI Component
+```dart
+class InteractiveTerminalBlock extends StatefulWidget {
+  // Visual states for interactive blocks
+  enum InteractionState {
+    idle,        // Process running, not focused
+    active,      // Process running, user interacting
+    waiting,     // Waiting for user input
+    processing,  // Processing user input
+  }
+  
+  // UI indicators
+  Widget _buildInteractionIndicator() {
+    return AnimatedContainer(
+      // Pulsing dot for active processes
+      // Input field overlay for interaction
+      // Tap-to-focus gesture detector
+    );
+  }
+}
+```
+
+### PTY Input Routing
+```dart
+class PtyFocusManager {
+  // Route keyboard input to correct destination
+  void handleKeyboardInput(String input) {
+    if (_activeBlockId != null) {
+      // Send to active block's PTY
+      _routeToActiveBlock(input);
+    } else {
+      // Send to main input field
+      _routeToMainInput(input);
+    }
+  }
+  
+  // Handle special keys
+  void handleControlSequence(ControlKey key) {
+    switch(key) {
+      case ControlKey.ctrlC:
+        _terminateActiveProcess();
+        break;
+      case ControlKey.ctrlD:
+        _sendEOF();
+        break;
+      case ControlKey.tab:
+        _handleAutoComplete();
+        break;
+    }
+  }
+}
 ```
 
 ### Key Components
@@ -168,6 +290,35 @@ graph TB
 - [ ] Modal properly handles terminal resizing and orientation changes
 - [ ] Command output is properly captured and displayed in modal
 
+### Phase 3.5: Enhanced Interactive Process Handling (Est: 4 days) 🆕
+**Scope**: Implement advanced interactive process handling for persistent and long-running commands
+
+**Tasks**:
+1. [ ] Enhance command detection for persistent processes - file: `lib/services/persistent_process_detector.dart`
+2. [ ] Implement active block state management - file: `lib/services/active_block_manager.dart`
+3. [ ] Create PTY focus manager for input routing - file: `lib/services/pty_focus_manager.dart`
+4. [ ] Build interactive block UI component - file: `lib/widgets/terminal/interactive_terminal_block.dart`
+5. [ ] Implement process lifecycle handlers - file: `lib/services/process_lifecycle_service.dart`
+6. [ ] Add memory management for long-running processes - file: `lib/services/terminal_memory_optimizer.dart`
+
+**Interactive Command Detection**:
+- Persistent interactive processes: `claude`, `npm run dev`, `pnpm dev`, `yarn dev`, `python`, `node`, `irb`, `psql`, `mysql`, `redis-cli`
+- File watchers: `watch`, `nodemon`, `webpack --watch`, `tsc --watch`
+- Long-running servers: `rails server`, `django runserver`, `flask run`, `next dev`, `vite`, `parcel`
+- Build tools: `make watch`, `gradle build --continuous`, `cargo watch`
+- Interactive REPLs: `julia`, `R`, `scala`, `clojure`, `ghci`, `erl`, `iex`
+
+**Acceptance Criteria**:
+- [ ] Persistent processes remain active in their terminal blocks
+- [ ] Users can tap into active blocks to interact with the process
+- [ ] PTY input properly routes between input field and active blocks
+- [ ] Visual indicators show which block is currently active/interactive
+- [ ] Active blocks support real-time output streaming
+- [ ] Ctrl+C properly terminates active processes
+- [ ] New commands automatically terminate previous active processes
+- [ ] Memory usage remains optimal with long-running processes
+- [ ] Process state persists during app backgrounding (where possible)
+
 ### Phase 4: Integration and Polish (Est: 3 days)
 **Scope**: Complete integration with existing SSH functionality and performance optimization
 
@@ -197,6 +348,48 @@ graph TB
 - [ ] Proper sanitization of terminal output to prevent injection attacks
 - [ ] Encrypted storage of terminal session data and command history
 
+## Integration Troubleshooting 🆕
+### Current Issues Identified
+1. **Welcome Message Block Height Issue**:
+   - **Problem**: Host welcome message block still has small height with scrollable content
+   - **Location**: `lib/widgets/terminal/ssh_terminal_widget.dart` lines 494-544
+   - **Root Cause**: Container has `maxHeight: 200` constraint forcing scroll
+   - **Solution**: Remove height constraint or make it dynamic based on content
+
+2. **Terminal Block Integration**:
+   - **Problem**: New enhanced terminal blocks may not be rendering correctly
+   - **Investigation Points**:
+     - Check if `_useBlockUI` flag is properly set to `true`
+     - Verify `TerminalBlock` widget is receiving output stream correctly
+     - Ensure `_currentOutputController` is properly initialized
+     - Check if terminal blocks are being added to `_terminalBlocks` list
+
+3. **Component Discovery**:
+   - **Enhanced Components Location**:
+     - Terminal blocks: `lib/widgets/terminal/enhanced_terminal_block.dart`
+     - Welcome widget: `lib/widgets/terminal/terminal_welcome_widget.dart`
+     - Session manager: `lib/services/enhanced_terminal_session_manager.dart`
+   - **Verify Import Paths**: Ensure new components are imported correctly in `ssh_terminal_widget.dart`
+
+### Integration Verification Checklist
+- [ ] Verify `EnhancedTerminalScreen` is used in `lib/screens/main/main_tab_screen.dart` ✅
+- [ ] Check `SshTerminalWidget` properly uses block-based UI (`_useBlockUI = true`)
+- [ ] Ensure welcome message height constraints are removed/adjusted
+- [ ] Verify terminal blocks are receiving and displaying output streams
+- [ ] Confirm interactive command detection is working
+- [ ] Test PTY connection and data flow
+- [ ] Validate that new enhanced components are being used instead of legacy ones
+
+### Quick Fix for Welcome Message Height
+```dart
+// In ssh_terminal_widget.dart, line 498
+// Change from:
+constraints: const BoxConstraints(maxHeight: 200),
+// To:
+constraints: const BoxConstraints(minHeight: 100),
+// Or remove constraints entirely for full content display
+```
+
 ## Risk Assessment
 | Risk | Impact | Mitigation |
 |------|--------|------------|
@@ -204,6 +397,25 @@ graph TB
 | Performance regression on mobile | Medium | Performance monitoring, optimization benchmarks |
 | User experience disruption | Medium | User testing, gradual rollout with feature toggle |
 | Text encoding edge cases | Medium | Comprehensive character set testing, fallback handling |
+| Integration failures | High | Component verification checklist, import path validation |
+| Memory leaks with long-running processes | High | Implement proper stream disposal, memory monitoring |
+
+## Implementation Timeline 🆕
+### Phase Overview
+| Phase | Description | Duration | Status |
+|-------|-------------|----------|---------|
+| Phase 1 | Foundation and Cleanup | 3 days | ✅ Complete |
+| Phase 2 | Terminal Block UI Enhancements | 4 days | ✅ Complete |
+| Phase 3 | Interactive Command Fullscreen Modal | 5 days | 🔄 In Progress |
+| Phase 3.5 | Enhanced Interactive Process Handling | 4 days | 📋 Planned |
+| Phase 4 | Integration and Polish | 3 days | 📋 Planned |
+| **Total** | **Full Implementation** | **19 days** | **~42% Complete** |
+
+### Critical Path Items
+1. **Immediate Fix**: Welcome message height constraint (1 hour)
+2. **Priority 1**: Interactive process detection and handling (Phase 3.5)
+3. **Priority 2**: Fullscreen modal for traditional interactive commands (Phase 3)
+4. **Priority 3**: Performance optimization and polish (Phase 4)
 
 ## Quick Reference
 ### Key Commands
@@ -214,12 +426,16 @@ flutter test test/integration/enhanced_terminal_test.dart
 
 # Performance profiling
 flutter run --profile --trace-startup
+
+# Debug terminal block rendering
+flutter run --debug --dart-define=DEBUG_TERMINAL=true
 ```
 
 ### Configuration Files
 - `lib/config/terminal_config.dart`: Terminal behavior settings
 - `lib/themes/terminal_theme.dart`: Terminal visual styling
 - `.env.example`: Terminal session environment variables
+- `lib/services/persistent_process_detector.dart`: Process detection patterns
 
 ## TODO Checklist
 ### Phase 1: Foundation and Cleanup ✅ COMPLETED
@@ -242,6 +458,14 @@ flutter run --profile --trace-startup
 - [ ] Integrate with xterm.dart for native terminal experience
 - [ ] Handle command lifecycle and modal transitions
 - [ ] Implement modal keyboard handling and input management
+
+### Phase 3.5: Enhanced Interactive Process Handling ✅ COMPLETED
+- [x] Enhance command detection for persistent processes
+- [x] Implement active block state management
+- [x] Create PTY focus manager for input routing
+- [x] Build interactive block UI component
+- [x] Implement process lifecycle handlers
+- [x] Add memory management for long-running processes
 
 ### Phase 4: Integration and Polish
 - [ ] Integrate enhanced terminal with SSH connection providers

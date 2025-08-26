@@ -5,11 +5,16 @@ import 'dart:async';
 
 import '../../themes/app_theme.dart';
 import '../../models/ssh_profile_models.dart';
+import '../../models/enhanced_terminal_models.dart';
 import '../../services/terminal_session_handler.dart';
 import '../../services/ssh_connection_manager.dart';
 import '../../services/terminal_input_mode_service.dart';
+import '../../services/persistent_process_detector.dart';
+import '../../services/active_block_manager.dart';
+import '../../services/pty_focus_manager.dart';
 import '../../providers/theme_provider.dart';
 import 'terminal_block.dart';
+import 'enhanced_terminal_block.dart';
 
 /// SSH Terminal Widget using xterm.dart
 class SshTerminalWidget extends ConsumerStatefulWidget {
@@ -37,10 +42,15 @@ class _SshTerminalWidgetState extends ConsumerState<SshTerminalWidget> {
   StreamSubscription<TerminalOutput>? _outputSubscription;
   StreamSubscription<SshConnectionEvent>? _sshEventSubscription;
   StreamSubscription<TerminalInputModeEvent>? _inputModeSubscription;
+  StreamSubscription<ActiveBlockEvent>? _activeBlockSubscription;
+  StreamSubscription<FocusEvent>? _focusSubscription;
   
   final TerminalSessionHandler _sessionHandler = TerminalSessionHandler.instance;
   final SshConnectionManager _sshManager = SshConnectionManager.instance;
   final TerminalInputModeService _inputModeService = TerminalInputModeService.instance;
+  final PersistentProcessDetector _processDetector = PersistentProcessDetector.instance;
+  final ActiveBlockManager _activeBlockManager = ActiveBlockManager.instance;
+  final PTYFocusManager _focusManager = PTYFocusManager.instance;
   final TextEditingController _inputController = TextEditingController();
   final ScrollController _blocksScrollController = ScrollController();
   
@@ -60,6 +70,7 @@ class _SshTerminalWidgetState extends ConsumerState<SshTerminalWidget> {
     super.initState();
     _initializeTerminal();
     _setupInputModeService();
+    _setupInteractiveProcessHandling();
     _setupSession();
   }
 
@@ -68,6 +79,8 @@ class _SshTerminalWidgetState extends ConsumerState<SshTerminalWidget> {
     _outputSubscription?.cancel();
     _sshEventSubscription?.cancel();
     _inputModeSubscription?.cancel();
+    _activeBlockSubscription?.cancel();
+    _focusSubscription?.cancel();
     _currentOutputController?.close();
     _inputController.dispose();
     _blocksScrollController.dispose();
@@ -108,6 +121,36 @@ class _SshTerminalWidgetState extends ConsumerState<SshTerminalWidget> {
     _currentInputMode = _inputModeService.currentMode;
   }
 
+  /// Setup interactive process handling services
+  void _setupInteractiveProcessHandling() {
+    // Initialize focus manager
+    _focusManager.initialize();
+    
+    // Listen to active block events
+    _activeBlockSubscription = _activeBlockManager.events.listen(_handleActiveBlockEvent);
+    
+    // Listen to focus events
+    _focusSubscription = _focusManager.events.listen(_handleFocusEvent);
+  }
+
+  /// Handle active block manager events
+  void _handleActiveBlockEvent(ActiveBlockEvent event) {
+    if (mounted && event.sessionId == _currentSessionId) {
+      setState(() {
+        // Update UI based on active block events
+        debugPrint('Active block event: ${event.type} for block ${event.blockId}');
+      });
+    }
+  }
+
+  /// Handle focus manager events
+  void _handleFocusEvent(FocusEvent event) {
+    if (mounted) {
+      setState(() {
+        debugPrint('Focus event: ${event.type} for block ${event.blockId}');
+      });
+    }
+  }
 
   Future<void> _setupSession() async {
     try {
@@ -348,8 +391,32 @@ class _SshTerminalWidgetState extends ConsumerState<SshTerminalWidget> {
   }
   
   /// Create a new terminal block for command execution
-  void _createCommandBlock(String command) {
-    if (!mounted) return;
+  /// Try to activate block for interactive processes
+  Future<void> _tryActivateInteractiveBlock(String blockId, String command) async {
+    try {
+      // Create enhanced block data
+      final enhancedBlockData = EnhancedTerminalBlockData(
+        id: blockId,
+        command: command,
+        status: TerminalBlockStatus.running,
+        timestamp: DateTime.now(),
+        sessionId: _currentSessionId!,
+        index: _terminalBlocks.length - 1,
+      );
+      
+      await _activeBlockManager.activateBlock(
+        blockId: blockId,
+        sessionId: _currentSessionId!,
+        command: command,
+        blockData: enhancedBlockData,
+      );
+    } catch (e) {
+      debugPrint('Failed to activate interactive block: $e');
+    }
+  }
+
+  String? _createCommandBlock(String command) {
+    if (!mounted) return null;
     
     // Close previous output controller if exists
     _currentOutputController?.close();
@@ -357,8 +424,9 @@ class _SshTerminalWidgetState extends ConsumerState<SshTerminalWidget> {
     // Create new output stream controller for this block
     _currentOutputController = StreamController<String>.broadcast();
     
+    final blockId = 'block_${_blockCounter++}';
     final blockData = TerminalBlockData(
-      id: 'block_${_blockCounter++}',
+      id: blockId,
       command: command,
       status: TerminalBlockStatus.running,
       timestamp: DateTime.now(),
@@ -380,6 +448,8 @@ class _SshTerminalWidgetState extends ConsumerState<SshTerminalWidget> {
         );
       }
     });
+    
+    return blockId; // Return block ID for interactive handling
   }
   
   /// Check if command is interactive
@@ -447,6 +517,39 @@ class _SshTerminalWidgetState extends ConsumerState<SshTerminalWidget> {
       _handleError('Failed to send interactive input: $e');
     }
   }
+
+  /// Handle enhanced block input with focus management
+  Future<void> _handleEnhancedBlockInput(String input, String blockId) async {
+    // Try to route through focus manager first
+    if (_focusManager.handleTextInput(input)) {
+      // Input was handled by focus manager (sent to active block)
+      return;
+    }
+    
+    // Fallback to traditional interactive input handling
+    await _sendInteractiveInput(input, blockId);
+  }
+
+  /// Handle block tap for focus management
+  void _handleBlockTap(String blockId) {
+    // Check if block is active and can accept input
+    if (_activeBlockManager.canBlockAcceptInput(blockId)) {
+      _focusManager.focusBlock(blockId);
+    }
+  }
+
+  /// Handle main input submission with focus management
+  Future<void> _handleMainInputSubmission(String input) async {
+    // Check if input should be routed to focused block first
+    if (_focusManager.handleTextInput(input)) {
+      // Input was routed to focused block
+      _inputController.clear();
+      return;
+    }
+    
+    // Otherwise, treat as new command
+    await _sendCommand(input);
+  }
   
   /// Toggle input mode between command and AI
   Future<void> _toggleInputMode() async {
@@ -495,7 +598,7 @@ class _SshTerminalWidgetState extends ConsumerState<SshTerminalWidget> {
             width: double.infinity,
             margin: const EdgeInsets.only(bottom: 8),
             padding: const EdgeInsets.all(12),
-            constraints: const BoxConstraints(maxHeight: 200), // Limit welcome message height
+            constraints: const BoxConstraints(minHeight: 100), // Allow full welcome message display
             decoration: BoxDecoration(
               color: AppTheme.darkSurface,
               border: Border.all(color: AppTheme.darkBorderColor),
@@ -623,18 +726,23 @@ class _SshTerminalWidgetState extends ConsumerState<SshTerminalWidget> {
         itemCount: _terminalBlocks.length,
         itemBuilder: (context, index) {
           final block = _terminalBlocks[index];
-          return TerminalBlock(
+          
+          // Create enhanced block data from regular block data
+          final enhancedBlockData = EnhancedTerminalBlockData.fromBase(
+            block,
+            sessionId: _currentSessionId ?? 'unknown',
+            isAgentCommand: _currentInputMode == TerminalInputMode.ai,
+          );
+          
+          return EnhancedTerminalBlock(
             key: Key(block.id),
-            command: block.command,
-            status: block.status,
-            timestamp: block.timestamp,
-            output: block.output,
+            blockData: enhancedBlockData,
             outputStream: (index == _terminalBlocks.length - 1) ? _currentOutputController?.stream : null,
-            blockIndex: block.index,
-            isInteractive: block.isInteractive,
+            sessionId: _currentSessionId,
             onRerun: () => _rerunCommand(block.command),
             onCancel: (block.status == TerminalBlockStatus.running) ? _cancelCurrentCommand : null,
-            onInputSubmit: (input) => _sendInteractiveInput(input, block.id),
+            onInputSubmit: (input) => _handleEnhancedBlockInput(input, block.id),
+            onTap: () => _handleBlockTap(block.id),
           );
         },
       ),
@@ -840,7 +948,7 @@ class _SshTerminalWidgetState extends ConsumerState<SshTerminalWidget> {
                   ),
                   onSubmitted: (value) {
                     if (value.isNotEmpty) {
-                      _sendCommand(value);
+                      _handleMainInputSubmission(value);
                     }
                   },
                 ),
@@ -853,7 +961,7 @@ class _SshTerminalWidgetState extends ConsumerState<SshTerminalWidget> {
                 onPressed: _isConnected ? () {
                   final command = _inputController.text.trim();
                   if (command.isNotEmpty) {
-                    _sendCommand(command);
+                    _handleMainInputSubmission(command);
                   }
                 } : null,
                 tooltip: 'Send Command',

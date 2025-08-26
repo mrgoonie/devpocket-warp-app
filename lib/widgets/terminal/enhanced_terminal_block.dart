@@ -6,10 +6,13 @@ import 'dart:async';
 import '../../themes/app_theme.dart';
 import '../../providers/terminal_mode_provider.dart';
 import '../../services/terminal_text_encoding_service.dart';
+import '../../services/active_block_manager.dart';
+import '../../services/pty_focus_manager.dart';
+import '../../services/persistent_process_detector.dart';
 import '../../models/enhanced_terminal_models.dart';
 import 'terminal_block.dart';
 
-/// Enhanced terminal block with improved rendering, encoding support, and features
+/// Enhanced terminal block with improved rendering, encoding support, and interactive process handling
 class EnhancedTerminalBlock extends ConsumerStatefulWidget {
   final EnhancedTerminalBlockData blockData;
   final Stream<String>? outputStream;
@@ -17,10 +20,12 @@ class EnhancedTerminalBlock extends ConsumerStatefulWidget {
   final VoidCallback? onCancel;
   final VoidCallback? onEnterFullscreen;
   final ValueChanged<String>? onInputSubmit;
+  final VoidCallback? onTap; // New: for tap-to-focus functionality
   final bool showCopyButton;
   final bool showTimestamp;
   final double? customFontSize;
   final String? customFontFamily;
+  final String? sessionId; // New: for active block management
 
   const EnhancedTerminalBlock({
     super.key,
@@ -30,10 +35,12 @@ class EnhancedTerminalBlock extends ConsumerStatefulWidget {
     this.onCancel,
     this.onEnterFullscreen,
     this.onInputSubmit,
+    this.onTap,
     this.showCopyButton = true,
     this.showTimestamp = true,
     this.customFontSize,
     this.customFontFamily,
+    this.sessionId,
   });
 
   @override
@@ -46,17 +53,30 @@ class _EnhancedTerminalBlockState extends ConsumerState<EnhancedTerminalBlock>
   final TextEditingController _inputController = TextEditingController();
   final ScrollController _outputScrollController = ScrollController();
   final TerminalTextEncodingService _encodingService = TerminalTextEncodingService.instance;
+  final ActiveBlockManager _activeBlockManager = ActiveBlockManager.instance;
+  final PTYFocusManager _focusManager = PTYFocusManager.instance;
+  final PersistentProcessDetector _processDetector = PersistentProcessDetector.instance;
   
   StreamSubscription<String>? _outputSubscription;
+  StreamSubscription<ActiveBlockEvent>? _activeBlockSubscription;
+  StreamSubscription<FocusEvent>? _focusSubscription;
   late AnimationController _statusAnimationController;
   late AnimationController _expandAnimationController;
+  late AnimationController _interactiveAnimationController;
   late Animation<double> _statusAnimation;
   late Animation<double> _expandAnimation;
+  late Animation<double> _interactiveAnimation;
   
   bool _isExpanded = true;
   bool _autoScroll = true;
   bool _showFullCommand = false;
   String _processedOutput = '';
+  
+  // Interactive process handling state
+  bool _isActiveBlock = false;
+  bool _isFocused = false;
+  ProcessInfo? _processInfo;
+  String? _activeBlockId;
 
   @override
   void initState() {
@@ -71,12 +91,19 @@ class _EnhancedTerminalBlockState extends ConsumerState<EnhancedTerminalBlock>
       duration: const Duration(milliseconds: 300),
       vsync: this,
     );
+    _interactiveAnimationController = AnimationController(
+      duration: const Duration(milliseconds: 1000),
+      vsync: this,
+    );
     
     _statusAnimation = Tween<double>(begin: 0.0, end: 1.0).animate(
       CurvedAnimation(parent: _statusAnimationController, curve: Curves.easeOut),
     );
     _expandAnimation = Tween<double>(begin: 0.0, end: 1.0).animate(
       CurvedAnimation(parent: _expandAnimationController, curve: Curves.easeOut),
+    );
+    _interactiveAnimation = Tween<double>(begin: 0.0, end: 1.0).animate(
+      CurvedAnimation(parent: _interactiveAnimationController, curve: Curves.easeInOut),
     );
 
     // Start animations
@@ -85,6 +112,9 @@ class _EnhancedTerminalBlockState extends ConsumerState<EnhancedTerminalBlock>
     
     // Initialize output
     _initializeOutput();
+    
+    // Setup interactive process handling
+    _setupInteractiveProcessHandling();
     
     // Listen to output stream
     _setupOutputStream();
@@ -167,10 +197,13 @@ class _EnhancedTerminalBlockState extends ConsumerState<EnhancedTerminalBlock>
   @override
   void dispose() {
     _outputSubscription?.cancel();
+    _activeBlockSubscription?.cancel();
+    _focusSubscription?.cancel();
     _inputController.dispose();
     _outputScrollController.dispose();
     _statusAnimationController.dispose();
     _expandAnimationController.dispose();
+    _interactiveAnimationController.dispose();
     super.dispose();
   }
 
@@ -183,44 +216,73 @@ class _EnhancedTerminalBlockState extends ConsumerState<EnhancedTerminalBlock>
     return AnimatedBuilder(
       animation: _statusAnimation,
       builder: (context, child) {
-        return Transform.scale(
-          scale: 0.95 + (0.05 * _statusAnimation.value),
-          child: Card(
-            margin: const EdgeInsets.only(bottom: 12),
-            color: AppTheme.darkSurface,
-            elevation: 2 + (2 * _statusAnimation.value),
-            shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(12),
-              side: BorderSide(
-                color: _getStatusBorderColor(),
-                width: 1.5,
-              ),
-            ),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.stretch,
-              children: [
-                _buildEnhancedHeader(fontSize, fontFamily),
-                AnimatedBuilder(
-                  animation: _expandAnimation,
-                  builder: (context, child) {
-                    return SizeTransition(
-                      sizeFactor: _expandAnimation,
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.stretch,
-                        children: [
-                          if (_isExpanded) ...[
-                            _buildEnhancedOutput(fontSize, fontFamily),
-                            if (widget.blockData.isInteractive && 
-                                widget.blockData.status == TerminalBlockStatus.running)
-                              _buildInteractiveInput(fontSize, fontFamily),
-                          ],
-                        ],
-                      ),
-                    );
-                  },
+        return GestureDetector(
+          onTap: _handleBlockTap,
+          child: AnimatedBuilder(
+            animation: _interactiveAnimation,
+            builder: (context, child) {
+              return Transform.scale(
+                scale: 0.95 + (0.05 * _statusAnimation.value),
+                child: Card(
+                  margin: const EdgeInsets.only(bottom: 12),
+                  color: AppTheme.darkSurface,
+                  elevation: 2 + (2 * _statusAnimation.value) + (_isActiveBlock ? 2 : 0),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(12),
+                    side: BorderSide(
+                      color: _getInteractiveStatusBorderColor(),
+                      width: _getInteractiveBorderWidth(),
+                    ),
+                  ),
+                  child: Container(
+                    decoration: BoxDecoration(
+                      borderRadius: BorderRadius.circular(12),
+                      border: _isFocused
+                          ? Border.all(
+                              color: AppTheme.terminalBlue.withValues(alpha: 0.6),
+                              width: 2.0,
+                            )
+                          : null,
+                      boxShadow: _isActiveBlock && _processInfo?.isPersistent == true
+                          ? [
+                              BoxShadow(
+                                color: _getStatusColor().withValues(
+                                  alpha: 0.3 + (0.2 * _interactiveAnimation.value),
+                                ),
+                                blurRadius: 8 + (4 * _interactiveAnimation.value),
+                                spreadRadius: 1 + (1 * _interactiveAnimation.value),
+                              ),
+                            ]
+                          : null,
+                    ),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.stretch,
+                      children: [
+                        _buildEnhancedHeader(fontSize, fontFamily),
+                        AnimatedBuilder(
+                          animation: _expandAnimation,
+                          builder: (context, child) {
+                            return SizeTransition(
+                              sizeFactor: _expandAnimation,
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.stretch,
+                                children: [
+                                  if (_isExpanded) ...[
+                                    _buildEnhancedOutput(fontSize, fontFamily),
+                                    if (_shouldShowInteractiveInput())
+                                      _buildInteractiveInput(fontSize, fontFamily),
+                                  ],
+                                ],
+                              ),
+                            );
+                          },
+                        ),
+                      ],
+                    ),
+                  ),
                 ),
-              ],
-            ),
+              );
+            },
           ),
         );
       },
@@ -326,6 +388,10 @@ class _EnhancedTerminalBlockState extends ConsumerState<EnhancedTerminalBlock>
               
               // Action buttons
               _buildActionButtons(),
+              
+              // Interactive process indicator
+              if (_isActiveBlock && _processInfo != null)
+                _buildInteractiveProcessIndicator(),
             ],
           ),
           
@@ -550,6 +616,20 @@ class _EnhancedTerminalBlockState extends ConsumerState<EnhancedTerminalBlock>
             padding: const EdgeInsets.all(4),
             tooltip: 'Cancel command',
           ),
+        
+        // Terminate active process button
+        if (_isActiveBlock && _processInfo?.isPersistent == true)
+          IconButton(
+            onPressed: _terminateActiveProcess,
+            icon: Icon(
+              Icons.close,
+              color: AppTheme.terminalRed,
+            ),
+            iconSize: 16,
+            constraints: const BoxConstraints(),
+            padding: const EdgeInsets.all(4),
+            tooltip: 'Terminate process',
+          ),
       ],
     );
   }
@@ -694,8 +774,8 @@ class _EnhancedTerminalBlockState extends ConsumerState<EnhancedTerminalBlock>
                 isDense: true,
               ),
               onSubmitted: (value) {
-                if (widget.onInputSubmit != null && value.isNotEmpty) {
-                  widget.onInputSubmit!(value);
+                if (value.isNotEmpty) {
+                  _handleInteractiveInput(value);
                   _inputController.clear();
                 }
               },
@@ -704,8 +784,8 @@ class _EnhancedTerminalBlockState extends ConsumerState<EnhancedTerminalBlock>
           IconButton(
             onPressed: () {
               final text = _inputController.text;
-              if (widget.onInputSubmit != null && text.isNotEmpty) {
-                widget.onInputSubmit!(text);
+              if (text.isNotEmpty) {
+                _handleInteractiveInput(text);
                 _inputController.clear();
               }
             },
@@ -821,6 +901,175 @@ class _EnhancedTerminalBlockState extends ConsumerState<EnhancedTerminalBlock>
           ),
         );
       }
+    }
+  }
+
+  /// Get interactive status border color with active block consideration
+  Color _getInteractiveStatusBorderColor() {
+    if (_isActiveBlock) {
+      if (_isFocused) {
+        return AppTheme.terminalBlue;
+      } else if (_processInfo?.isPersistent == true) {
+        return _getStatusColor().withValues(alpha: 0.6);
+      } else {
+        return _getStatusColor().withValues(alpha: 0.5);
+      }
+    }
+    return _getStatusColor().withValues(alpha: 0.3);
+  }
+
+  /// Get interactive border width
+  double _getInteractiveBorderWidth() {
+    if (_isActiveBlock) {
+      return _isFocused ? 2.5 : 2.0;
+    }
+    return 1.5;
+  }
+
+  /// Check if interactive input should be shown
+  bool _shouldShowInteractiveInput() {
+    // Show if it's traditionally interactive
+    if (widget.blockData.isInteractive && 
+        widget.blockData.status == TerminalBlockStatus.running) {
+      return true;
+    }
+    
+    // Show if it's an active block that requires input
+    if (_isActiveBlock && _processInfo?.requiresInput == true) {
+      return true;
+    }
+    
+    return false;
+  }
+
+  /// Build interactive process indicator
+  Widget _buildInteractiveProcessIndicator() {
+    if (_processInfo == null) return const SizedBox.shrink();
+
+    String typeText = '';
+    IconData typeIcon = Icons.radio_button_checked;
+    Color typeColor = AppTheme.terminalGreen;
+
+    switch (_processInfo!.type) {
+      case ProcessType.repl:
+        typeText = 'REPL';
+        typeIcon = Icons.code;
+        typeColor = AppTheme.terminalBlue;
+        break;
+      case ProcessType.devServer:
+        typeText = 'Server';
+        typeIcon = Icons.dns;
+        typeColor = AppTheme.terminalGreen;
+        break;
+      case ProcessType.watcher:
+        typeText = 'Watcher';
+        typeIcon = Icons.visibility;
+        typeColor = AppTheme.terminalYellow;
+        break;
+      case ProcessType.interactive:
+        typeText = 'Interactive';
+        typeIcon = Icons.keyboard;
+        typeColor = AppTheme.terminalCyan;
+        break;
+      case ProcessType.buildTool:
+        typeText = 'Build';
+        typeIcon = Icons.build;
+        typeColor = AppTheme.terminalPurple;
+        break;
+      default:
+        typeText = 'Active';
+        typeIcon = Icons.play_circle;
+        typeColor = AppTheme.terminalBlue;
+    }
+
+    return Container(
+      margin: const EdgeInsets.only(left: 4),
+      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+      decoration: BoxDecoration(
+        color: typeColor.withValues(alpha: 0.1),
+        borderRadius: BorderRadius.circular(10),
+        border: Border.all(
+          color: typeColor.withValues(alpha: 0.3),
+          width: 1,
+        ),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(
+            typeIcon,
+            size: 10,
+            color: typeColor,
+          ),
+          const SizedBox(width: 4),
+          Text(
+            typeText,
+            style: TextStyle(
+              color: typeColor,
+              fontSize: 10,
+              fontWeight: FontWeight.w600,
+            ),
+          ),
+          if (_processInfo!.isPersistent && _isActiveBlock) ...
+            [
+              const SizedBox(width: 4),
+              AnimatedBuilder(
+                animation: _interactiveAnimation,
+                builder: (context, child) {
+                  return Container(
+                    width: 6,
+                    height: 6,
+                    decoration: BoxDecoration(
+                      color: typeColor.withValues(
+                        alpha: 0.5 + (0.5 * _interactiveAnimation.value),
+                      ),
+                      shape: BoxShape.circle,
+                    ),
+                  );
+                },
+              ),
+            ],
+        ],
+      ),
+    );
+  }
+
+  /// Setup interactive process handling
+  void _setupInteractiveProcessHandling() {
+    // Check if this block has an interactive process
+    final processInfo = _processDetector.detectProcessType(widget.blockData.command);
+    if (processInfo.isPersistent) {
+      setState(() {
+        _processInfo = processInfo;
+      });
+    }
+  }
+
+  /// Handle block tap for focus management
+  void _handleBlockTap() {
+    if (widget.blockData.status == TerminalBlockStatus.running && _processInfo?.isPersistent == true) {
+      _activeBlockManager.focusBlock(widget.blockData.id);
+      setState(() {
+        _isActiveBlock = true;
+      });
+    }
+  }
+
+  /// Terminate the active process
+  void _terminateActiveProcess() {
+    if (_isActiveBlock && _processInfo?.isPersistent == true) {
+      _activeBlockManager.terminateBlock(widget.blockData.id);
+      setState(() {
+        _isActiveBlock = false;
+        _processInfo = null;
+      });
+    }
+  }
+
+  /// Handle interactive input for active processes
+  void _handleInteractiveInput(String input) {
+    if (_isActiveBlock && _processInfo?.isPersistent == true) {
+      _activeBlockManager.sendInputToBlock(widget.blockData.id, input);
     }
   }
 }
