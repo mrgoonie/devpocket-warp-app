@@ -43,9 +43,7 @@ Main Tab Screen
 │   └── SSH Key Detail Screen
 │
 ├── Terminal (AI-Assisted)
-│   ├── Enhanced Terminal Screen (PTY + WebSocket)
-│   ├── Terminal Screen (legacy support)
-│   └── Block-based Command Interface
+│   └── Enhanced Terminal Screen (PTY, block-based command interface inspired by Warp.dev)
 │
 ├── History
 │   ├── Command History

@@ -1,0 +1,826 @@
+import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'dart:async';
+
+import '../../themes/app_theme.dart';
+import '../../providers/terminal_mode_provider.dart';
+import '../../services/terminal_text_encoding_service.dart';
+import '../../models/enhanced_terminal_models.dart';
+import 'terminal_block.dart';
+
+/// Enhanced terminal block with improved rendering, encoding support, and features
+class EnhancedTerminalBlock extends ConsumerStatefulWidget {
+  final EnhancedTerminalBlockData blockData;
+  final Stream<String>? outputStream;
+  final VoidCallback? onRerun;
+  final VoidCallback? onCancel;
+  final VoidCallback? onEnterFullscreen;
+  final ValueChanged<String>? onInputSubmit;
+  final bool showCopyButton;
+  final bool showTimestamp;
+  final double? customFontSize;
+  final String? customFontFamily;
+
+  const EnhancedTerminalBlock({
+    super.key,
+    required this.blockData,
+    this.outputStream,
+    this.onRerun,
+    this.onCancel,
+    this.onEnterFullscreen,
+    this.onInputSubmit,
+    this.showCopyButton = true,
+    this.showTimestamp = true,
+    this.customFontSize,
+    this.customFontFamily,
+  });
+
+  @override
+  ConsumerState<EnhancedTerminalBlock> createState() => _EnhancedTerminalBlockState();
+}
+
+class _EnhancedTerminalBlockState extends ConsumerState<EnhancedTerminalBlock> 
+    with TickerProviderStateMixin {
+  final StringBuffer _outputBuffer = StringBuffer();
+  final TextEditingController _inputController = TextEditingController();
+  final ScrollController _outputScrollController = ScrollController();
+  final TerminalTextEncodingService _encodingService = TerminalTextEncodingService.instance;
+  
+  StreamSubscription<String>? _outputSubscription;
+  late AnimationController _statusAnimationController;
+  late AnimationController _expandAnimationController;
+  late Animation<double> _statusAnimation;
+  late Animation<double> _expandAnimation;
+  
+  bool _isExpanded = true;
+  bool _autoScroll = true;
+  bool _showFullCommand = false;
+  String _processedOutput = '';
+
+  @override
+  void initState() {
+    super.initState();
+    
+    // Initialize animations
+    _statusAnimationController = AnimationController(
+      duration: const Duration(milliseconds: 300),
+      vsync: this,
+    );
+    _expandAnimationController = AnimationController(
+      duration: const Duration(milliseconds: 300),
+      vsync: this,
+    );
+    
+    _statusAnimation = Tween<double>(begin: 0.0, end: 1.0).animate(
+      CurvedAnimation(parent: _statusAnimationController, curve: Curves.easeOut),
+    );
+    _expandAnimation = Tween<double>(begin: 0.0, end: 1.0).animate(
+      CurvedAnimation(parent: _expandAnimationController, curve: Curves.easeOut),
+    );
+
+    // Start animations
+    _statusAnimationController.forward();
+    if (_isExpanded) _expandAnimationController.forward();
+    
+    // Initialize output
+    _initializeOutput();
+    
+    // Listen to output stream
+    _setupOutputStream();
+  }
+
+  @override
+  void didUpdateWidget(EnhancedTerminalBlock oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    
+    if (oldWidget.blockData.output != widget.blockData.output) {
+      _initializeOutput();
+    }
+    
+    if (oldWidget.outputStream != widget.outputStream) {
+      _setupOutputStream();
+    }
+  }
+
+  void _initializeOutput() {
+    _outputBuffer.clear();
+    if (widget.blockData.output.isNotEmpty) {
+      _outputBuffer.write(widget.blockData.output);
+      _processOutput();
+    }
+  }
+
+  void _setupOutputStream() {
+    _outputSubscription?.cancel();
+    
+    if (widget.outputStream != null) {
+      _outputSubscription = widget.outputStream!.listen(
+        (data) {
+          setState(() {
+            _outputBuffer.write(data);
+            _processOutput();
+          });
+          
+          _handleAutoScroll();
+        },
+        onError: (error) {
+          setState(() {
+            _outputBuffer.write('\n[ERROR] $error\n');
+            _processOutput();
+          });
+        },
+        onDone: () {
+          if (mounted) {
+            setState(() {
+              // Stream completed
+            });
+          }
+        },
+      );
+    }
+  }
+
+  void _processOutput() {
+    final rawOutput = _outputBuffer.toString();
+    _processedOutput = _encodingService.processTerminalOutput(
+      rawOutput,
+      encoding: widget.blockData.encodingFormat,
+    );
+  }
+
+  void _handleAutoScroll() {
+    final autoScrollEnabled = ref.read(autoScrollProvider);
+    if (autoScrollEnabled && _autoScroll && _outputScrollController.hasClients) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (_outputScrollController.hasClients) {
+          _outputScrollController.animateTo(
+            _outputScrollController.position.maxScrollExtent,
+            duration: const Duration(milliseconds: 200),
+            curve: Curves.easeOut,
+          );
+        }
+      });
+    }
+  }
+
+  @override
+  void dispose() {
+    _outputSubscription?.cancel();
+    _inputController.dispose();
+    _outputScrollController.dispose();
+    _statusAnimationController.dispose();
+    _expandAnimationController.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final terminalSettings = ref.watch(terminalModeProvider);
+    final fontSize = widget.customFontSize ?? terminalSettings.fontSize;
+    final fontFamily = widget.customFontFamily ?? terminalSettings.fontFamily;
+    
+    return AnimatedBuilder(
+      animation: _statusAnimation,
+      builder: (context, child) {
+        return Transform.scale(
+          scale: 0.95 + (0.05 * _statusAnimation.value),
+          child: Card(
+            margin: const EdgeInsets.only(bottom: 12),
+            color: AppTheme.darkSurface,
+            elevation: 2 + (2 * _statusAnimation.value),
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(12),
+              side: BorderSide(
+                color: _getStatusBorderColor(),
+                width: 1.5,
+              ),
+            ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                _buildEnhancedHeader(fontSize, fontFamily),
+                AnimatedBuilder(
+                  animation: _expandAnimation,
+                  builder: (context, child) {
+                    return SizeTransition(
+                      sizeFactor: _expandAnimation,
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.stretch,
+                        children: [
+                          if (_isExpanded) ...[
+                            _buildEnhancedOutput(fontSize, fontFamily),
+                            if (widget.blockData.isInteractive && 
+                                widget.blockData.status == TerminalBlockStatus.running)
+                              _buildInteractiveInput(fontSize, fontFamily),
+                          ],
+                        ],
+                      ),
+                    );
+                  },
+                ),
+              ],
+            ),
+          ),
+        );
+      },
+    );
+  }
+
+  Widget _buildEnhancedHeader(double fontSize, String fontFamily) {
+    return Container(
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: _getStatusColor().withValues(alpha: 0.1),
+        borderRadius: const BorderRadius.vertical(
+          top: Radius.circular(12),
+        ),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              // Animated status indicator
+              AnimatedContainer(
+                duration: const Duration(milliseconds: 300),
+                width: 12,
+                height: 12,
+                decoration: BoxDecoration(
+                  color: _getStatusColor(),
+                  shape: BoxShape.circle,
+                  boxShadow: widget.blockData.status == TerminalBlockStatus.running
+                      ? [
+                          BoxShadow(
+                            color: _getStatusColor().withValues(alpha: 0.5),
+                            blurRadius: 8,
+                            spreadRadius: 2,
+                          ),
+                        ]
+                      : null,
+                ),
+                child: widget.blockData.status == TerminalBlockStatus.running
+                    ? Center(
+                        child: SizedBox(
+                          width: 6,
+                          height: 6,
+                          child: CircularProgressIndicator(
+                            strokeWidth: 1,
+                            color: AppTheme.darkSurface,
+                          ),
+                        ),
+                      )
+                    : null,
+              ),
+              const SizedBox(width: 12),
+              
+              // Block index with enhanced styling
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                decoration: BoxDecoration(
+                  color: AppTheme.darkBackground.withValues(alpha: 0.5),
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: Text(
+                  '#${widget.blockData.index}',
+                  style: TextStyle(
+                    color: AppTheme.darkTextSecondary,
+                    fontSize: fontSize * 0.8,
+                    fontFamily: fontFamily,
+                    fontWeight: FontWeight.w500,
+                  ),
+                ),
+              ),
+              const SizedBox(width: 12),
+              
+              // Command with enhanced display
+              Expanded(
+                child: GestureDetector(
+                  onTap: () {
+                    setState(() {
+                      _showFullCommand = !_showFullCommand;
+                    });
+                  },
+                  child: AnimatedContainer(
+                    duration: const Duration(milliseconds: 200),
+                    child: Text(
+                      widget.blockData.command,
+                      style: TextStyle(
+                        color: widget.blockData.isAgentCommand 
+                            ? AppTheme.terminalBlue
+                            : AppTheme.terminalGreen,
+                        fontSize: fontSize * 0.95,
+                        fontFamily: fontFamily,
+                        fontWeight: FontWeight.w600,
+                      ),
+                      maxLines: _showFullCommand ? null : 1,
+                      overflow: _showFullCommand ? null : TextOverflow.ellipsis,
+                    ),
+                  ),
+                ),
+              ),
+              
+              // Status badge
+              _buildStatusBadge(fontSize),
+              const SizedBox(width: 8),
+              
+              // Action buttons
+              _buildActionButtons(),
+            ],
+          ),
+          
+          // Metadata row
+          if (widget.showTimestamp || widget.blockData.executionTime != null) ...[
+            const SizedBox(height: 8),
+            _buildMetadataRow(fontSize, fontFamily),
+          ],
+          
+          // Error indicators
+          if (widget.blockData.hasErrors) ...[
+            const SizedBox(height: 8),
+            _buildErrorIndicators(fontSize, fontFamily),
+          ],
+        ],
+      ),
+    );
+  }
+
+  Widget _buildStatusBadge(double fontSize) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+      decoration: BoxDecoration(
+        color: _getStatusColor().withValues(alpha: 0.2),
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(
+          color: _getStatusColor().withValues(alpha: 0.5),
+          width: 1,
+        ),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(
+            _getStatusIcon(),
+            size: 12,
+            color: _getStatusColor(),
+          ),
+          const SizedBox(width: 4),
+          Text(
+            _getStatusText(),
+            style: TextStyle(
+              color: _getStatusColor(),
+              fontSize: fontSize * 0.7,
+              fontWeight: FontWeight.w600,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildMetadataRow(double fontSize, String fontFamily) {
+    return Wrap(
+      spacing: 12,
+      children: [
+        if (widget.showTimestamp)
+          _buildMetadataItem(
+            icon: Icons.access_time,
+            text: _formatTimestamp(widget.blockData.timestamp),
+            fontSize: fontSize,
+            fontFamily: fontFamily,
+          ),
+        if (widget.blockData.executionTime != null)
+          _buildMetadataItem(
+            icon: Icons.timer,
+            text: widget.blockData.formattedExecutionTime!,
+            fontSize: fontSize,
+            fontFamily: fontFamily,
+          ),
+        if (widget.blockData.exitCode != null)
+          _buildMetadataItem(
+            icon: Icons.code,
+            text: 'Exit: ${widget.blockData.exitCode}',
+            fontSize: fontSize,
+            fontFamily: fontFamily,
+          ),
+      ],
+    );
+  }
+
+  Widget _buildMetadataItem({
+    required IconData icon,
+    required String text,
+    required double fontSize,
+    required String fontFamily,
+  }) {
+    return Row(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Icon(
+          icon,
+          size: fontSize * 0.8,
+          color: AppTheme.darkTextSecondary,
+        ),
+        const SizedBox(width: 4),
+        Text(
+          text,
+          style: TextStyle(
+            color: AppTheme.darkTextSecondary,
+            fontSize: fontSize * 0.75,
+            fontFamily: fontFamily,
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildErrorIndicators(double fontSize, String fontFamily) {
+    return Container(
+      padding: const EdgeInsets.all(8),
+      decoration: BoxDecoration(
+        color: AppTheme.terminalRed.withValues(alpha: 0.1),
+        borderRadius: BorderRadius.circular(8),
+        border: Border.all(
+          color: AppTheme.terminalRed.withValues(alpha: 0.3),
+          width: 1,
+        ),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Icon(
+                Icons.error_outline,
+                size: 16,
+                color: AppTheme.terminalRed,
+              ),
+              const SizedBox(width: 8),
+              Text(
+                '${widget.blockData.errors.length} error(s)',
+                style: TextStyle(
+                  color: AppTheme.terminalRed,
+                  fontSize: fontSize * 0.8,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+            ],
+          ),
+          ...widget.blockData.errors.take(3).map((error) => Padding(
+                padding: const EdgeInsets.only(top: 4),
+                child: Text(
+                  '• ${error.message}',
+                  style: TextStyle(
+                    color: AppTheme.terminalRed,
+                    fontSize: fontSize * 0.75,
+                    fontFamily: fontFamily,
+                  ),
+                ),
+              )),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildActionButtons() {
+    return Row(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        // Expand/Collapse button
+        IconButton(
+          onPressed: () {
+            setState(() {
+              _isExpanded = !_isExpanded;
+              if (_isExpanded) {
+                _expandAnimationController.forward();
+              } else {
+                _expandAnimationController.reverse();
+              }
+            });
+          },
+          icon: Icon(
+            _isExpanded ? Icons.expand_less : Icons.expand_more,
+            color: AppTheme.darkTextSecondary,
+          ),
+          iconSize: 18,
+          constraints: const BoxConstraints(),
+          padding: const EdgeInsets.all(4),
+        ),
+        
+        // Fullscreen button (for interactive commands)
+        if (widget.blockData.requiresFullscreenModal && widget.onEnterFullscreen != null)
+          IconButton(
+            onPressed: widget.onEnterFullscreen,
+            icon: Icon(
+              Icons.fullscreen,
+              color: AppTheme.terminalBlue,
+            ),
+            iconSize: 18,
+            constraints: const BoxConstraints(),
+            padding: const EdgeInsets.all(4),
+            tooltip: 'Enter fullscreen mode',
+          ),
+        
+        // Rerun button
+        if (widget.onRerun != null && 
+            widget.blockData.status != TerminalBlockStatus.running)
+          IconButton(
+            onPressed: widget.onRerun,
+            icon: Icon(
+              Icons.replay,
+              color: AppTheme.terminalGreen,
+            ),
+            iconSize: 18,
+            constraints: const BoxConstraints(),
+            padding: const EdgeInsets.all(4),
+            tooltip: 'Rerun command',
+          ),
+        
+        // Cancel button
+        if (widget.onCancel != null && 
+            widget.blockData.status == TerminalBlockStatus.running)
+          IconButton(
+            onPressed: widget.onCancel,
+            icon: Icon(
+              Icons.stop,
+              color: AppTheme.terminalRed,
+            ),
+            iconSize: 18,
+            constraints: const BoxConstraints(),
+            padding: const EdgeInsets.all(4),
+            tooltip: 'Cancel command',
+          ),
+      ],
+    );
+  }
+
+  Widget _buildEnhancedOutput(double fontSize, String fontFamily) {
+    if (_processedOutput.isEmpty && 
+        widget.blockData.status == TerminalBlockStatus.pending) {
+      return _buildEmptyState('Waiting to execute...', fontSize, fontFamily);
+    }
+
+    if (_processedOutput.isEmpty && 
+        widget.blockData.status == TerminalBlockStatus.running) {
+      return _buildLoadingState(fontSize, fontFamily);
+    }
+
+    return Container(
+      constraints: const BoxConstraints(
+        maxHeight: 300, // Limit height for very long outputs
+      ),
+      child: NotificationListener<ScrollNotification>(
+        onNotification: (notification) {
+          if (notification is UserScrollNotification) {
+            // User manually scrolled, disable auto-scroll temporarily
+            _autoScroll = _outputScrollController.position.pixels >= 
+                         _outputScrollController.position.maxScrollExtent - 50;
+          }
+          return false;
+        },
+        child: Scrollbar(
+          controller: _outputScrollController,
+          child: SingleChildScrollView(
+            controller: _outputScrollController,
+            padding: const EdgeInsets.all(12),
+            child: SelectableText(
+              _processedOutput,
+              style: TextStyle(
+                color: AppTheme.darkTextPrimary,
+                fontSize: fontSize,
+                fontFamily: fontFamily,
+                height: 1.4,
+              ),
+              contextMenuBuilder: (context, editableTextState) {
+                return _buildCustomContextMenu(context, editableTextState);
+              },
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildEmptyState(String message, double fontSize, String fontFamily) {
+    return Container(
+      padding: const EdgeInsets.all(24),
+      child: Center(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(
+              Icons.terminal,
+              size: 32,
+              color: AppTheme.darkTextSecondary.withValues(alpha: 0.5),
+            ),
+            const SizedBox(height: 8),
+            Text(
+              message,
+              style: TextStyle(
+                color: AppTheme.darkTextSecondary,
+                fontSize: fontSize * 0.9,
+                fontFamily: fontFamily,
+              ),
+              textAlign: TextAlign.center,
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildLoadingState(double fontSize, String fontFamily) {
+    return Container(
+      padding: const EdgeInsets.all(24),
+      child: Center(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            SizedBox(
+              width: 24,
+              height: 24,
+              child: CircularProgressIndicator(
+                strokeWidth: 2,
+                color: _getStatusColor(),
+              ),
+            ),
+            const SizedBox(height: 12),
+            Text(
+              'Executing command...',
+              style: TextStyle(
+                color: AppTheme.darkTextSecondary,
+                fontSize: fontSize * 0.9,
+                fontFamily: fontFamily,
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildInteractiveInput(double fontSize, String fontFamily) {
+    return Container(
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: AppTheme.darkBackground.withValues(alpha: 0.3),
+        borderRadius: const BorderRadius.vertical(
+          bottom: Radius.circular(12),
+        ),
+      ),
+      child: Row(
+        children: [
+          Icon(
+            Icons.keyboard,
+            size: 16,
+            color: AppTheme.terminalBlue,
+          ),
+          const SizedBox(width: 8),
+          Expanded(
+            child: TextField(
+              controller: _inputController,
+              style: TextStyle(
+                color: AppTheme.darkTextPrimary,
+                fontSize: fontSize,
+                fontFamily: fontFamily,
+              ),
+              decoration: InputDecoration(
+                hintText: 'Enter input for interactive command...',
+                hintStyle: TextStyle(
+                  color: AppTheme.darkTextSecondary,
+                  fontSize: fontSize,
+                ),
+                border: InputBorder.none,
+                isDense: true,
+              ),
+              onSubmitted: (value) {
+                if (widget.onInputSubmit != null && value.isNotEmpty) {
+                  widget.onInputSubmit!(value);
+                  _inputController.clear();
+                }
+              },
+            ),
+          ),
+          IconButton(
+            onPressed: () {
+              final text = _inputController.text;
+              if (widget.onInputSubmit != null && text.isNotEmpty) {
+                widget.onInputSubmit!(text);
+                _inputController.clear();
+              }
+            },
+            icon: Icon(
+              Icons.send,
+              color: AppTheme.terminalGreen,
+            ),
+            iconSize: 16,
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildCustomContextMenu(BuildContext context, EditableTextState editableTextState) {
+    final List<ContextMenuButtonItem> buttonItems = [
+      ...editableTextState.contextMenuButtonItems,
+      ContextMenuButtonItem(
+        label: 'Copy Output',
+        onPressed: () {
+          _copyOutput();
+          ContextMenuController.removeAny();
+        },
+      ),
+    ];
+
+    return AdaptiveTextSelectionToolbar.buttonItems(
+      anchors: editableTextState.contextMenuAnchors,
+      buttonItems: buttonItems,
+    );
+  }
+
+  Color _getStatusColor() {
+    switch (widget.blockData.status) {
+      case TerminalBlockStatus.pending:
+        return AppTheme.terminalYellow;
+      case TerminalBlockStatus.running:
+        return AppTheme.terminalBlue;
+      case TerminalBlockStatus.interactive:
+        return AppTheme.terminalCyan;
+      case TerminalBlockStatus.completed:
+        return widget.blockData.wasSuccessful ? AppTheme.terminalGreen : AppTheme.terminalYellow;
+      case TerminalBlockStatus.failed:
+        return AppTheme.terminalRed;
+      case TerminalBlockStatus.cancelled:
+        return AppTheme.darkTextSecondary;
+    }
+  }
+
+  Color _getStatusBorderColor() {
+    return _getStatusColor().withValues(alpha: 0.3);
+  }
+
+  IconData _getStatusIcon() {
+    switch (widget.blockData.status) {
+      case TerminalBlockStatus.pending:
+        return Icons.schedule;
+      case TerminalBlockStatus.running:
+        return Icons.play_circle;
+      case TerminalBlockStatus.interactive:
+        return Icons.keyboard;
+      case TerminalBlockStatus.completed:
+        return widget.blockData.wasSuccessful ? Icons.check_circle : Icons.warning;
+      case TerminalBlockStatus.failed:
+        return Icons.error;
+      case TerminalBlockStatus.cancelled:
+        return Icons.cancel;
+    }
+  }
+
+  String _getStatusText() {
+    switch (widget.blockData.status) {
+      case TerminalBlockStatus.pending:
+        return 'Pending';
+      case TerminalBlockStatus.running:
+        return 'Running';
+      case TerminalBlockStatus.interactive:
+        return 'Interactive';
+      case TerminalBlockStatus.completed:
+        return widget.blockData.wasSuccessful ? 'Success' : 'Warning';
+      case TerminalBlockStatus.failed:
+        return 'Failed';
+      case TerminalBlockStatus.cancelled:
+        return 'Cancelled';
+    }
+  }
+
+  String _formatTimestamp(DateTime timestamp) {
+    final now = DateTime.now();
+    final difference = now.difference(timestamp);
+    
+    if (difference.inMinutes < 1) {
+      return 'Just now';
+    } else if (difference.inMinutes < 60) {
+      return '${difference.inMinutes}m ago';
+    } else if (difference.inHours < 24) {
+      return '${difference.inHours}h ago';
+    } else {
+      return '${timestamp.day}/${timestamp.month} ${timestamp.hour}:${timestamp.minute.toString().padLeft(2, '0')}';
+    }
+  }
+
+  Future<void> _copyOutput() async {
+    if (_processedOutput.isNotEmpty) {
+      await Clipboard.setData(ClipboardData(text: _processedOutput));
+      
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: const Text('Output copied to clipboard'),
+            duration: const Duration(seconds: 2),
+            backgroundColor: AppTheme.terminalGreen,
+          ),
+        );
+      }
+    }
+  }
+}
