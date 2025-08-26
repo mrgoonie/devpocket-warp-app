@@ -1,5 +1,5 @@
 ---
-description: Research, analyze, and create implementation plans
+description: Research & create an implementation plan with 2 approaches
 ---
 
 Use the `planner-researcher` subagent to plan for this task:

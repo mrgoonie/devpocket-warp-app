@@ -1,5 +1,5 @@
 ---
-description: Run test flows and fix issues
+description: Run test suite and fix issues
 ---
 
 ## Reported Issues:

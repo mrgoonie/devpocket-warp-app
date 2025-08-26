@@ -1,5 +1,5 @@
 ---
-description: Analyze Github Actions logs and fix issues
+description: Analyze Github Actions logs and provide a plan to fix the issues
 ---
 ## Github Actions URL
  $ARGUMENTS
