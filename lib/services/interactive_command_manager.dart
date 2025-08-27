@@ -6,7 +6,6 @@ import 'dart:io';
 import 'dart:typed_data';
 
 import 'package:dartssh2/dartssh2.dart';
-import '../models/enhanced_ssh_models.dart';
 import '../services/fullscreen_command_detector.dart';
 import '../widgets/terminal/fullscreen_terminal_modal.dart';
 import 'modal_session_models.dart';

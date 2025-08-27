@@ -446,6 +446,9 @@ class TerminalBlockData {
   final String output;
   final bool isInteractive;
   final int index;
+  final int? exitCode;
+  final Duration? duration;
+  final String? errorMessage;
 
   TerminalBlockData({
     required this.id,
@@ -455,6 +458,9 @@ class TerminalBlockData {
     this.output = '',
     this.isInteractive = false,
     required this.index,
+    this.exitCode,
+    this.duration,
+    this.errorMessage,
   });
 
   TerminalBlockData copyWith({
@@ -465,6 +471,9 @@ class TerminalBlockData {
     String? output,
     bool? isInteractive,
     int? index,
+    int? exitCode,
+    Duration? duration,
+    String? errorMessage,
   }) {
     return TerminalBlockData(
       id: id ?? this.id,
@@ -474,6 +483,9 @@ class TerminalBlockData {
       output: output ?? this.output,
       isInteractive: isInteractive ?? this.isInteractive,
       index: index ?? this.index,
+      exitCode: exitCode ?? this.exitCode,
+      duration: duration ?? this.duration,
+      errorMessage: errorMessage ?? this.errorMessage,
     );
   }
 }

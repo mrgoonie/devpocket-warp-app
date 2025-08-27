@@ -14,6 +14,7 @@ class EnhancedTerminalBlockData extends TerminalBlockData {
   final Map<String, dynamic> metadata;
   final List<EnhancedTerminalBlockError> errors;
   final double? executionTime; // in seconds
+  @override
   final int? exitCode;
   final String? interruptSignal;
 
@@ -25,6 +26,9 @@ class EnhancedTerminalBlockData extends TerminalBlockData {
     String output = '',
     bool isInteractive = false,
     required int index,
+    this.exitCode,
+    Duration? duration,
+    String? errorMessage,
     required this.sessionId,
     this.isAgentCommand = false,
     this.requiresFullscreenModal = false,
@@ -34,7 +38,6 @@ class EnhancedTerminalBlockData extends TerminalBlockData {
     this.metadata = const {},
     this.errors = const [],
     this.executionTime,
-    this.exitCode,
     this.interruptSignal,
   }) : super(
          id: id,
@@ -44,6 +47,9 @@ class EnhancedTerminalBlockData extends TerminalBlockData {
          output: output,
          isInteractive: isInteractive,
          index: index,
+         exitCode: exitCode,
+         duration: duration,
+         errorMessage: errorMessage,
        );
 
   /// Create from base TerminalBlockData
@@ -68,6 +74,9 @@ class EnhancedTerminalBlockData extends TerminalBlockData {
          output: base.output,
          isInteractive: base.isInteractive,
          index: base.index,
+         exitCode: base.exitCode,
+         duration: base.duration,
+         errorMessage: base.errorMessage,
        );
 
   @override
@@ -79,6 +88,9 @@ class EnhancedTerminalBlockData extends TerminalBlockData {
     String? output,
     bool? isInteractive,
     int? index,
+    int? exitCode,
+    Duration? duration,
+    String? errorMessage,
     String? sessionId,
     bool? isAgentCommand,
     bool? requiresFullscreenModal,
@@ -88,7 +100,6 @@ class EnhancedTerminalBlockData extends TerminalBlockData {
     Map<String, dynamic>? metadata,
     List<EnhancedTerminalBlockError>? errors,
     double? executionTime,
-    int? exitCode,
     String? interruptSignal,
   }) {
     return EnhancedTerminalBlockData(
@@ -99,6 +110,9 @@ class EnhancedTerminalBlockData extends TerminalBlockData {
       output: output ?? this.output,
       isInteractive: isInteractive ?? this.isInteractive,
       index: index ?? this.index,
+      exitCode: exitCode ?? this.exitCode,
+      duration: duration ?? super.duration,
+      errorMessage: errorMessage ?? super.errorMessage,
       sessionId: sessionId ?? this.sessionId,
       isAgentCommand: isAgentCommand ?? this.isAgentCommand,
       requiresFullscreenModal: requiresFullscreenModal ?? this.requiresFullscreenModal,
@@ -108,7 +122,6 @@ class EnhancedTerminalBlockData extends TerminalBlockData {
       metadata: metadata ?? this.metadata,
       errors: errors ?? this.errors,
       executionTime: executionTime ?? this.executionTime,
-      exitCode: exitCode ?? this.exitCode,
       interruptSignal: interruptSignal ?? this.interruptSignal,
     );
   }

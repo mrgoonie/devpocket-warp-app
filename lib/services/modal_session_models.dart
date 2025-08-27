@@ -1,6 +1,4 @@
-import 'package:flutter/foundation.dart';
 import 'package:dartssh2/dartssh2.dart';
-import '../models/enhanced_ssh_models.dart';
 
 /// Represents a fullscreen modal command session
 class ModalSession {

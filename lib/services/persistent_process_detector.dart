@@ -19,6 +19,7 @@ class ProcessInfo {
   final bool requiresInput;
   final bool isPersistent;
   final bool needsPTY;
+  final bool requiresFullscreen;
   final String? processName;
   final Map<String, dynamic> metadata;
 
@@ -28,6 +29,7 @@ class ProcessInfo {
     this.requiresInput = false,
     this.isPersistent = false,
     this.needsPTY = false,
+    this.requiresFullscreen = false,
     this.processName,
     this.metadata = const {},
   });
@@ -40,7 +42,7 @@ class ProcessInfo {
 
   @override
   String toString() {
-    return 'ProcessInfo{type: $type, command: $command, persistent: $isPersistent, requiresInput: $requiresInput}';
+    return 'ProcessInfo{type: $type, command: $command, persistent: $isPersistent, requiresInput: $requiresInput, requiresFullscreen: $requiresFullscreen}';
   }
 }
 
