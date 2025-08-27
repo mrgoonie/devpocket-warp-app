@@ -684,6 +684,29 @@ class _SshTerminalWidgetState extends ConsumerState<SshTerminalWidget> {
     }
   }
 
+  /// Clear all terminal blocks (for Clear Screen functionality)
+  void _clearScreenBlocks() {
+    setState(() {
+      _terminalBlocks.clear();
+      _blockCounter = 0;
+    });
+
+    // Close current output controller if any
+    _currentOutputController?.close();
+    _currentOutputController = null;
+
+    // Show brief confirmation
+    if (mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Screen cleared'),
+          duration: Duration(milliseconds: 1500),
+          backgroundColor: AppTheme.terminalGreen,
+        ),
+      );
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     return Column(
@@ -1105,7 +1128,7 @@ class _SshTerminalWidgetState extends ConsumerState<SshTerminalWidget> {
                 icon: const Icon(Icons.clear, size: 16),
                 onPressed: _isConnected
                     ? () {
-                        _sendCommand('clear');
+                        _clearScreenBlocks();
                       }
                     : null,
                 tooltip: 'Clear Screen',
