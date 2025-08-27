@@ -149,7 +149,7 @@ Before completing any task, ensure:
 - Use `context7` MCP tool for latest package documentation
 - Use `senera` MCP tool for semantic code analysis
 - Use `psql` for database debugging
-- Send progress updates via `./.claude/send-discord.sh "Your message here"`
+- Send progress updates via `./.claude/send-discord.sh 'Your message here'` (remember to escape the string)
 - Provide clear, actionable summary reports
 - Escalate blockers immediately
 

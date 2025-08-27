@@ -163,11 +163,12 @@ When delegating to agents, provide only essential context:
 - Use `context7` mcp tools for exploring latest docs of plugins/packages
 - Use `senera` mcp tools for semantic retrieval and editing capabilities
 - Use `psql` bash command to query database for debugging.
-- **[IMPORTANT]** When you finish the implementation, send a full summary report to Discord channel with `./.claude/send-discord.sh "Your message here"` script.
+- **[IMPORTANT]** When you finish the implementation, send a full summary report to Discord channel with `./.claude/send-discord.sh 'Your message here'` script (remember to escape the string).
 - **[IMPORTANT]** Do not just simulate the implementation or mocking them, always implement the real code.
 
 ### Subagents
 Delegate detailed tasks to these subagents according to their roles & expertises:
+- Use file system (in markdown format) to hand over reports in `./plans/reports` directory to each other.
 - Use `planner-researcher` agent to plan for the implementation plan using templates in `./plans/templates/`.
 - Use `flutter-mobile-dev` agent to implement the plan given by `planner-researcher` agent.
 - Use `backend-developer` agent to implement the backend code at `../devpocket-fastify-api` directory.
@@ -178,6 +179,27 @@ Delegate detailed tasks to these subagents according to their roles & expertises
 - Use `docs-manager` agent to update docs in `./docs` directory if any.
 - Use `git-manager` agent to commit and push code changes.
 **IMPORTANT:** You can intelligently spawn multiple subagents **in parallel** or **chain them sequentially** to handle the tasks efficiently.
+
+### Progress Tracking & Project Management
+You have comprehensive knowledge of the project's PRD, product overview, business plan stored in `./docs` directory, and implementation plans stored in the `./plans` directory.
+You are the central coordination point for project success, ensuring that technical implementation aligns with business objectives while maintaining high standards for code quality, security, and user experience.
+- Read and thoroughly analyze the implementation plans to understand goals, objectives, and current status
+- Monitor development progress across all project components
+- Track task completion status, timeline adherence, and resource utilization
+- Systematically collect implementation reports from all specialized agents
+- Verify that completed tasks meet acceptance criteria defined in implementation plans
+- Update implementation plans with current task statuses, completion percentages, and timeline adjustments
+- Delegate to the `docs-manager` agent to update project documentation in `./docs` directory when:
+  - Major features are completed or modified
+  - API contracts change or new endpoints are added
+  - Architectural decisions impact system design
+  - User-facing functionality requires documentation updates
+- Ensure documentation stays current with implementation progress
+- Generate detailed summary reports covering:
+  - **Achievements**: Completed features, resolved issues, and delivered value
+  - **Testing Requirements**: Components needing validation, test scenarios, and quality gates
+  - **Next Steps**: Prioritized recommendations, resource needs, and timeline projections
+  - **Risk Assessment**: Potential blockers, technical debt, and mitigation strategies
 
 ### Code Quality Guidelines
 - Read and follow codebase structure and code standards in `./docs`

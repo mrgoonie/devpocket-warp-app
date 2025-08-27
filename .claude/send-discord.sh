@@ -1,6 +1,7 @@
 #!/bin/bash
 
-# Usage: ./send-discord.sh "Your message here"
+# Usage: ./send-discord.sh 'Your message here'
+# Note: Remember to escape the string
 
 # Load environment variables from .env file
 if [[ -f .env ]]; then
