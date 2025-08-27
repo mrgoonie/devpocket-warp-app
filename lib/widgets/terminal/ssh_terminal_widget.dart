@@ -12,6 +12,8 @@ import '../../services/terminal_input_mode_service.dart';
 import '../../services/persistent_process_detector.dart';
 import '../../services/active_block_manager.dart';
 import '../../services/pty_focus_manager.dart';
+import '../../services/fullscreen_command_detector.dart';
+import '../../services/interactive_command_manager.dart';
 import '../../providers/theme_provider.dart';
 import '../../services/welcome_block_layout_manager.dart';
 import 'terminal_block.dart';
@@ -50,6 +52,7 @@ class _SshTerminalWidgetState extends ConsumerState<SshTerminalWidget> {
   final SshConnectionManager _sshManager = SshConnectionManager.instance;
   final TerminalInputModeService _inputModeService = TerminalInputModeService.instance;
   final PersistentProcessDetector _processDetector = PersistentProcessDetector.instance;
+  final FullscreenCommandDetector _fullscreenDetector = FullscreenCommandDetector.instance;
   final ActiveBlockManager _activeBlockManager = ActiveBlockManager.instance;
   final PTYFocusManager _focusManager = PTYFocusManager.instance;
   final TextEditingController _inputController = TextEditingController();
@@ -455,8 +458,14 @@ class _SshTerminalWidgetState extends ConsumerState<SshTerminalWidget> {
   
   /// Check if command is interactive
   bool _isInteractiveCommand(String command) {
-    final interactiveCommands = ['vi', 'vim', 'nano', 'emacs', 'htop', 'top', 'less', 'more'];
-    return interactiveCommands.any((cmd) => command.trim().startsWith(cmd));
+    // Use the enhanced command detection
+    final handlingMode = _fullscreenDetector.detectHandlingMode(command);
+    
+    // Interactive commands are those that either:
+    // 1. Use block-interactive mode (Phase 3.5)
+    // 2. Use fullscreen modal mode (Phase 3) - but these won't create blocks anyway
+    return handlingMode == CommandHandlingMode.blockInteractive ||
+           handlingMode == CommandHandlingMode.fullscreenModal;
   }
   
   /// Update current block status
@@ -484,7 +493,14 @@ class _SshTerminalWidgetState extends ConsumerState<SshTerminalWidget> {
       final processedCommand = await _inputModeService.processInput(command, sessionId: _currentSessionId);
       final finalCommand = processedCommand ?? command;
       
-      // Create command block
+      // Check if command should trigger fullscreen modal
+      if (_fullscreenDetector.shouldTriggerFullscreen(finalCommand)) {
+        await _launchFullscreenModal(finalCommand);
+        _inputController.clear();
+        return;
+      }
+      
+      // Create command block for regular and block-interactive commands
       if (_useBlockUI) {
         _createCommandBlock(finalCommand);
       }
@@ -557,6 +573,88 @@ class _SshTerminalWidgetState extends ConsumerState<SshTerminalWidget> {
     await _inputModeService.toggleMode(_currentSessionId);
   }
   
+  /// Launch fullscreen modal for interactive commands
+  Future<void> _launchFullscreenModal(String command) async {
+    if (!mounted) return;
+
+    try {
+      // Get SSH client if using SSH profile - for now pass null
+      // In practice, you'd need to access the client from the connection manager
+      final sshClient = null;
+
+      // Launch fullscreen modal
+      await InteractiveCommandManager.launchFullscreenModal(
+        context: context,
+        command: command,
+        sshClient: sshClient,
+        environment: {
+          'TERM': 'xterm-256color',
+          'LC_ALL': 'en_US.UTF-8',
+        },
+        onOutput: (output) {
+          // Handle output if needed for logging
+          debugPrint('Fullscreen command output: $output');
+        },
+        onError: (error) {
+          // Handle errors
+          _handleError('Fullscreen command error: $error');
+        },
+        onExit: (exitCode) {
+          // Handle command completion
+          debugPrint('Fullscreen command exited with code: $exitCode');
+          
+          // Create a completion block in the main terminal
+          if (mounted && _useBlockUI) {
+            _createCompletionBlock(command, exitCode);
+          }
+        },
+      );
+
+    } catch (e) {
+      _handleError('Failed to launch fullscreen modal: $e');
+    }
+  }
+
+  /// Create a completion block after fullscreen command finishes
+  void _createCompletionBlock(String command, int exitCode) {
+    if (!mounted) return;
+
+    final blockId = 'block_${_blockCounter++}';
+    final wasSuccessful = exitCode == 0;
+    
+    final blockData = TerminalBlockData(
+      id: blockId,
+      command: command,
+      status: wasSuccessful ? TerminalBlockStatus.completed : TerminalBlockStatus.failed,
+      timestamp: DateTime.now(),
+      isInteractive: false,
+      index: _terminalBlocks.length + 1,
+      output: wasSuccessful 
+          ? '[Fullscreen command completed successfully]'
+          : '[Fullscreen command exited with code $exitCode]',
+    );
+
+    setState(() {
+      _terminalBlocks.add(blockData);
+    });
+
+    // Auto-scroll to show new block
+    _scrollToBottom();
+  }
+
+  /// Auto-scroll to bottom of blocks view
+  void _scrollToBottom() {
+    Future.delayed(const Duration(milliseconds: 100), () {
+      if (_blocksScrollController.hasClients) {
+        _blocksScrollController.animateTo(
+          _blocksScrollController.position.maxScrollExtent,
+          duration: const Duration(milliseconds: 300),
+          curve: Curves.easeOut,
+        );
+      }
+    });
+  }
+
   /// Rerun a command from a block
   void _rerunCommand(String command) {
     _inputController.text = command;
