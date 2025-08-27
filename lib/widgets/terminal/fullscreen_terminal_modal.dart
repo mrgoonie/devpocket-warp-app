@@ -61,7 +61,15 @@ class _FullscreenTerminalModalState extends ConsumerState<FullscreenTerminalModa
     
     _initializeAnimations();
     _initializeTerminal();
-    _executeCommand();
+    
+    // Execute command after a delay to ensure proper initialization
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      Future.delayed(const Duration(milliseconds: 200), () {
+        if (mounted) {
+          _executeCommand();
+        }
+      });
+    });
   }
 
   void _initializeAnimations() {
@@ -102,7 +110,9 @@ class _FullscreenTerminalModalState extends ConsumerState<FullscreenTerminalModa
         maxLines: 10000,
         onOutput: _handleTerminalInput,
         onBell: () {
-          HapticFeedback.lightImpact();
+          if (mounted) {
+            HapticFeedback.lightImpact();
+          }
         },
         onTitleChange: (title) {
           // Could update modal title if needed
@@ -113,40 +123,63 @@ class _FullscreenTerminalModalState extends ConsumerState<FullscreenTerminalModa
       );
 
       _controller = TerminalController();
-      _xtermService = XTermIntegrationService(
-        terminal: _terminal,
-        controller: _controller,
-      );
       
-      _commandManager = InteractiveCommandManager.instance;
-      
-      // Configure terminal for fullscreen
-      _xtermService.configureForFullscreen();
-      
-      setState(() {
-        _isInitialized = true;
-      });
-      
-      // Request focus after initialization
-      WidgetsBinding.instance.addPostFrameCallback((_) {
-        _terminalFocusNode.requestFocus();
-      });
+      // Initialize services
+      try {
+        _xtermService = XTermIntegrationService(
+          terminal: _terminal,
+          controller: _controller,
+        );
+        
+        _commandManager = InteractiveCommandManager.instance;
+        
+        // Configure terminal for fullscreen
+        _xtermService.configureForFullscreen();
+        
+        setState(() {
+          _isInitialized = true;
+        });
+        
+        // Request focus after initialization
+        WidgetsBinding.instance.addPostFrameCallback((_) {
+          if (mounted) {
+            _terminalFocusNode.requestFocus();
+          }
+        });
+        
+      } catch (serviceError) {
+        setState(() {
+          _error = 'Failed to initialize terminal services: $serviceError';
+          _isInitialized = false;
+        });
+      }
       
     } catch (e) {
       setState(() {
         _error = 'Failed to initialize terminal: $e';
+        _isInitialized = false;
       });
     }
   }
 
   Future<void> _executeCommand() async {
-    if (!_isInitialized) return;
+    if (!_isInitialized) {
+      // Wait a bit and retry if not initialized
+      await Future.delayed(const Duration(milliseconds: 100));
+      if (!_isInitialized) {
+        _handleCommandError('Terminal not properly initialized');
+        return;
+      }
+    }
     
     try {
       setState(() {
         _isCommandRunning = true;
         _error = null;
       });
+      
+      // Add a small delay to ensure terminal is ready
+      await Future.delayed(const Duration(milliseconds: 50));
       
       await _commandManager.executeFullscreenCommand(
         command: widget.command,

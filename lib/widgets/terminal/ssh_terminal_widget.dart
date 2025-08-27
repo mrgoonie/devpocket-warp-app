@@ -587,9 +587,10 @@ class _SshTerminalWidgetState extends ConsumerState<SshTerminalWidget> {
     if (!mounted) return;
 
     try {
-      // For now, we'll implement fullscreen modal without direct SSH client access
-      // The InteractiveCommandManager should handle the SSH connection internally
-      final sshClient = null;
+      // Get SSH client from connection manager if this is an SSH session
+      final sshClient = widget.profile != null && _currentSessionId != null
+          ? _sshManager.getSshClient(_currentSessionId!)
+          : null;
 
       // Launch fullscreen modal
       await InteractiveCommandManager.launchFullscreenModal(

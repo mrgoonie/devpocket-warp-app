@@ -4,7 +4,9 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../themes/app_theme.dart';
 import '../../models/ssh_profile_models.dart';
 import '../../providers/ssh_host_providers.dart';
+import '../../providers/ssh_connection_providers.dart';
 import '../../widgets/terminal/ssh_terminal_widget.dart';
+import '../../widgets/ssh_sync_widgets.dart';
 import '../vaults/host_edit_screen.dart';
 
 class EnhancedTerminalScreen extends ConsumerStatefulWidget {
@@ -24,6 +26,7 @@ class EnhancedTerminalScreen extends ConsumerStatefulWidget {
 class _EnhancedTerminalScreenState extends ConsumerState<EnhancedTerminalScreen> {
   SshProfile? _selectedProfile;
   bool _showHostSelector = false;
+  bool _isConnecting = false;
 
   @override
   void initState() {
@@ -57,10 +60,84 @@ class _EnhancedTerminalScreenState extends ConsumerState<EnhancedTerminalScreen>
               tooltip: 'Edit Host',
             ),
           ],
-          IconButton(
-            icon: const Icon(Icons.computer),
-            onPressed: _showHostSelector ? _hideHostSelector : _showConnectionSelector,
-            tooltip: 'Select Host',
+          // Sync status indicator in app bar
+          Consumer(
+            builder: (context, ref, child) {
+              final hasPendingConflicts = ref.watch(hasPendingConflictsProvider);
+              if (hasPendingConflicts) {
+                return IconButton(
+                  icon: const Icon(Icons.warning, color: AppTheme.terminalYellow),
+                  onPressed: () {
+                    final conflict = ref.read(syncStateProvider).pendingConflict;
+                    if (conflict != null) {
+                      showDialog(
+                        context: context,
+                        builder: (context) => ConflictResolutionDialog(
+                          conflict: conflict,
+                          onResolve: (strategy) {
+                            Navigator.of(context).pop();
+                            ref.read(syncStateProvider.notifier).resolveConflict(strategy);
+                          },
+                        ),
+                      );
+                    }
+                  },
+                  tooltip: 'Resolve Sync Conflicts',
+                );
+              }
+              return const SizedBox.shrink();
+            },
+          ),
+          Consumer(
+            builder: (context, ref, child) {
+              final hostsAsync = ref.watch(sshHostsProvider);
+              final connectionState = ref.watch(sshTerminalConnectionProvider);
+              final isConnected = connectionState.status == SshTerminalConnectionStatus.connected;
+              
+              return hostsAsync.when(
+                data: (hosts) {
+                  // Show "Add Host" icon when no hosts exist OR no host connected
+                  if (hosts.isEmpty || !isConnected) {
+                    return IconButton(
+                      icon: const Icon(Icons.add),
+                      onPressed: () {
+                        Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                            builder: (context) => const HostEditScreen(),
+                          ),
+                        );
+                      },
+                      tooltip: 'Add Host',
+                    );
+                  } else {
+                    // Show "Select Host" icon only when hosts exist AND connected to a host
+                    return IconButton(
+                      icon: const Icon(Icons.list_alt),
+                      onPressed: _showHostSelector ? _hideHostSelector : _showConnectionSelector,
+                      tooltip: 'Select Host',
+                    );
+                  }
+                },
+                loading: () => const SizedBox(
+                  width: 24,
+                  height: 24,
+                  child: CircularProgressIndicator(strokeWidth: 2),
+                ),
+                error: (_, __) => IconButton(
+                  icon: const Icon(Icons.add),
+                  onPressed: () {
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (context) => const HostEditScreen(),
+                      ),
+                    );
+                  },
+                  tooltip: 'Add Host',
+                ),
+              );
+            },
           ),
         ],
       ),
@@ -104,6 +181,11 @@ class _EnhancedTerminalScreenState extends ConsumerState<EnhancedTerminalScreen>
             
             return Column(
               children: [
+                // Sync status widget
+                const Padding(
+                  padding: EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                  child: SyncStatusWidget(compact: true),
+                ),
                 Container(
                   width: double.infinity,
                   padding: const EdgeInsets.all(16),
@@ -117,21 +199,60 @@ class _EnhancedTerminalScreenState extends ConsumerState<EnhancedTerminalScreen>
                     ),
                   ),
                 ),
+                // Quick stats header with sync controls
+                Container(
+                  margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                  padding: const EdgeInsets.all(16),
+                  decoration: BoxDecoration(
+                    color: AppTheme.darkSurface,
+                    borderRadius: BorderRadius.circular(12),
+                    border: Border.all(color: AppTheme.darkBorderColor),
+                  ),
+                  child: Column(
+                    children: [
+                      // Stats row
+                      Row(
+                        children: [
+                          Expanded(
+                            child: _buildQuickStat(
+                              'Total',
+                              hosts.length.toString(),
+                              Icons.computer,
+                              AppTheme.primaryColor,
+                            ),
+                          ),
+                          Container(width: 1, height: 40, color: AppTheme.darkBorderColor),
+                          Expanded(
+                            child: _buildQuickStat(
+                              'Online',
+                              hosts.where((h) => h.status == SshProfileStatus.active).length.toString(),
+                              Icons.circle,
+                              AppTheme.terminalGreen,
+                            ),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 12),
+                      // Sync controls
+                      const SyncControlsWidget(showFullControls: false),
+                      const SizedBox(height: 8),
+                      // Last sync time
+                      const LastSyncTimeWidget(),
+                    ],
+                  ),
+                ),
                 Expanded(
                   child: RefreshIndicator(
                     onRefresh: () async {
+                      // Perform full sync on refresh
+                      ref.read(syncStateProvider.notifier).performFullSync();
                       await ref.read(sshHostsProvider.notifier).refresh();
                     },
                     child: ListView.builder(
                       padding: const EdgeInsets.all(16),
-                      itemCount: hosts.length + 1, // +1 for local terminal option
+                      itemCount: hosts.length,
                       itemBuilder: (context, index) {
-                        if (index == 0) {
-                          // Local terminal option
-                          return _buildLocalTerminalCard();
-                        }
-                        
-                        final host = hosts[index - 1];
+                        final host = hosts[index];
                         return _buildHostCard(host);
                       },
                     ),
@@ -151,75 +272,6 @@ class _EnhancedTerminalScreenState extends ConsumerState<EnhancedTerminalScreen>
     );
   }
 
-  Widget _buildLocalTerminalCard() {
-    return Card(
-      color: AppTheme.darkSurface,
-      margin: const EdgeInsets.only(bottom: 12),
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(12),
-        side: const BorderSide(color: AppTheme.darkBorderColor),
-      ),
-      child: InkWell(
-        borderRadius: BorderRadius.circular(12),
-        onTap: () {
-          setState(() {
-            _selectedProfile = null;
-            _showHostSelector = false;
-          });
-        },
-        child: Padding(
-          padding: const EdgeInsets.all(16),
-          child: Row(
-            children: [
-              Container(
-                width: 40,
-                height: 40,
-                decoration: BoxDecoration(
-                  color: AppTheme.primaryColor.withValues(alpha: 0.1),
-                  borderRadius: BorderRadius.circular(20),
-                  border: Border.all(color: AppTheme.primaryColor.withValues(alpha: 0.3)),
-                ),
-                child: const Icon(
-                  Icons.terminal,
-                  color: AppTheme.primaryColor,
-                  size: 20,
-                ),
-              ),
-              const SizedBox(width: 16),
-              const Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      'Local Terminal',
-                      style: TextStyle(
-                        color: AppTheme.darkTextPrimary,
-                        fontSize: 16,
-                        fontWeight: FontWeight.w600,
-                      ),
-                    ),
-                    SizedBox(height: 2),
-                    Text(
-                      'DevPocket local terminal session',
-                      style: TextStyle(
-                        color: AppTheme.darkTextSecondary,
-                        fontSize: 14,
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-              const Icon(
-                Icons.arrow_forward_ios,
-                color: AppTheme.darkTextSecondary,
-                size: 16,
-              ),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
 
   Widget _buildHostCard(SshProfile host) {
     return Card(
@@ -231,11 +283,34 @@ class _EnhancedTerminalScreenState extends ConsumerState<EnhancedTerminalScreen>
       ),
       child: InkWell(
         borderRadius: BorderRadius.circular(12),
-        onTap: () {
+        onTap: _isConnecting ? null : () async {
           setState(() {
-            _selectedProfile = host;
-            _showHostSelector = false;
+            _isConnecting = true;
           });
+          
+          try {
+            // Simulate connection delay and test connection
+            await Future.delayed(const Duration(milliseconds: 500));
+            
+            setState(() {
+              _selectedProfile = host;
+              _showHostSelector = false;
+              _isConnecting = false;
+            });
+          } catch (e) {
+            setState(() {
+              _isConnecting = false;
+            });
+            
+            if (mounted) {
+              ScaffoldMessenger.of(context).showSnackBar(
+                SnackBar(
+                  content: Text('Connection failed: $e'),
+                  backgroundColor: AppTheme.terminalRed,
+                ),
+              );
+            }
+          }
         },
         child: Padding(
           padding: const EdgeInsets.all(16),
@@ -274,11 +349,20 @@ class _EnhancedTerminalScreenState extends ConsumerState<EnhancedTerminalScreen>
                   ],
                 ),
               ),
-              const Icon(
-                Icons.arrow_forward_ios,
-                color: AppTheme.darkTextSecondary,
-                size: 16,
-              ),
+              _isConnecting
+                ? const SizedBox(
+                    width: 16,
+                    height: 16,
+                    child: CircularProgressIndicator(
+                      strokeWidth: 2,
+                      valueColor: AlwaysStoppedAnimation<Color>(AppTheme.primaryColor),
+                    ),
+                  )
+                : const Icon(
+                    Icons.arrow_forward_ios,
+                    color: AppTheme.darkTextSecondary,
+                    size: 16,
+                  ),
             ],
           ),
         ),
@@ -364,34 +448,14 @@ class _EnhancedTerminalScreenState extends ConsumerState<EnhancedTerminalScreen>
               textAlign: TextAlign.center,
             ),
             const SizedBox(height: 32),
-            Row(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                OutlinedButton.icon(
-                  onPressed: () {
-                    setState(() {
-                      _selectedProfile = null;
-                      _showHostSelector = false;
-                    });
-                  },
-                  icon: const Icon(Icons.terminal),
-                  label: const Text('Local Terminal'),
-                  style: OutlinedButton.styleFrom(
-                    foregroundColor: AppTheme.primaryColor,
-                    side: const BorderSide(color: AppTheme.primaryColor),
-                  ),
-                ),
-                const SizedBox(width: 16),
-                ElevatedButton.icon(
-                  onPressed: _showConnectionSelector,
-                  icon: const Icon(Icons.computer),
-                  label: const Text('Select Host'),
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: AppTheme.primaryColor,
-                    foregroundColor: Colors.black,
-                  ),
-                ),
-              ],
+            ElevatedButton.icon(
+              onPressed: _showConnectionSelector,
+              icon: const Icon(Icons.computer),
+              label: const Text('Select Host'),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: AppTheme.primaryColor,
+                foregroundColor: Colors.black,
+              ),
             ),
           ],
         ),
@@ -439,41 +503,21 @@ class _EnhancedTerminalScreenState extends ConsumerState<EnhancedTerminalScreen>
               textAlign: TextAlign.center,
             ),
             const SizedBox(height: 32),
-            Row(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                OutlinedButton.icon(
-                  onPressed: () {
-                    setState(() {
-                      _selectedProfile = null;
-                      _showHostSelector = false;
-                    });
-                  },
-                  icon: const Icon(Icons.terminal),
-                  label: const Text('Local Terminal'),
-                  style: OutlinedButton.styleFrom(
-                    foregroundColor: AppTheme.primaryColor,
-                    side: const BorderSide(color: AppTheme.primaryColor),
+            ElevatedButton.icon(
+              onPressed: () {
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (context) => const HostEditScreen(),
                   ),
-                ),
-                const SizedBox(width: 16),
-                ElevatedButton.icon(
-                  onPressed: () {
-                    Navigator.push(
-                      context,
-                      MaterialPageRoute(
-                        builder: (context) => const HostEditScreen(),
-                      ),
-                    );
-                  },
-                  icon: const Icon(Icons.add),
-                  label: const Text('Add Host'),
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: AppTheme.primaryColor,
-                    foregroundColor: Colors.black,
-                  ),
-                ),
-              ],
+                );
+              },
+              icon: const Icon(Icons.add),
+              label: const Text('Add Host'),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: AppTheme.primaryColor,
+                foregroundColor: Colors.black,
+              ),
             ),
           ],
         ),
@@ -640,5 +684,35 @@ class _EnhancedTerminalScreenState extends ConsumerState<EnhancedTerminalScreen>
     } else {
       return '${timestamp.month}/${timestamp.day}/${timestamp.year}';
     }
+  }
+
+  Widget _buildQuickStat(String label, String value, IconData icon, Color color) {
+    return Column(
+      children: [
+        Row(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(icon, color: color, size: 16),
+            const SizedBox(width: 4),
+            Text(
+              value,
+              style: const TextStyle(
+                color: AppTheme.darkTextPrimary,
+                fontSize: 18,
+                fontWeight: FontWeight.bold,
+              ),
+            ),
+          ],
+        ),
+        const SizedBox(height: 4),
+        Text(
+          label,
+          style: const TextStyle(
+            color: AppTheme.darkTextSecondary,
+            fontSize: 12,
+          ),
+        ),
+      ],
+    );
   }
 }

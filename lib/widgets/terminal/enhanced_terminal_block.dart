@@ -61,13 +61,14 @@ class _EnhancedTerminalBlockState extends ConsumerState<EnhancedTerminalBlock>
   StreamSubscription<ActiveBlockEvent>? _activeBlockSubscription;
   StreamSubscription<FocusEvent>? _focusSubscription;
   late AnimationController _statusAnimationController;
-  late AnimationController _expandAnimationController;
+  // Removed _expandAnimationController - no longer needed
   late AnimationController _interactiveAnimationController;
   late Animation<double> _statusAnimation;
-  late Animation<double> _expandAnimation;
+  // Removed _expandAnimation - no longer needed
   late Animation<double> _interactiveAnimation;
   
-  bool _isExpanded = true;
+  // Remove expansion state - blocks are now fixed height
+  // bool _isExpanded = true;
   bool _autoScroll = true;
   bool _showFullCommand = false;
   String _processedOutput = '';
@@ -87,10 +88,7 @@ class _EnhancedTerminalBlockState extends ConsumerState<EnhancedTerminalBlock>
       duration: const Duration(milliseconds: 300),
       vsync: this,
     );
-    _expandAnimationController = AnimationController(
-      duration: const Duration(milliseconds: 300),
-      vsync: this,
-    );
+    // Removed _expandAnimationController initialization
     _interactiveAnimationController = AnimationController(
       duration: const Duration(milliseconds: 1000),
       vsync: this,
@@ -99,16 +97,14 @@ class _EnhancedTerminalBlockState extends ConsumerState<EnhancedTerminalBlock>
     _statusAnimation = Tween<double>(begin: 0.0, end: 1.0).animate(
       CurvedAnimation(parent: _statusAnimationController, curve: Curves.easeOut),
     );
-    _expandAnimation = Tween<double>(begin: 0.0, end: 1.0).animate(
-      CurvedAnimation(parent: _expandAnimationController, curve: Curves.easeOut),
-    );
+    // Removed _expandAnimation initialization
     _interactiveAnimation = Tween<double>(begin: 0.0, end: 1.0).animate(
       CurvedAnimation(parent: _interactiveAnimationController, curve: Curves.easeInOut),
     );
 
     // Start animations
     _statusAnimationController.forward();
-    if (_isExpanded) _expandAnimationController.forward();
+    // Always show expanded content - no expansion animation needed
     
     // Initialize output
     _initializeOutput();
@@ -202,7 +198,7 @@ class _EnhancedTerminalBlockState extends ConsumerState<EnhancedTerminalBlock>
     _inputController.dispose();
     _outputScrollController.dispose();
     _statusAnimationController.dispose();
-    _expandAnimationController.dispose();
+    // _expandAnimationController.dispose(); // No longer needed
     _interactiveAnimationController.dispose();
     super.dispose();
   }
@@ -259,23 +255,14 @@ class _EnhancedTerminalBlockState extends ConsumerState<EnhancedTerminalBlock>
                       crossAxisAlignment: CrossAxisAlignment.stretch,
                       children: [
                         _buildEnhancedHeader(fontSize, fontFamily),
-                        AnimatedBuilder(
-                          animation: _expandAnimation,
-                          builder: (context, child) {
-                            return SizeTransition(
-                              sizeFactor: _expandAnimation,
-                              child: Column(
-                                crossAxisAlignment: CrossAxisAlignment.stretch,
-                                children: [
-                                  if (_isExpanded) ...[
-                                    _buildEnhancedOutput(fontSize, fontFamily),
-                                    if (_shouldShowInteractiveInput())
-                                      _buildInteractiveInput(fontSize, fontFamily),
-                                  ],
-                                ],
-                              ),
-                            );
-                          },
+                        // Always show output content - no expansion/collapse
+                        Column(
+                          crossAxisAlignment: CrossAxisAlignment.stretch,
+                          children: [
+                            _buildEnhancedOutput(fontSize, fontFamily),
+                            if (_shouldShowInteractiveInput())
+                              _buildInteractiveInput(fontSize, fontFamily),
+                          ],
                         ),
                       ],
                     ),
@@ -322,7 +309,7 @@ class _EnhancedTerminalBlockState extends ConsumerState<EnhancedTerminalBlock>
                       : null,
                 ),
                 child: widget.blockData.status == TerminalBlockStatus.running
-                    ? Center(
+                    ? const Center(
                         child: SizedBox(
                           width: 6,
                           height: 6,
@@ -516,7 +503,7 @@ class _EnhancedTerminalBlockState extends ConsumerState<EnhancedTerminalBlock>
         children: [
           Row(
             children: [
-              Icon(
+              const Icon(
                 Icons.error_outline,
                 size: 16,
                 color: AppTheme.terminalRed,
@@ -552,32 +539,13 @@ class _EnhancedTerminalBlockState extends ConsumerState<EnhancedTerminalBlock>
     return Row(
       mainAxisSize: MainAxisSize.min,
       children: [
-        // Expand/Collapse button
-        IconButton(
-          onPressed: () {
-            setState(() {
-              _isExpanded = !_isExpanded;
-              if (_isExpanded) {
-                _expandAnimationController.forward();
-              } else {
-                _expandAnimationController.reverse();
-              }
-            });
-          },
-          icon: Icon(
-            _isExpanded ? Icons.expand_less : Icons.expand_more,
-            color: AppTheme.darkTextSecondary,
-          ),
-          iconSize: 18,
-          constraints: const BoxConstraints(),
-          padding: const EdgeInsets.all(4),
-        ),
+        // Expand/Collapse button removed - blocks are now fixed height
         
         // Fullscreen button (for interactive commands)
         if (widget.blockData.requiresFullscreenModal && widget.onEnterFullscreen != null)
           IconButton(
             onPressed: widget.onEnterFullscreen,
-            icon: Icon(
+            icon: const Icon(
               Icons.fullscreen,
               color: AppTheme.terminalBlue,
             ),
@@ -592,7 +560,7 @@ class _EnhancedTerminalBlockState extends ConsumerState<EnhancedTerminalBlock>
             widget.blockData.status != TerminalBlockStatus.running)
           IconButton(
             onPressed: widget.onRerun,
-            icon: Icon(
+            icon: const Icon(
               Icons.replay,
               color: AppTheme.terminalGreen,
             ),
@@ -607,7 +575,7 @@ class _EnhancedTerminalBlockState extends ConsumerState<EnhancedTerminalBlock>
             widget.blockData.status == TerminalBlockStatus.running)
           IconButton(
             onPressed: widget.onCancel,
-            icon: Icon(
+            icon: const Icon(
               Icons.stop,
               color: AppTheme.terminalRed,
             ),
@@ -617,11 +585,39 @@ class _EnhancedTerminalBlockState extends ConsumerState<EnhancedTerminalBlock>
             tooltip: 'Cancel command',
           ),
         
+        // Copy command button
+        if (widget.showCopyButton)
+          IconButton(
+            onPressed: _copyCommand,
+            icon: const Icon(
+              Icons.content_copy,
+              color: AppTheme.terminalBlue,
+            ),
+            iconSize: 16,
+            constraints: const BoxConstraints(),
+            padding: const EdgeInsets.all(4),
+            tooltip: 'Copy command',
+          ),
+        
+        // Copy output button
+        if (widget.showCopyButton && _processedOutput.isNotEmpty)
+          IconButton(
+            onPressed: _copyOutput,
+            icon: const Icon(
+              Icons.copy,
+              color: AppTheme.terminalCyan,
+            ),
+            iconSize: 16,
+            constraints: const BoxConstraints(),
+            padding: const EdgeInsets.all(4),
+            tooltip: 'Copy output',
+          ),
+        
         // Terminate active process button
         if (_isActiveBlock && _processInfo?.isPersistent == true)
           IconButton(
             onPressed: _terminateActiveProcess,
-            icon: Icon(
+            icon: const Icon(
               Icons.close,
               color: AppTheme.terminalRed,
             ),
@@ -750,7 +746,7 @@ class _EnhancedTerminalBlockState extends ConsumerState<EnhancedTerminalBlock>
       ),
       child: Row(
         children: [
-          Icon(
+          const Icon(
             Icons.keyboard,
             size: 16,
             color: AppTheme.terminalBlue,
@@ -789,7 +785,7 @@ class _EnhancedTerminalBlockState extends ConsumerState<EnhancedTerminalBlock>
                 _inputController.clear();
               }
             },
-            icon: Icon(
+            icon: const Icon(
               Icons.send,
               color: AppTheme.terminalGreen,
             ),
@@ -894,13 +890,27 @@ class _EnhancedTerminalBlockState extends ConsumerState<EnhancedTerminalBlock>
       
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: const Text('Output copied to clipboard'),
-            duration: const Duration(seconds: 2),
+          const SnackBar(
+            content: Text('Output copied to clipboard'),
+            duration: Duration(seconds: 2),
             backgroundColor: AppTheme.terminalGreen,
           ),
         );
       }
+    }
+  }
+
+  Future<void> _copyCommand() async {
+    await Clipboard.setData(ClipboardData(text: widget.blockData.command));
+    
+    if (mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Command copied to clipboard'),
+          duration: Duration(seconds: 2),
+          backgroundColor: AppTheme.terminalBlue,
+        ),
+      );
     }
   }
 
@@ -951,13 +961,23 @@ class _EnhancedTerminalBlockState extends ConsumerState<EnhancedTerminalBlock>
     Color typeColor = AppTheme.terminalGreen;
 
     switch (_processInfo!.type) {
+      case ProcessType.oneshot:
+        typeText = 'One Shot';
+        typeIcon = Icons.flash_on;
+        typeColor = AppTheme.terminalGreen;
+        break;
+      case ProcessType.persistent:
+        typeText = 'Persistent';
+        typeIcon = Icons.autorenew;
+        typeColor = AppTheme.terminalYellow;
+        break;
       case ProcessType.repl:
         typeText = 'REPL';
         typeIcon = Icons.code;
         typeColor = AppTheme.terminalBlue;
         break;
       case ProcessType.devServer:
-        typeText = 'Server';
+        typeText = 'Dev Server';
         typeIcon = Icons.dns;
         typeColor = AppTheme.terminalGreen;
         break;
@@ -972,14 +992,10 @@ class _EnhancedTerminalBlockState extends ConsumerState<EnhancedTerminalBlock>
         typeColor = AppTheme.terminalCyan;
         break;
       case ProcessType.buildTool:
-        typeText = 'Build';
+        typeText = 'Build Tool';
         typeIcon = Icons.build;
         typeColor = AppTheme.terminalPurple;
         break;
-      default:
-        typeText = 'Active';
-        typeIcon = Icons.play_circle;
-        typeColor = AppTheme.terminalBlue;
     }
 
     return Container(

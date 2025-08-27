@@ -139,12 +139,17 @@ class InteractiveCommandManager {
     Function(int)? onExit,
   }) async {
     try {
-      // For SSH commands, we need to work with the existing SSH client
-      // Create an interactive shell session
-      final session = await sshClient.shell();
+      // For interactive commands, we need a PTY session
+      final session = await sshClient.shell(
+        pty: SSHPtyConfig(
+          width: terminal.viewWidth,
+          height: terminal.viewHeight,
+          type: 'xterm-256color',
+        ),
+      );
       
       // Send the command to the shell
-      session.write(Uint8List.fromList('$command\n'.codeUnits));
+      session.write(Uint8List.fromList('$command\r\n'.codeUnits));
       
       // Stream SSH output to terminal
       _outputSubscription = session.stdout.listen(
@@ -173,8 +178,15 @@ class InteractiveCommandManager {
 
       // Handle input from terminal to SSH
       _inputController.stream.listen((input) {
-        session.write(Uint8List.fromList(input.codeUnits));
+        try {
+          session.write(Uint8List.fromList(input.codeUnits));
+        } catch (e) {
+          onError?.call('Failed to send input: $e');
+        }
       });
+      
+      // Store the session for cleanup
+      _currentSession?.sshSession = session;
 
     } catch (e) {
       onError?.call('SSH execution failed: $e');
@@ -196,6 +208,13 @@ class InteractiveCommandManager {
       final executable = parts.first;
       final arguments = parts.length > 1 ? parts.sublist(1) : <String>[];
       
+      // Check if command is supported locally (iOS/Android restrictions)
+      if (!_isCommandSupportedLocally(executable)) {
+        onError?.call('Command "$executable" is not available locally. Use SSH connection to access this command.');
+        onExit?.call(1);
+        return;
+      }
+      
       // Set up environment
       final env = <String, String>{};
       env.addAll(Platform.environment);
@@ -208,14 +227,24 @@ class InteractiveCommandManager {
       env['COLUMNS'] = terminal.viewWidth.toString();
       env['LINES'] = terminal.viewHeight.toString();
       
-      // Start process
-      _currentProcess = await Process.start(
-        executable,
-        arguments,
-        environment: env,
-        mode: ProcessStartMode.normal,
-        runInShell: false,
-      );
+      // Start process with proper error handling
+      try {
+        _currentProcess = await Process.start(
+          executable,
+          arguments,
+          environment: env,
+          mode: ProcessStartMode.normal,
+          runInShell: Platform.isAndroid || Platform.isIOS ? true : false, // Use shell on mobile for better compatibility
+        );
+      } catch (e) {
+        // If process start fails, provide helpful error message
+        final errorMessage = 'Failed to start "$executable": ${e.toString()}\n'
+            'This command may not be available on mobile platforms.\n'
+            'Consider using an SSH connection to access full terminal commands.';
+        onError?.call(errorMessage);
+        onExit?.call(1);
+        return;
+      }
 
       if (_currentProcess == null) {
         onError?.call('Failed to start process');
@@ -285,6 +314,17 @@ class InteractiveCommandManager {
       }
     }
     
+    // Send Ctrl+C to SSH session if active
+    if (_currentSession?.sshSession != null) {
+      try {
+        // Send interrupt signal (Ctrl+C)
+        _currentSession!.sshSession!.write(Uint8List.fromList([0x03]));
+        await Future.delayed(const Duration(milliseconds: 200));
+      } catch (e) {
+        debugPrint('Failed to send interrupt to SSH session: $e');
+      }
+    }
+    
     cleanup();
   }
 
@@ -311,6 +351,39 @@ class InteractiveCommandManager {
     }
   }
 
+  /// Check if command is supported for local execution on mobile platforms
+  bool _isCommandSupportedLocally(String executable) {
+    // Commands that definitely don't work on mobile platforms
+    final unsupportedCommands = {
+      // Text editors requiring full terminal
+      'vi', 'vim', 'nvim', 'neovim', 'emacs', 'nano', 'pico', 'micro',
+      
+      // System monitors
+      'top', 'htop', 'btop', 'atop', 'iotop', 'iftop', 'nethogs',
+      
+      // Pagers
+      'less', 'more', 'most',
+      
+      // Terminal multiplexers
+      'tmux', 'screen', 'byobu',
+      
+      // File managers
+      'mc', 'ranger', 'nnn', 'lf', 'vifm',
+      
+      // System utilities typically not available on mobile
+      'sudo', 'su', 'systemctl', 'service', 'mount', 'umount',
+      'apt', 'yum', 'pacman', 'brew',
+    };
+    
+    // Check if on mobile platform - most interactive commands won't work
+    if (Platform.isAndroid || Platform.isIOS) {
+      return !unsupportedCommands.contains(executable.toLowerCase());
+    }
+    
+    // On desktop platforms, most commands should work
+    return true;
+  }
+
   /// Clean up resources
   void cleanup() {
     _outputSubscription?.cancel();
@@ -320,6 +393,8 @@ class InteractiveCommandManager {
     _currentProcess = null;
     
     if (_currentSession != null) {
+      // Close SSH session if exists
+      _currentSession!.sshSession?.close();
       _currentSession!.endTime = DateTime.now();
       _currentSession = null;
     }

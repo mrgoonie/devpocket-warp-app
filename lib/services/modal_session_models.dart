@@ -11,6 +11,7 @@ class ModalSession {
   DateTime? endTime;
   int? exitCode;
   String? error;
+  SSHSession? sshSession; // Store SSH session for cleanup
   
   ModalSession({
     required this.id,

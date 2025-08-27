@@ -448,6 +448,11 @@ class SshConnectionManager {
     return _connections[sessionId]?.profile;
   }
   
+  /// Get SSH client for a session
+  SSHClient? getSshClient(String sessionId) {
+    return _connections[sessionId]?.client;
+  }
+  
   /// Reconnect to SSH host
   Future<void> reconnect(String sessionId) async {
     final session = _connections[sessionId];

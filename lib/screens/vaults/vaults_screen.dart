@@ -9,9 +9,6 @@ import '../../providers/ssh_providers.dart';
 import '../../providers/ssh_host_providers.dart';
 import '../../providers/ssh_key_providers.dart';
 import '../../widgets/ssh_sync_widgets.dart';
-import '../main/main_tab_screen.dart';
-import 'hosts_list_screen.dart';
-import 'host_edit_screen.dart';
 import '../ssh_keys/ssh_keys_screen.dart';
 import '../ssh_keys/ssh_key_create_screen.dart';
 
@@ -29,7 +26,7 @@ class _VaultsScreenState extends ConsumerState<VaultsScreen>
   @override
   void initState() {
     super.initState();
-    _tabController = TabController(length: 3, vsync: this);
+    _tabController = TabController(length: 2, vsync: this);
   }
 
   @override
@@ -38,14 +35,6 @@ class _VaultsScreenState extends ConsumerState<VaultsScreen>
     super.dispose();
   }
 
-  void _showAddHostDialog() {
-    Navigator.push(
-      context,
-      MaterialPageRoute(
-        builder: (context) => const HostEditScreen(),
-      ),
-    );
-  }
 
   @override
   Widget build(BuildContext context) {
@@ -62,7 +51,6 @@ class _VaultsScreenState extends ConsumerState<VaultsScreen>
           unselectedLabelColor: AppTheme.darkTextSecondary,
           indicatorWeight: 3,
           tabs: const [
-            Tab(text: 'Hosts', icon: Icon(Icons.computer, size: 20)),
             Tab(text: 'Keys', icon: Icon(Icons.key, size: 20)),
             Tab(text: 'Logs', icon: Icon(Icons.history, size: 20)),
           ],
@@ -96,17 +84,11 @@ class _VaultsScreenState extends ConsumerState<VaultsScreen>
               return const SizedBox.shrink();
             },
           ),
-          IconButton(
-            icon: const Icon(Icons.add_circle_outline),
-            onPressed: _showAddHostDialog,
-            tooltip: 'Add New Host',
-          ),
         ],
       ),
       body: TabBarView(
         controller: _tabController,
         children: [
-          _buildHostsTab(),
           _buildKeysTab(),
           _buildLogsTab(),
         ],
@@ -114,145 +96,6 @@ class _VaultsScreenState extends ConsumerState<VaultsScreen>
     );
   }
 
-  Widget _buildHostsTab() {
-    return Consumer(
-      builder: (context, ref, child) {
-        final hostsAsync = ref.watch(sshHostsProvider);
-        
-        return hostsAsync.when(
-          data: (hosts) {
-            if (hosts.isEmpty) {
-              return _buildEmptyHostsState();
-            }
-            
-            return RefreshIndicator(
-              onRefresh: () async {
-                // Perform full sync on refresh
-                ref.read(syncStateProvider.notifier).performFullSync();
-                await ref.read(sshHostsProvider.notifier).refresh();
-              },
-              child: Column(
-                children: [
-                  // Sync status widget
-                  const Padding(
-                    padding: EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-                    child: SyncStatusWidget(compact: true),
-                  ),
-                  // Quick stats header with sync controls
-                  Container(
-                    margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-                    padding: const EdgeInsets.all(16),
-                    decoration: BoxDecoration(
-                      color: AppTheme.darkSurface,
-                      borderRadius: BorderRadius.circular(12),
-                      border: Border.all(color: AppTheme.darkBorderColor),
-                    ),
-                    child: Column(
-                      children: [
-                        // Stats row
-                        Row(
-                          children: [
-                            Expanded(
-                              child: _buildQuickStat(
-                                'Total',
-                                hosts.length.toString(),
-                                Icons.computer,
-                                AppTheme.primaryColor,
-                              ),
-                            ),
-                            Container(width: 1, height: 40, color: AppTheme.darkBorderColor),
-                            Expanded(
-                              child: _buildQuickStat(
-                                'Online',
-                                hosts.where((h) => h.status == SshProfileStatus.active).length.toString(),
-                                Icons.circle,
-                                AppTheme.terminalGreen,
-                              ),
-                            ),
-                            Container(width: 1, height: 40, color: AppTheme.darkBorderColor),
-                            Expanded(
-                              child: TextButton(
-                                onPressed: () => Navigator.push(
-                                  context,
-                                  MaterialPageRoute(builder: (context) => const HostsListScreen()),
-                                ),
-                                child: const Row(
-                                  mainAxisAlignment: MainAxisAlignment.center,
-                                  children: [
-                                    Icon(Icons.arrow_forward, color: AppTheme.primaryColor, size: 16),
-                                    SizedBox(width: 4),
-                                    Text(
-                                      'View All',
-                                      style: TextStyle(color: AppTheme.primaryColor, fontSize: 12),
-                                    ),
-                                  ],
-                                ),
-                              ),
-                            ),
-                          ],
-                        ),
-                        const SizedBox(height: 12),
-                        // Sync controls
-                        const SyncControlsWidget(showFullControls: false),
-                        const SizedBox(height: 8),
-                        // Last sync time
-                        const LastSyncTimeWidget(),
-                      ],
-                    ),
-                  ),
-                  // Recent hosts list
-                  Expanded(
-                    child: ListView.builder(
-                      padding: const EdgeInsets.symmetric(horizontal: 16),
-                      itemCount: (hosts.length > 3 ? 3 : hosts.length) + (hosts.length > 3 ? 1 : 0),
-                      itemBuilder: (context, index) {
-                        if (hosts.length > 3 && index == 3) {
-                          return Padding(
-                            padding: const EdgeInsets.only(bottom: 12),
-                            child: Card(
-                              color: AppTheme.darkSurface,
-                              child: ListTile(
-                                leading: const Icon(Icons.more_horiz, color: AppTheme.primaryColor),
-                                title: Text(
-                                  'View ${hosts.length - 3} more hosts',
-                                  style: const TextStyle(color: AppTheme.primaryColor),
-                                ),
-                                trailing: const Icon(Icons.arrow_forward, color: AppTheme.primaryColor),
-                                onTap: () => Navigator.push(
-                                  context,
-                                  MaterialPageRoute(builder: (context) => const HostsListScreen()),
-                                ),
-                              ),
-                            ),
-                          );
-                        }
-                        
-                        final host = hosts[index];
-                        return Padding(
-                          padding: const EdgeInsets.only(bottom: 12),
-                          child: _buildHostProfileCard(host),
-                        );
-                      },
-                    ),
-                  ),
-                ],
-              ),
-            );
-          },
-          loading: () => const Center(
-            child: CircularProgressIndicator(
-              valueColor: AlwaysStoppedAnimation<Color>(AppTheme.primaryColor),
-            ),
-          ),
-          error: (error, stackTrace) => _buildErrorState(
-            'Failed to load hosts',
-            error.toString(),
-            () => ref.read(sshHostsProvider.notifier).refresh(),
-          ),
-        );
-      },
-    );
-  }
 
   Widget _buildKeysTab() {
     return Consumer(
@@ -421,59 +264,6 @@ class _VaultsScreenState extends ConsumerState<VaultsScreen>
     );
   }
 
-  Widget _buildEmptyHostsState() {
-    return Center(
-      child: Padding(
-        padding: const EdgeInsets.all(32),
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Container(
-              width: 80,
-              height: 80,
-              decoration: BoxDecoration(
-                color: AppTheme.darkSurface,
-                borderRadius: BorderRadius.circular(20),
-                border: Border.all(color: AppTheme.darkBorderColor, width: 2),
-              ),
-              child: const Icon(
-                Icons.computer_outlined,
-                size: 40,
-                color: AppTheme.darkTextSecondary,
-              ),
-            ),
-            const SizedBox(height: 24),
-            Text(
-              'No Hosts Configured',
-              style: context.textTheme.headlineMedium?.copyWith(
-                color: AppTheme.darkTextPrimary,
-                fontWeight: FontWeight.bold,
-              ),
-            ),
-            const SizedBox(height: 8),
-            Text(
-              'Add your first SSH host to get started',
-              style: context.textTheme.bodyLarge?.copyWith(
-                color: AppTheme.darkTextSecondary,
-              ),
-              textAlign: TextAlign.center,
-            ),
-            const SizedBox(height: 32),
-            ElevatedButton.icon(
-              onPressed: _showAddHostDialog,
-              icon: const Icon(Icons.add),
-              label: const Text('Add First Host'),
-              style: ElevatedButton.styleFrom(
-                backgroundColor: AppTheme.primaryColor,
-                foregroundColor: Colors.black,
-                padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
 
   Widget _buildEmptyKeysState() {
     return Center(
@@ -752,301 +542,6 @@ class _VaultsScreenState extends ConsumerState<VaultsScreen>
     );
   }
 
-  Widget _buildHostProfileCard(SshProfile host) {
-    return Card(
-      color: AppTheme.darkSurface,
-      elevation: 2,
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(12),
-        side: const BorderSide(color: AppTheme.darkBorderColor),
-      ),
-      child: InkWell(
-        borderRadius: BorderRadius.circular(12),
-        onTap: () => _connectToSshProfile(host),
-        child: Padding(
-          padding: const EdgeInsets.all(16),
-          child: Row(
-            children: [
-              _buildSshProfileStatusIndicator(host.status),
-              const SizedBox(width: 12),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      host.name,
-                      style: const TextStyle(
-                        color: AppTheme.darkTextPrimary,
-                        fontSize: 16,
-                        fontWeight: FontWeight.w600,
-                      ),
-                    ),
-                    const SizedBox(height: 2),
-                    Text(
-                      host.connectionString,
-                      style: const TextStyle(
-                        color: AppTheme.darkTextSecondary,
-                        fontSize: 14,
-                      ),
-                    ),
-                    if (host.lastConnectedAt != null)
-                      Text(
-                        'Last: ${_formatTimestamp(host.lastConnectedAt!)}',
-                        style: const TextStyle(
-                          color: AppTheme.darkTextSecondary,
-                          fontSize: 12,
-                        ),
-                      ),
-                  ],
-                ),
-              ),
-              IconButton(
-                icon: const Icon(Icons.more_vert, color: AppTheme.darkTextSecondary),
-                onPressed: () => _showSshProfileMenu(host),
-              ),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
-
-  Widget _buildSshProfileStatusIndicator(SshProfileStatus status) {
-    Color color;
-    IconData icon;
-
-    switch (status) {
-      case SshProfileStatus.active:
-        color = AppTheme.terminalGreen;
-        icon = Icons.circle;
-        break;
-      case SshProfileStatus.testing:
-        color = AppTheme.terminalYellow;
-        icon = Icons.hourglass_empty;
-        break;
-      case SshProfileStatus.failed:
-        color = AppTheme.terminalRed;
-        icon = Icons.error;
-        break;
-      case SshProfileStatus.disabled:
-        color = AppTheme.darkTextSecondary;
-        icon = Icons.pause_circle;
-        break;
-      default:
-        color = AppTheme.darkTextSecondary;
-        icon = Icons.circle_outlined;
-    }
-
-    return Container(
-      width: 32,
-      height: 32,
-      decoration: BoxDecoration(
-        color: color.withValues(alpha: 0.1),
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: color.withValues(alpha: 0.3)),
-      ),
-      child: Icon(icon, color: color, size: 16),
-    );
-  }
-
-  void _showSshProfileMenu(SshProfile host) {
-    showModalBottomSheet(
-      context: context,
-      backgroundColor: AppTheme.darkSurface,
-      shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
-      ),
-      builder: (context) => SafeArea(
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            ListTile(
-              leading: const Icon(Icons.terminal, color: AppTheme.primaryColor),
-              title: const Text('Connect', style: TextStyle(color: AppTheme.darkTextPrimary)),
-              onTap: () {
-                Navigator.pop(context);
-                _connectToSshProfile(host);
-              },
-            ),
-            ListTile(
-              leading: const Icon(Icons.edit, color: AppTheme.terminalYellow),
-              title: const Text('Edit', style: TextStyle(color: AppTheme.darkTextPrimary)),
-              onTap: () {
-                Navigator.pop(context);
-                Navigator.push(
-                  context,
-                  MaterialPageRoute(builder: (context) => HostEditScreen(host: host)),
-                );
-              },
-            ),
-            ListTile(
-              leading: const Icon(Icons.wifi_find, color: AppTheme.terminalBlue),
-              title: const Text('Test Connection', style: TextStyle(color: AppTheme.darkTextPrimary)),
-              onTap: () {
-                Navigator.pop(context);
-                _testSshConnection(host);
-              },
-            ),
-            ListTile(
-              leading: const Icon(Icons.delete, color: AppTheme.terminalRed),
-              title: const Text('Delete', style: TextStyle(color: AppTheme.darkTextPrimary)),
-              onTap: () {
-                Navigator.pop(context);
-                _deleteSshProfile(host);
-              },
-            ),
-            const SizedBox(height: 8),
-          ],
-        ),
-      ),
-    );
-  }
-
-  void _connectToSshProfile(SshProfile host) {
-    // Set the SSH profile in the provider for the Terminal screen to use
-    ref.read(currentSshProfileProvider.notifier).state = host;
-    
-    // Navigate to the Terminal tab instead of creating a new route
-    TabNavigationHelper.navigateToTab(context, TabNavigationHelper.terminalTab);
-  }
-
-  Future<void> _testSshConnection(SshProfile host) async {
-    // Show loading dialog
-    showDialog(
-      context: context,
-      barrierDismissible: false,
-      builder: (context) => const AlertDialog(
-        backgroundColor: AppTheme.darkSurface,
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            CircularProgressIndicator(color: AppTheme.primaryColor),
-            SizedBox(height: 16),
-            Text(
-              'Testing connection...',
-              style: TextStyle(color: AppTheme.darkTextPrimary),
-            ),
-          ],
-        ),
-      ),
-    );
-
-    try {
-      final result = await ref.read(sshHostsProvider.notifier).testConnection(host);
-      if (mounted) {
-        Navigator.pop(context); // Close loading dialog
-
-        // Show result dialog
-        showDialog(
-          context: context,
-        builder: (context) => AlertDialog(
-          backgroundColor: AppTheme.darkSurface,
-          title: Text(
-            result.success ? 'Connection Successful' : 'Connection Failed',
-            style: TextStyle(
-              color: result.success ? AppTheme.terminalGreen : AppTheme.terminalRed,
-            ),
-          ),
-          content: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              if (result.responseTime != null)
-                Text(
-                  'Response time: ${result.responseTime!.inMilliseconds}ms',
-                  style: const TextStyle(color: AppTheme.darkTextSecondary),
-                ),
-              if (result.message != null)
-                Text(
-                  result.message!,
-                  style: const TextStyle(color: AppTheme.darkTextPrimary),
-                ),
-              if (result.error != null)
-                Text(
-                  result.error!,
-                  style: const TextStyle(color: AppTheme.terminalRed),
-                ),
-            ],
-          ),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.pop(context),
-              child: const Text(
-                'OK',
-                style: TextStyle(color: AppTheme.primaryColor),
-              ),
-            ),
-          ],
-        ),
-      );
-      }
-    } catch (e) {
-      if (mounted) {
-        Navigator.pop(context); // Close loading dialog
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Test failed: $e'),
-            backgroundColor: AppTheme.terminalRed,
-          ),
-        );
-      }
-    }
-  }
-
-  void _deleteSshProfile(SshProfile host) {
-    showDialog(
-      context: context,
-      builder: (context) => AlertDialog(
-        backgroundColor: AppTheme.darkSurface,
-        title: const Text(
-          'Delete SSH Host',
-          style: TextStyle(color: AppTheme.darkTextPrimary),
-        ),
-        content: Text(
-          'Are you sure you want to delete "${host.name}"?\n\nThis action cannot be undone.',
-          style: const TextStyle(color: AppTheme.darkTextSecondary),
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: const Text(
-              'Cancel',
-              style: TextStyle(color: AppTheme.darkTextSecondary),
-            ),
-          ),
-          ElevatedButton(
-            onPressed: () async {
-              Navigator.pop(context);
-              final success = await ref.read(sshHostsProvider.notifier).deleteHost(host.id);
-              if (mounted) {
-                if (success) {
-                  // ignore: use_build_context_synchronously
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(
-                      content: Text('Host deleted successfully'),
-                      backgroundColor: AppTheme.terminalGreen,
-                    ),
-                  );
-                } else {
-                  // ignore: use_build_context_synchronously
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(
-                      content: Text('Failed to delete host'),
-                      backgroundColor: AppTheme.terminalRed,
-                    ),
-                  );
-                }
-              }
-            },
-            style: ElevatedButton.styleFrom(
-              backgroundColor: AppTheme.terminalRed,
-            ),
-            child: const Text('Delete'),
-          ),
-        ],
-      ),
-    );
-  }
 
 
 

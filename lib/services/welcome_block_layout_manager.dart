@@ -35,18 +35,12 @@ class WelcomeBlockLayoutManager {
     final maxHeight = TerminalViewportManager.calculateMaxWelcomeHeight(context);
     final estimatedHeight = _estimateContentHeight(content, fontSize);
     
-    // Decision matrix based on content characteristics
-    if (characterCount < 500 && lineCount <= 5) {
-      // Short content - use standard layout
+    // Always use scrollable layout for welcome blocks (no expansion/collapse)
+    if (characterCount < 300 && lineCount <= 3) {
+      // Very short content - use standard layout
       return WelcomeLayoutStrategy.standard;
-    } else if (characterCount < 2000 && lineCount <= 15) {
-      // Medium content - use expandable for better UX
-      return WelcomeLayoutStrategy.expandable;
-    } else if (estimatedHeight > maxHeight && lineCount > 20) {
-      // Very long content - use hybrid approach
-      return WelcomeLayoutStrategy.hybrid;
     } else {
-      // Long content - use scrollable
+      // All other content - use scrollable for consistent UX
       return WelcomeLayoutStrategy.scrollable;
     }
   }
