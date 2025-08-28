@@ -5,12 +5,14 @@ import 'dart:async';
 
 import '../../themes/app_theme.dart';
 import '../../providers/terminal_mode_provider.dart';
+import '../../providers/theme_provider.dart';
 import '../../services/terminal_text_encoding_service.dart';
 import '../../services/active_block_manager.dart';
-import '../../services/pty_focus_manager.dart';
 import '../../services/persistent_process_detector.dart';
+import '../../services/command_type_detector.dart';
 import '../../models/enhanced_terminal_models.dart';
 import 'terminal_block.dart';
+import 'status_icon_widget.dart';
 
 /// Enhanced terminal block with improved rendering, encoding support, and interactive process handling
 class EnhancedTerminalBlock extends ConsumerStatefulWidget {
@@ -51,15 +53,13 @@ class _EnhancedTerminalBlockState extends ConsumerState<EnhancedTerminalBlock>
     with TickerProviderStateMixin {
   final StringBuffer _outputBuffer = StringBuffer();
   final TextEditingController _inputController = TextEditingController();
-  final ScrollController _outputScrollController = ScrollController();
   final TerminalTextEncodingService _encodingService = TerminalTextEncodingService.instance;
   final ActiveBlockManager _activeBlockManager = ActiveBlockManager.instance;
-  final PTYFocusManager _focusManager = PTYFocusManager.instance;
   final PersistentProcessDetector _processDetector = PersistentProcessDetector.instance;
+  final CommandTypeDetector _commandTypeDetector = CommandTypeDetector.instance;
   
   StreamSubscription<String>? _outputSubscription;
   StreamSubscription<ActiveBlockEvent>? _activeBlockSubscription;
-  StreamSubscription<FocusEvent>? _focusSubscription;
   late AnimationController _statusAnimationController;
   // Removed _expandAnimationController - no longer needed
   late AnimationController _interactiveAnimationController;
@@ -69,15 +69,17 @@ class _EnhancedTerminalBlockState extends ConsumerState<EnhancedTerminalBlock>
   
   // Remove expansion state - blocks are now fixed height
   // bool _isExpanded = true;
-  bool _autoScroll = true;
   bool _showFullCommand = false;
   String _processedOutput = '';
   
   // Interactive process handling state
   bool _isActiveBlock = false;
-  bool _isFocused = false;
+  final bool _isFocused = false;
   ProcessInfo? _processInfo;
-  String? _activeBlockId;
+  
+  // Command type detection state
+  CommandTypeInfo? _commandTypeInfo;
+  CommandType _commandType = CommandType.oneShot;
 
   @override
   void initState() {
@@ -111,6 +113,9 @@ class _EnhancedTerminalBlockState extends ConsumerState<EnhancedTerminalBlock>
     
     // Setup interactive process handling
     _setupInteractiveProcessHandling();
+    
+    // Setup command type detection
+    _setupCommandTypeDetection();
     
     // Listen to output stream
     _setupOutputStream();
@@ -147,8 +152,6 @@ class _EnhancedTerminalBlockState extends ConsumerState<EnhancedTerminalBlock>
             _outputBuffer.write(data);
             _processOutput();
           });
-          
-          _handleAutoScroll();
         },
         onError: (error) {
           setState(() {
@@ -175,30 +178,13 @@ class _EnhancedTerminalBlockState extends ConsumerState<EnhancedTerminalBlock>
     );
   }
 
-  void _handleAutoScroll() {
-    final autoScrollEnabled = ref.read(autoScrollProvider);
-    if (autoScrollEnabled && _autoScroll && _outputScrollController.hasClients) {
-      WidgetsBinding.instance.addPostFrameCallback((_) {
-        if (_outputScrollController.hasClients) {
-          _outputScrollController.animateTo(
-            _outputScrollController.position.maxScrollExtent,
-            duration: const Duration(milliseconds: 200),
-            curve: Curves.easeOut,
-          );
-        }
-      });
-    }
-  }
 
   @override
   void dispose() {
     _outputSubscription?.cancel();
     _activeBlockSubscription?.cancel();
-    _focusSubscription?.cancel();
     _inputController.dispose();
-    _outputScrollController.dispose();
     _statusAnimationController.dispose();
-    // _expandAnimationController.dispose(); // No longer needed
     _interactiveAnimationController.dispose();
     super.dispose();
   }
@@ -206,6 +192,7 @@ class _EnhancedTerminalBlockState extends ConsumerState<EnhancedTerminalBlock>
   @override
   Widget build(BuildContext context) {
     final terminalSettings = ref.watch(terminalModeProvider);
+    final terminalTextColor = ref.watch(terminalTextColorProvider);
     final fontSize = widget.customFontSize ?? terminalSettings.fontSize;
     final fontFamily = widget.customFontFamily ?? terminalSettings.fontFamily;
     
@@ -259,9 +246,9 @@ class _EnhancedTerminalBlockState extends ConsumerState<EnhancedTerminalBlock>
                         Column(
                           crossAxisAlignment: CrossAxisAlignment.stretch,
                           children: [
-                            _buildEnhancedOutput(fontSize, fontFamily),
+                            _buildEnhancedOutput(fontSize, fontFamily, terminalTextColor),
                             if (_shouldShowInteractiveInput())
-                              _buildInteractiveInput(fontSize, fontFamily),
+                              _buildInteractiveInput(fontSize, fontFamily, terminalTextColor),
                           ],
                         ),
                       ],
@@ -288,38 +275,16 @@ class _EnhancedTerminalBlockState extends ConsumerState<EnhancedTerminalBlock>
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
+          // Row 1: Status indicators and action buttons
           Row(
             children: [
-              // Animated status indicator
-              AnimatedContainer(
-                duration: const Duration(milliseconds: 300),
-                width: 12,
-                height: 12,
-                decoration: BoxDecoration(
-                  color: _getStatusColor(),
-                  shape: BoxShape.circle,
-                  boxShadow: widget.blockData.status == TerminalBlockStatus.running
-                      ? [
-                          BoxShadow(
-                            color: _getStatusColor().withValues(alpha: 0.5),
-                            blurRadius: 8,
-                            spreadRadius: 2,
-                          ),
-                        ]
-                      : null,
-                ),
-                child: widget.blockData.status == TerminalBlockStatus.running
-                    ? const Center(
-                        child: SizedBox(
-                          width: 6,
-                          height: 6,
-                          child: CircularProgressIndicator(
-                            strokeWidth: 1,
-                            color: AppTheme.darkSurface,
-                          ),
-                        ),
-                      )
-                    : null,
+              // Intelligent status indicator
+              StatusIconWidget(
+                status: widget.blockData.status,
+                commandType: _commandType,
+                showActivityIndicator: _commandTypeInfo?.showActivityIndicator ?? false,
+                size: 12,
+                tooltip: _getStatusTooltip(),
               ),
               const SizedBox(width: 12),
               
@@ -340,46 +305,52 @@ class _EnhancedTerminalBlockState extends ConsumerState<EnhancedTerminalBlock>
                   ),
                 ),
               ),
-              const SizedBox(width: 12),
               
-              // Command with enhanced display
-              Expanded(
-                child: GestureDetector(
-                  onTap: () {
-                    setState(() {
-                      _showFullCommand = !_showFullCommand;
-                    });
-                  },
-                  child: AnimatedContainer(
-                    duration: const Duration(milliseconds: 200),
-                    child: Text(
-                      widget.blockData.command,
-                      style: TextStyle(
-                        color: widget.blockData.isAgentCommand 
-                            ? AppTheme.terminalBlue
-                            : AppTheme.terminalGreen,
-                        fontSize: fontSize * 0.95,
-                        fontFamily: fontFamily,
-                        fontWeight: FontWeight.w600,
-                      ),
-                      maxLines: _showFullCommand ? null : 1,
-                      overflow: _showFullCommand ? null : TextOverflow.ellipsis,
-                    ),
-                  ),
-                ),
-              ),
+              // Spacer to push status badge and buttons to the right
+              const Spacer(),
               
               // Status badge
-              _buildStatusBadge(fontSize),
+              _buildEnhancedStatusBadge(fontSize),
               const SizedBox(width: 8),
               
               // Action buttons
               _buildActionButtons(),
               
+              // Command type indicator
+              if (_commandTypeInfo != null && _commandTypeInfo!.requiresSpecialHandling)
+                _buildCommandTypeIndicator(),
+                
               // Interactive process indicator
               if (_isActiveBlock && _processInfo != null)
                 _buildInteractiveProcessIndicator(),
             ],
+          ),
+          
+          // Row 2: Command display
+          const SizedBox(height: 8),
+          GestureDetector(
+            onTap: () {
+              setState(() {
+                _showFullCommand = !_showFullCommand;
+              });
+            },
+            child: AnimatedContainer(
+              duration: const Duration(milliseconds: 200),
+              width: double.infinity,
+              child: Text(
+                widget.blockData.command,
+                style: TextStyle(
+                  color: widget.blockData.isAgentCommand 
+                      ? AppTheme.terminalBlue
+                      : AppTheme.terminalGreen,
+                  fontSize: fontSize * 0.9,
+                  fontFamily: fontFamily,
+                  fontWeight: FontWeight.w500,
+                ),
+                maxLines: _showFullCommand ? null : 1,
+                overflow: _showFullCommand ? null : TextOverflow.ellipsis,
+              ),
+            ),
           ),
           
           // Metadata row
@@ -398,37 +369,39 @@ class _EnhancedTerminalBlockState extends ConsumerState<EnhancedTerminalBlock>
     );
   }
 
-  Widget _buildStatusBadge(double fontSize) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-      decoration: BoxDecoration(
-        color: _getStatusColor().withValues(alpha: 0.2),
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(
-          color: _getStatusColor().withValues(alpha: 0.5),
-          width: 1,
-        ),
-      ),
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Icon(
-            _getStatusIcon(),
-            size: 12,
-            color: _getStatusColor(),
-          ),
-          const SizedBox(width: 4),
-          Text(
-            _getStatusText(),
-            style: TextStyle(
-              color: _getStatusColor(),
-              fontSize: fontSize * 0.7,
-              fontWeight: FontWeight.w600,
-            ),
-          ),
-        ],
-      ),
+  Widget _buildEnhancedStatusBadge(double fontSize) {
+    return StatusIconBadge(
+      status: widget.blockData.status,
+      commandType: _commandType,
+      showActivityIndicator: _commandTypeInfo?.showActivityIndicator ?? false,
+      fontSize: fontSize * 0.8,
+      customText: _getEnhancedStatusText(),
     );
+  }
+  
+  /// Get enhanced status text that includes command type information
+  String _getEnhancedStatusText() {
+    final baseStatus = _getStatusText();
+    if (widget.blockData.status == TerminalBlockStatus.running && _commandTypeInfo != null) {
+      switch (_commandType) {
+        case CommandType.oneShot:
+          return 'Executing';
+        case CommandType.continuous:
+          return 'Monitoring';
+        case CommandType.interactive:
+          return 'Interactive';
+      }
+    }
+    return baseStatus;
+  }
+  
+  /// Get tooltip for status icon
+  String _getStatusTooltip() {
+    if (_commandTypeInfo == null) return _getStatusText();
+    
+    final typeDesc = _commandTypeInfo!.displayName;
+    final statusText = _getStatusText();
+    return '$typeDesc command - $statusText';
   }
 
   Widget _buildMetadataRow(double fontSize, String fontFamily) {
@@ -630,7 +603,7 @@ class _EnhancedTerminalBlockState extends ConsumerState<EnhancedTerminalBlock>
     );
   }
 
-  Widget _buildEnhancedOutput(double fontSize, String fontFamily) {
+  Widget _buildEnhancedOutput(double fontSize, String fontFamily, Color terminalTextColor) {
     if (_processedOutput.isEmpty && 
         widget.blockData.status == TerminalBlockStatus.pending) {
       return _buildEmptyState('Waiting to execute...', fontSize, fontFamily);
@@ -641,38 +614,21 @@ class _EnhancedTerminalBlockState extends ConsumerState<EnhancedTerminalBlock>
       return _buildLoadingState(fontSize, fontFamily);
     }
 
+    // Fixed height container with no scrollable behavior
     return Container(
-      constraints: const BoxConstraints(
-        maxHeight: 300, // Limit height for very long outputs
-      ),
-      child: NotificationListener<ScrollNotification>(
-        onNotification: (notification) {
-          if (notification is UserScrollNotification) {
-            // User manually scrolled, disable auto-scroll temporarily
-            _autoScroll = _outputScrollController.position.pixels >= 
-                         _outputScrollController.position.maxScrollExtent - 50;
-          }
-          return false;
-        },
-        child: Scrollbar(
-          controller: _outputScrollController,
-          child: SingleChildScrollView(
-            controller: _outputScrollController,
-            padding: const EdgeInsets.all(12),
-            child: SelectableText(
-              _processedOutput,
-              style: TextStyle(
-                color: AppTheme.darkTextPrimary,
-                fontSize: fontSize,
-                fontFamily: fontFamily,
-                height: 1.4,
-              ),
-              contextMenuBuilder: (context, editableTextState) {
-                return _buildCustomContextMenu(context, editableTextState);
-              },
-            ),
-          ),
+      width: double.infinity,
+      padding: const EdgeInsets.all(12),
+      child: SelectableText(
+        _processedOutput,
+        style: TextStyle(
+          color: terminalTextColor,
+          fontSize: fontSize,
+          fontFamily: fontFamily,
+          height: 1.4,
         ),
+        contextMenuBuilder: (context, editableTextState) {
+          return _buildCustomContextMenu(context, editableTextState);
+        },
       ),
     );
   }
@@ -722,7 +678,7 @@ class _EnhancedTerminalBlockState extends ConsumerState<EnhancedTerminalBlock>
             ),
             const SizedBox(height: 12),
             Text(
-              'Executing command...',
+              _getLoadingText(),
               style: TextStyle(
                 color: AppTheme.darkTextSecondary,
                 fontSize: fontSize * 0.9,
@@ -735,7 +691,7 @@ class _EnhancedTerminalBlockState extends ConsumerState<EnhancedTerminalBlock>
     );
   }
 
-  Widget _buildInteractiveInput(double fontSize, String fontFamily) {
+  Widget _buildInteractiveInput(double fontSize, String fontFamily, Color terminalTextColor) {
     return Container(
       padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(
@@ -756,7 +712,7 @@ class _EnhancedTerminalBlockState extends ConsumerState<EnhancedTerminalBlock>
             child: TextField(
               controller: _inputController,
               style: TextStyle(
-                color: AppTheme.darkTextPrimary,
+                color: terminalTextColor,
                 fontSize: fontSize,
                 fontFamily: fontFamily,
               ),
@@ -831,26 +787,8 @@ class _EnhancedTerminalBlockState extends ConsumerState<EnhancedTerminalBlock>
     }
   }
 
-  Color _getStatusBorderColor() {
-    return _getStatusColor().withValues(alpha: 0.3);
-  }
-
-  IconData _getStatusIcon() {
-    switch (widget.blockData.status) {
-      case TerminalBlockStatus.pending:
-        return Icons.schedule;
-      case TerminalBlockStatus.running:
-        return Icons.play_circle;
-      case TerminalBlockStatus.interactive:
-        return Icons.keyboard;
-      case TerminalBlockStatus.completed:
-        return widget.blockData.wasSuccessful ? Icons.check_circle : Icons.warning;
-      case TerminalBlockStatus.failed:
-        return Icons.error;
-      case TerminalBlockStatus.cancelled:
-        return Icons.cancel;
-    }
-  }
+  // Removed unused methods _getStatusBorderColor and _getStatusIcon
+  // These are now handled by StatusIconWidget
 
   String _getStatusText() {
     switch (widget.blockData.status) {
@@ -881,6 +819,18 @@ class _EnhancedTerminalBlockState extends ConsumerState<EnhancedTerminalBlock>
       return '${difference.inHours}h ago';
     } else {
       return '${timestamp.day}/${timestamp.month} ${timestamp.hour}:${timestamp.minute.toString().padLeft(2, '0')}';
+    }
+  }
+  
+  /// Get loading text based on command type
+  String _getLoadingText() {
+    switch (_commandType) {
+      case CommandType.oneShot:
+        return 'Executing command...';
+      case CommandType.continuous:
+        return 'Starting monitoring...';
+      case CommandType.interactive:
+        return 'Initializing interactive session...';
     }
   }
 
@@ -952,6 +902,47 @@ class _EnhancedTerminalBlockState extends ConsumerState<EnhancedTerminalBlock>
     return false;
   }
 
+  /// Build command type indicator
+  Widget _buildCommandTypeIndicator() {
+    if (_commandTypeInfo == null) return const SizedBox.shrink();
+
+    final typeInfo = _commandTypeInfo!;
+    Color typeColor = _getCommandTypeColor();
+    IconData typeIcon = _getCommandTypeIcon();
+
+    return Container(
+      margin: const EdgeInsets.only(left: 4),
+      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+      decoration: BoxDecoration(
+        color: typeColor.withValues(alpha: 0.1),
+        borderRadius: BorderRadius.circular(10),
+        border: Border.all(
+          color: typeColor.withValues(alpha: 0.3),
+          width: 1,
+        ),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(
+            typeIcon,
+            size: 10,
+            color: typeColor,
+          ),
+          const SizedBox(width: 4),
+          Text(
+            typeInfo.displayName,
+            style: TextStyle(
+              color: typeColor,
+              fontSize: 10,
+              fontWeight: FontWeight.w600,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+  
   /// Build interactive process indicator
   Widget _buildInteractiveProcessIndicator() {
     if (_processInfo == null) return const SizedBox.shrink();
@@ -1049,6 +1040,30 @@ class _EnhancedTerminalBlockState extends ConsumerState<EnhancedTerminalBlock>
       ),
     );
   }
+  
+  /// Get color for command type indicator
+  Color _getCommandTypeColor() {
+    switch (_commandType) {
+      case CommandType.oneShot:
+        return AppTheme.terminalBlue;
+      case CommandType.continuous:
+        return AppTheme.terminalYellow;
+      case CommandType.interactive:
+        return AppTheme.terminalCyan;
+    }
+  }
+  
+  /// Get icon for command type indicator
+  IconData _getCommandTypeIcon() {
+    switch (_commandType) {
+      case CommandType.oneShot:
+        return Icons.flash_on;
+      case CommandType.continuous:
+        return Icons.timeline;
+      case CommandType.interactive:
+        return Icons.keyboard;
+    }
+  }
 
   /// Setup interactive process handling
   void _setupInteractiveProcessHandling() {
@@ -1059,6 +1074,15 @@ class _EnhancedTerminalBlockState extends ConsumerState<EnhancedTerminalBlock>
         _processInfo = processInfo;
       });
     }
+  }
+  
+  /// Setup command type detection
+  void _setupCommandTypeDetection() {
+    // Detect command type for status icon display
+    _commandTypeInfo = _commandTypeDetector.detectCommandType(widget.blockData.command);
+    setState(() {
+      _commandType = _commandTypeInfo!.type;
+    });
   }
 
   /// Handle block tap for focus management
@@ -1087,5 +1111,10 @@ class _EnhancedTerminalBlockState extends ConsumerState<EnhancedTerminalBlock>
     if (_isActiveBlock && _processInfo?.isPersistent == true) {
       _activeBlockManager.sendInputToBlock(widget.blockData.id, input);
     }
+  }
+  
+  /// Debug method to get command type information
+  Map<String, dynamic> debugCommandTypeInfo() {
+    return _commandTypeDetector.debugCommandInfo(widget.blockData.command);
   }
 }

@@ -46,15 +46,16 @@ final themeProvider = StateNotifierProvider<ThemeNotifier, ThemeMode>((ref) {
 
 // Terminal theme provider
 enum TerminalTheme {
-  github('GitHub Dark', Color(0xFF0D1117)),
-  dracula('Dracula', Color(0xFF282A36)),
-  monokai('Monokai', Color(0xFF2D2A2E)),
-  solarized('Solarized Dark', Color(0xFF002B36)),
-  vscode('VS Code Dark', Color(0xFF1E1E1E));
+  github('GitHub Dark', Color(0xFF0D1117), Color(0xFFF0F6FC)),
+  dracula('Dracula', Color(0xFF282A36), Color(0xFFF8F8F2)),
+  monokai('Monokai', Color(0xFF2D2A2E), Color(0xFFF8F8F2)),
+  solarized('Solarized Dark', Color(0xFF002B36), Color(0xFF839496)),
+  vscode('VS Code Dark', Color(0xFF1E1E1E), Color(0xFFCCCCCC));
 
-  const TerminalTheme(this.name, this.backgroundColor);
+  const TerminalTheme(this.name, this.backgroundColor, this.textColor);
   final String name;
   final Color backgroundColor;
+  final Color textColor;
 }
 
 class TerminalThemeNotifier extends StateNotifier<TerminalTheme> {
@@ -91,6 +92,12 @@ class TerminalThemeNotifier extends StateNotifier<TerminalTheme> {
 
 final terminalThemeProvider = StateNotifierProvider<TerminalThemeNotifier, TerminalTheme>((ref) {
   return TerminalThemeNotifier();
+});
+
+// Terminal text color provider for easier access
+final terminalTextColorProvider = Provider<Color>((ref) {
+  final terminalTheme = ref.watch(terminalThemeProvider);
+  return terminalTheme.textColor;
 });
 
 // Available terminal fonts

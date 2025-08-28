@@ -15,7 +15,6 @@ import '../../services/pty_focus_manager.dart';
 import '../../services/fullscreen_command_detector.dart';
 import '../../services/interactive_command_manager.dart';
 import '../../providers/theme_provider.dart';
-import '../../services/welcome_block_layout_manager.dart';
 import 'terminal_block.dart';
 import 'enhanced_terminal_block.dart';
 
@@ -67,6 +66,7 @@ class _SshTerminalWidgetState extends ConsumerState<SshTerminalWidget> {
   String _welcomeMessage = '';
   final List<TerminalBlockData> _terminalBlocks = [];
   int _blockCounter = 0;
+  bool _hasWelcomeBlock = false;
   TerminalInputMode _currentInputMode = TerminalInputMode.command;
 
   // Block-based terminal state
@@ -201,7 +201,7 @@ class _SshTerminalWidgetState extends ConsumerState<SshTerminalWidget> {
         _status = 'Connected';
       });
 
-      // Get and display welcome message for SSH sessions
+      // Get and display welcome message for SSH sessions as first terminal block
       if (widget.profile != null && _currentSessionId != null) {
         // Wait a moment for welcome message to be captured
         Future.delayed(const Duration(milliseconds: 1000), () {
@@ -209,9 +209,7 @@ class _SshTerminalWidgetState extends ConsumerState<SshTerminalWidget> {
             final welcomeMsg =
                 _sshManager.getWelcomeMessage(_currentSessionId!);
             if (welcomeMsg.isNotEmpty) {
-              setState(() {
-                _welcomeMessage = welcomeMsg;
-              });
+              _createWelcomeBlock(welcomeMsg);
             }
           }
         });
@@ -440,7 +438,7 @@ class _SshTerminalWidgetState extends ConsumerState<SshTerminalWidget> {
       status: TerminalBlockStatus.running,
       timestamp: DateTime.now(),
       isInteractive: _isInteractiveCommand(command),
-      index: _terminalBlocks.length + 1,
+      index: _terminalBlocks.length,
     );
 
     setState(() {
@@ -459,6 +457,49 @@ class _SshTerminalWidgetState extends ConsumerState<SshTerminalWidget> {
     });
 
     return blockId; // Return block ID for interactive handling
+  }
+
+  /// Create a welcome message block as the first terminal block
+  void _createWelcomeBlock(String welcomeContent) {
+    if (!mounted || _hasWelcomeBlock) return;
+
+    // Store welcome message for potential re-creation after clear
+    setState(() {
+      _welcomeMessage = welcomeContent;
+    });
+
+    final blockId = 'welcome_block';
+    final welcomeBlockData = TerminalBlockData(
+      id: blockId,
+      command: '# SSH Connection Welcome Message',
+      status: TerminalBlockStatus.completed,
+      timestamp: DateTime.now(),
+      output: welcomeContent,
+      isInteractive: false,
+      index: 0, // Always index 0 as first block
+    );
+
+    setState(() {
+      // Insert at the beginning of the blocks list
+      _terminalBlocks.insert(0, welcomeBlockData);
+      _hasWelcomeBlock = true;
+      
+      // Increment indices of existing blocks
+      for (int i = 1; i < _terminalBlocks.length; i++) {
+        _terminalBlocks[i] = _terminalBlocks[i].copyWith(index: i);
+      }
+    });
+
+    // Auto-scroll to show the welcome block
+    Future.delayed(const Duration(milliseconds: 100), () {
+      if (_blocksScrollController.hasClients) {
+        _blocksScrollController.animateTo(
+          0.0, // Scroll to top to show welcome block
+          duration: const Duration(milliseconds: 300),
+          curve: Curves.easeOut,
+        );
+      }
+    });
   }
 
   /// Check if command is interactive
@@ -689,11 +730,17 @@ class _SshTerminalWidgetState extends ConsumerState<SshTerminalWidget> {
     setState(() {
       _terminalBlocks.clear();
       _blockCounter = 0;
+      _hasWelcomeBlock = false;
     });
 
     // Close current output controller if any
     _currentOutputController?.close();
     _currentOutputController = null;
+
+    // Re-create welcome block if we have a welcome message
+    if (_welcomeMessage.isNotEmpty) {
+      _createWelcomeBlock(_welcomeMessage);
+    }
 
     // Show brief confirmation
     if (mounted) {
@@ -723,82 +770,37 @@ class _SshTerminalWidgetState extends ConsumerState<SshTerminalWidget> {
   }
 
   Widget _buildBlockBasedTerminalContent() {
-    return Column(
-      children: [
-        // Welcome message display - using intelligent layout manager
-        if (_welcomeMessage.isNotEmpty)
-          WelcomeBlockLayoutManager.createWelcomeWidget(
-            content: _welcomeMessage,
-            context: context,
-          ),
-
-        // Terminal blocks - takes remaining space
-        Expanded(
-          child: Container(
-            decoration: BoxDecoration(
-              color: AppTheme.darkBackground,
-              border: Border.all(color: AppTheme.darkBorderColor),
-              borderRadius: BorderRadius.circular(8),
-            ),
-            child: _terminalBlocks.isEmpty
-                ? _buildEmptyBlocksState()
-                : _buildBlocksList(),
-          ),
-        ),
-      ],
+    return Container(
+      decoration: BoxDecoration(
+        color: AppTheme.darkBackground,
+        border: Border.all(color: AppTheme.darkBorderColor),
+        borderRadius: BorderRadius.circular(8),
+      ),
+      child: _terminalBlocks.isEmpty
+          ? _buildEmptyBlocksState()
+          : _buildBlocksList(),
     );
   }
 
   Widget _buildXtermFallbackContent() {
-    return Column(
-      mainAxisSize: MainAxisSize.min,
-      children: [
-        // Welcome message in terminal view
-        if (_welcomeMessage.isNotEmpty)
-          Container(
-            width: double.infinity,
-            padding: const EdgeInsets.all(12),
-            decoration: BoxDecoration(
-              color: AppTheme.darkSurface,
-              border: Border.all(color: AppTheme.darkBorderColor),
-              borderRadius: const BorderRadius.vertical(top: Radius.circular(8)),
-            ),
-            child: Text(
-              _welcomeMessage,
-              style: const TextStyle(
-                color: AppTheme.terminalGreen,
-                fontSize: 12,
-                fontFamily: 'Courier',
-              ),
-            ),
-          ),
-        // Terminal view
-        Expanded(
-          child: Container(
-            decoration: BoxDecoration(
-              color: AppTheme.darkBackground,
-              border: Border.all(color: AppTheme.darkBorderColor),
-              borderRadius: _welcomeMessage.isNotEmpty
-                  ? const BorderRadius.vertical(bottom: Radius.circular(8))
-                  : BorderRadius.circular(8),
-            ),
-            child: ClipRRect(
-              borderRadius: _welcomeMessage.isNotEmpty
-                  ? const BorderRadius.vertical(bottom: Radius.circular(8))
-                  : BorderRadius.circular(8),
-              child: TerminalView(
-                _terminal,
-                controller: _controller,
-                autofocus: true,
-                backgroundOpacity: 1.0,
-                onSecondaryTapDown: widget.enableInput
-                    ? (details, offset) => _showContextMenu(details)
-                    : null,
-              ),
-            ),
-          ),
+    return Container(
+      decoration: BoxDecoration(
+        color: AppTheme.darkBackground,
+        border: Border.all(color: AppTheme.darkBorderColor),
+        borderRadius: BorderRadius.circular(8),
+      ),
+      child: ClipRRect(
+        borderRadius: BorderRadius.circular(8),
+        child: TerminalView(
+          _terminal,
+          controller: _controller,
+          autofocus: true,
+          backgroundOpacity: 1.0,
+          onSecondaryTapDown: widget.enableInput
+              ? (details, offset) => _showContextMenu(details)
+              : null,
         ),
-      ],
+      ),
     );
   }
 
@@ -844,6 +846,11 @@ class _SshTerminalWidgetState extends ConsumerState<SshTerminalWidget> {
         itemBuilder: (context, index) {
           final block = _terminalBlocks[index];
 
+          // Check if this is the welcome block
+          if (block.id == 'welcome_block') {
+            return _buildWelcomeTerminalBlock(block);
+          }
+
           // Create enhanced block data from regular block data
           final enhancedBlockData = EnhancedTerminalBlockData.fromBase(
             block,
@@ -869,6 +876,121 @@ class _SshTerminalWidgetState extends ConsumerState<SshTerminalWidget> {
         },
       ),
     );
+  }
+
+  /// Build a specialized welcome message terminal block
+  Widget _buildWelcomeTerminalBlock(TerminalBlockData block) {
+    return Card(
+      margin: const EdgeInsets.only(bottom: 12),
+      color: AppTheme.darkSurface,
+      elevation: 2,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(12),
+        side: BorderSide(
+          color: AppTheme.terminalBlue.withValues(alpha: 0.4),
+          width: 1.5,
+        ),
+      ),
+      child: Container(
+        decoration: BoxDecoration(
+          borderRadius: BorderRadius.circular(12),
+          gradient: LinearGradient(
+            begin: Alignment.topLeft,
+            end: Alignment.bottomRight,
+            colors: [
+              AppTheme.terminalBlue.withValues(alpha: 0.05),
+              AppTheme.darkSurface,
+            ],
+          ),
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            // Welcome header
+            Container(
+              padding: const EdgeInsets.all(12),
+              decoration: BoxDecoration(
+                color: AppTheme.terminalBlue.withValues(alpha: 0.1),
+                borderRadius: const BorderRadius.vertical(
+                  top: Radius.circular(12),
+                ),
+              ),
+              child: Row(
+                children: [
+                  Container(
+                    padding: const EdgeInsets.all(4),
+                    decoration: BoxDecoration(
+                      color: AppTheme.terminalBlue.withValues(alpha: 0.2),
+                      borderRadius: BorderRadius.circular(6),
+                    ),
+                    child: const Icon(
+                      Icons.info_outline,
+                      size: 16,
+                      color: AppTheme.terminalBlue,
+                    ),
+                  ),
+                  const SizedBox(width: 8),
+                  const Text(
+                    'SSH Connection Welcome Message',
+                    style: TextStyle(
+                      color: AppTheme.terminalBlue,
+                      fontSize: 13,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                  const Spacer(),
+                  // Timestamp
+                  Text(
+                    _formatWelcomeTimestamp(block.timestamp),
+                    style: const TextStyle(
+                      color: AppTheme.darkTextSecondary,
+                      fontSize: 11,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            
+            // Welcome content
+            Container(
+              constraints: const BoxConstraints(
+                maxHeight: 200, // Limit height for very long welcome messages
+              ),
+              child: Scrollbar(
+                child: SingleChildScrollView(
+                  padding: const EdgeInsets.all(12),
+                  child: SelectableText(
+                    block.output,
+                    style: TextStyle(
+                      color: AppTheme.darkTextPrimary,
+                      fontSize: ref.watch(fontSizeProvider) * 0.85,
+                      fontFamily: ref.watch(fontFamilyProvider),
+                      height: 1.4,
+                    ),
+                  ),
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  /// Format timestamp for welcome block
+  String _formatWelcomeTimestamp(DateTime timestamp) {
+    final now = DateTime.now();
+    final difference = now.difference(timestamp);
+    
+    if (difference.inMinutes < 1) {
+      return 'Just now';
+    } else if (difference.inMinutes < 60) {
+      return '${difference.inMinutes}m ago';
+    } else if (difference.inHours < 24) {
+      return '${difference.inHours}h ago';
+    } else {
+      return '${timestamp.day}/${timestamp.month} ${timestamp.hour}:${timestamp.minute.toString().padLeft(2, '0')}';
+    }
   }
 
   Widget _buildStatusBar() {
@@ -1320,7 +1442,13 @@ class _SshTerminalWidgetState extends ConsumerState<SshTerminalWidget> {
                   setState(() {
                     _terminalBlocks.clear();
                     _blockCounter = 0;
+                    _hasWelcomeBlock = false;
                   });
+                  
+                  // Re-create welcome block if we have a welcome message
+                  if (_welcomeMessage.isNotEmpty) {
+                    _createWelcomeBlock(_welcomeMessage);
+                  }
                 },
               ),
               ListTile(
@@ -1431,7 +1559,13 @@ class _SshTerminalWidgetState extends ConsumerState<SshTerminalWidget> {
               setState(() {
                 _terminalBlocks.clear();
                 _blockCounter = 0;
+                _hasWelcomeBlock = false;
               });
+              
+              // Re-create welcome block if we have a welcome message
+              if (_welcomeMessage.isNotEmpty) {
+                _createWelcomeBlock(_welcomeMessage);
+              }
               
               if (mounted) {
                 ScaffoldMessenger.of(context).showSnackBar(
