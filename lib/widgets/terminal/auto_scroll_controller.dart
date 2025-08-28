@@ -9,11 +9,11 @@ class AutoScrollController extends ChangeNotifier {
   Timer? _scrollTimer;
   Timer? _userOverrideResetTimer;
   
-  bool _autoScrollEnabled = true;
+  bool _autoScrollEnabled;
   bool _userOverrideActive = false;
   bool _isAnimating = false;
   double _lastMaxExtent = 0.0;
-  double _scrollThreshold = 50.0; // Pixels from bottom to consider "at bottom"
+  double _scrollThreshold; // Pixels from bottom to consider "at bottom"
   
   // Configuration
   Duration animationDuration = const Duration(milliseconds: 300);

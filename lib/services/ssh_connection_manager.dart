@@ -133,11 +133,9 @@ class SshConnectionManager {
             session.welcomeBuffer.write(data);
             
             // Start welcome message timeout if not already started
-            if (session.welcomeTimeout == null) {
-              session.welcomeTimeout = Timer(const Duration(seconds: 3), () {
+            session.welcomeTimeout ??= Timer(const Duration(seconds: 3), () {
                 session.markWelcomeShown();
               });
-            }
           } else {
             // This is command output after welcome period
             session.commandBuffer.write(data);

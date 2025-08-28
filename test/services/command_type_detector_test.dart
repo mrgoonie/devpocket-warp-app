@@ -1,6 +1,5 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:devpocket_warp_app/services/command_type_detector.dart';
-import 'package:devpocket_warp_app/services/persistent_process_detector.dart';
 
 void main() {
   group('CommandTypeDetector', () {

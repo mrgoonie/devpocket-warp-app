@@ -4,7 +4,6 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../themes/app_theme.dart';
 import '../../main.dart';
 import '../../models/ssh_models.dart';
-import '../../models/ssh_profile_models.dart';
 import '../../providers/ssh_providers.dart';
 import '../../providers/ssh_host_providers.dart';
 import '../../providers/ssh_key_providers.dart';

@@ -172,7 +172,7 @@ class TerminalWelcomeWidget extends ConsumerWidget {
         children: [
           Row(
             children: [
-              Icon(
+              const Icon(
                 Icons.info_outline,
                 size: 16,
                 color: AppTheme.darkTextSecondary,
@@ -200,7 +200,7 @@ class TerminalWelcomeWidget extends ConsumerWidget {
           if (sessionId != null)
             _buildInfoRow(
               'Session ID',
-              sessionId!.substring(0, 8) + '...',
+              '${sessionId!.substring(0, 8)}...',
               fontSize,
               fontFamily,
             ),
@@ -223,7 +223,7 @@ class TerminalWelcomeWidget extends ConsumerWidget {
         children: [
           Row(
             children: [
-              Icon(
+              const Icon(
                 Icons.dns,
                 size: 16,
                 color: AppTheme.darkTextSecondary,
@@ -273,7 +273,7 @@ class TerminalWelcomeWidget extends ConsumerWidget {
         children: [
           Row(
             children: [
-              Icon(
+              const Icon(
                 Icons.settings_system_daydream,
                 size: 16,
                 color: AppTheme.darkTextSecondary,
@@ -310,7 +310,7 @@ class TerminalWelcomeWidget extends ConsumerWidget {
         children: [
           Row(
             children: [
-              Icon(
+              const Icon(
                 Icons.waving_hand,
                 size: 20,
                 color: AppTheme.terminalYellow,
@@ -410,12 +410,12 @@ class TerminalWelcomeWidget extends ConsumerWidget {
       child: Center(
         child: TextButton.icon(
           onPressed: onDismiss,
-          icon: Icon(
+          icon: const Icon(
             Icons.keyboard_arrow_up,
             color: AppTheme.darkTextSecondary,
             size: 18,
           ),
-          label: Text(
+          label: const Text(
             'Dismiss Welcome',
             style: TextStyle(
               color: AppTheme.darkTextSecondary,
@@ -544,7 +544,7 @@ class CompactTerminalWelcome extends ConsumerWidget {
               ),
             ),
             if (onExpand != null)
-              Icon(
+              const Icon(
                 Icons.keyboard_arrow_down,
                 color: AppTheme.darkTextSecondary,
                 size: 18,

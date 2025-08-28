@@ -105,8 +105,8 @@ class XTermIntegrationService {
     const double safeAreaTop = 44.0;
     const double safeAreaBottom = 34.0;
     
-    final double availableWidth = screenWidth - 16.0; // 8px padding on each side
-    final double availableHeight = screenHeight - 
+    const double availableWidth = screenWidth - 16.0; // 8px padding on each side
+    const double availableHeight = screenHeight - 
         headerHeight - 
         controlBarHeight - 
         safeAreaTop - 
@@ -139,7 +139,7 @@ class XTermIntegrationService {
     
     // Configure resize handling
     terminal.onResize = (width, height, pixelWidth, pixelHeight) {
-      debugPrint('Terminal resized: ${width}x${height} (${pixelWidth}x${pixelHeight}px)');
+      debugPrint('Terminal resized: ${width}x$height (${pixelWidth}x${pixelHeight}px)');
     };
   }
 
@@ -305,7 +305,7 @@ class TerminalSize {
 
   @override
   String toString() {
-    return 'TerminalSize(${width}x${height}${pixelWidth != null ? ', ${pixelWidth}x${pixelHeight}px' : ''})';
+    return 'TerminalSize(${width}x$height${pixelWidth != null ? ', ${pixelWidth}x${pixelHeight}px' : ''})';
   }
 }
 

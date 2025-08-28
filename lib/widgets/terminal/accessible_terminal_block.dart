@@ -18,7 +18,7 @@ class AccessibleTerminalBlock extends StatefulWidget {
   final bool enableKeyboardNavigation;
   
   const AccessibleTerminalBlock({
-    Key? key,
+    super.key,
     required this.block,
     this.isSelected = false,
     this.onTap,
@@ -27,7 +27,7 @@ class AccessibleTerminalBlock extends StatefulWidget {
     this.enableHighContrast = false,
     this.fontScale = 1.0,
     this.enableKeyboardNavigation = true,
-  }) : super(key: key);
+  });
 
   @override
   State<AccessibleTerminalBlock> createState() => _AccessibleTerminalBlockState();

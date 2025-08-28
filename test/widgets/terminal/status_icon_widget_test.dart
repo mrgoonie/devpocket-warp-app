@@ -11,7 +11,7 @@ void main() {
       await tester.pumpWidget(
         MaterialApp(
           theme: AppTheme.lightTheme,
-          home: Scaffold(
+          home: const Scaffold(
             body: StatusIconWidget(
               status: TerminalBlockStatus.pending,
               commandType: CommandType.oneShot,
@@ -32,7 +32,7 @@ void main() {
       await tester.pumpWidget(
         MaterialApp(
           theme: AppTheme.lightTheme,
-          home: Scaffold(
+          home: const Scaffold(
             body: StatusIconWidget(
               status: TerminalBlockStatus.running,
               commandType: CommandType.oneShot,
@@ -53,7 +53,7 @@ void main() {
       await tester.pumpWidget(
         MaterialApp(
           theme: AppTheme.lightTheme,
-          home: Scaffold(
+          home: const Scaffold(
             body: StatusIconWidget(
               status: TerminalBlockStatus.running,
               commandType: CommandType.continuous,
@@ -74,7 +74,7 @@ void main() {
       await tester.pumpWidget(
         MaterialApp(
           theme: AppTheme.lightTheme,
-          home: Scaffold(
+          home: const Scaffold(
             body: StatusIconWidget(
               status: TerminalBlockStatus.running,
               commandType: CommandType.interactive,
@@ -95,7 +95,7 @@ void main() {
       await tester.pumpWidget(
         MaterialApp(
           theme: AppTheme.lightTheme,
-          home: Scaffold(
+          home: const Scaffold(
             body: StatusIconWidget(
               status: TerminalBlockStatus.completed,
               commandType: CommandType.oneShot,
@@ -116,7 +116,7 @@ void main() {
       await tester.pumpWidget(
         MaterialApp(
           theme: AppTheme.lightTheme,
-          home: Scaffold(
+          home: const Scaffold(
             body: StatusIconWidget(
               status: TerminalBlockStatus.failed,
               commandType: CommandType.oneShot,
@@ -137,7 +137,7 @@ void main() {
       await tester.pumpWidget(
         MaterialApp(
           theme: AppTheme.lightTheme,
-          home: Scaffold(
+          home: const Scaffold(
             body: StatusIconWidget(
               status: TerminalBlockStatus.cancelled,
               commandType: CommandType.oneShot,
@@ -158,7 +158,7 @@ void main() {
       await tester.pumpWidget(
         MaterialApp(
           theme: AppTheme.lightTheme,
-          home: Scaffold(
+          home: const Scaffold(
             body: StatusIconWidget(
               status: TerminalBlockStatus.running,
               commandType: CommandType.continuous,
@@ -179,7 +179,7 @@ void main() {
       await tester.pumpWidget(
         MaterialApp(
           theme: AppTheme.lightTheme,
-          home: Scaffold(
+          home: const Scaffold(
             body: StatusIconWidget(
               status: TerminalBlockStatus.running,
               commandType: CommandType.oneShot,
@@ -197,7 +197,7 @@ void main() {
       await tester.pumpWidget(
         MaterialApp(
           theme: AppTheme.lightTheme,
-          home: Scaffold(
+          home: const Scaffold(
             body: StatusIconWidget(
               status: TerminalBlockStatus.completed,
               commandType: CommandType.continuous,
@@ -217,7 +217,7 @@ void main() {
       await tester.pumpWidget(
         MaterialApp(
           theme: AppTheme.lightTheme,
-          home: Scaffold(
+          home: const Scaffold(
             body: StatusIconWidget(
               status: TerminalBlockStatus.running,
               commandType: CommandType.oneShot,
@@ -237,7 +237,7 @@ void main() {
       await tester.pumpWidget(
         MaterialApp(
           theme: AppTheme.lightTheme,
-          home: Scaffold(
+          home: const Scaffold(
             body: StatusIconWidget(
               status: TerminalBlockStatus.running,
               commandType: CommandType.oneShot,
@@ -257,7 +257,7 @@ void main() {
       await tester.pumpWidget(
         MaterialApp(
           theme: AppTheme.lightTheme,
-          home: Scaffold(
+          home: const Scaffold(
             body: StatusIconWidget(
               status: TerminalBlockStatus.running,
               commandType: CommandType.oneShot,
@@ -278,7 +278,7 @@ void main() {
       await tester.pumpWidget(
         MaterialApp(
           theme: AppTheme.lightTheme,
-          home: Scaffold(
+          home: const Scaffold(
             body: StatusIconBadge(
               status: TerminalBlockStatus.running,
               commandType: CommandType.oneShot,
@@ -297,7 +297,7 @@ void main() {
       await tester.pumpWidget(
         MaterialApp(
           theme: AppTheme.lightTheme,
-          home: Scaffold(
+          home: const Scaffold(
             body: StatusIconBadge(
               status: TerminalBlockStatus.running,
               commandType: CommandType.oneShot,
@@ -314,7 +314,7 @@ void main() {
       await tester.pumpWidget(
         MaterialApp(
           theme: AppTheme.lightTheme,
-          home: Scaffold(
+          home: const Scaffold(
             body: StatusIconBadge(
               status: TerminalBlockStatus.running,
               commandType: CommandType.continuous,

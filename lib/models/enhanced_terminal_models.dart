@@ -19,16 +19,16 @@ class EnhancedTerminalBlockData extends TerminalBlockData {
   final String? interruptSignal;
 
   EnhancedTerminalBlockData({
-    required String id,
-    required String command,
-    required TerminalBlockStatus status,
-    required DateTime timestamp,
-    String output = '',
-    bool isInteractive = false,
-    required int index,
+    required super.id,
+    required super.command,
+    required super.status,
+    required super.timestamp,
+    super.output,
+    super.isInteractive,
+    required super.index,
     this.exitCode,
-    Duration? duration,
-    String? errorMessage,
+    super.duration,
+    super.errorMessage,
     required this.sessionId,
     this.isAgentCommand = false,
     this.requiresFullscreenModal = false,
@@ -40,16 +40,7 @@ class EnhancedTerminalBlockData extends TerminalBlockData {
     this.executionTime,
     this.interruptSignal,
   }) : super(
-         id: id,
-         command: command,
-         status: status,
-         timestamp: timestamp,
-         output: output,
-         isInteractive: isInteractive,
-         index: index,
          exitCode: exitCode,
-         duration: duration,
-         errorMessage: errorMessage,
        );
 
   /// Create from base TerminalBlockData

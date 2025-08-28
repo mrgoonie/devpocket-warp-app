@@ -125,7 +125,7 @@ class PersistentProcessDetector {
 
   /// Special command signatures that override pattern matching
   static final Map<String, ProcessInfo> _specialCommands = {
-    'claude': ProcessInfo(
+    'claude': const ProcessInfo(
       type: ProcessType.repl,
       command: 'claude',
       requiresInput: true,
@@ -204,7 +204,7 @@ class PersistentProcessDetector {
           isPersistent: true,
           needsPTY: true,
           processName: _extractProcessName(cleanCommand),
-          metadata: {'supportsHistory': true, 'multiline': true},
+          metadata: const {'supportsHistory': true, 'multiline': true},
         );
 
       case ProcessType.devServer:
@@ -215,7 +215,7 @@ class PersistentProcessDetector {
           isPersistent: true,
           needsPTY: false,
           processName: _extractProcessName(cleanCommand),
-          metadata: {'isServer': true, 'hasLogs': true, 'canRestart': true},
+          metadata: const {'isServer': true, 'hasLogs': true, 'canRestart': true},
         );
 
       case ProcessType.watcher:
@@ -226,7 +226,7 @@ class PersistentProcessDetector {
           isPersistent: true,
           needsPTY: false,
           processName: _extractProcessName(cleanCommand),
-          metadata: {'streamingOutput': true, 'canInterrupt': true},
+          metadata: const {'streamingOutput': true, 'canInterrupt': true},
         );
 
       case ProcessType.buildTool:
@@ -237,7 +237,7 @@ class PersistentProcessDetector {
           isPersistent: true,
           needsPTY: false,
           processName: _extractProcessName(cleanCommand),
-          metadata: {'buildsOnChange': true, 'hasProgress': true},
+          metadata: const {'buildsOnChange': true, 'hasProgress': true},
         );
 
       case ProcessType.interactive:

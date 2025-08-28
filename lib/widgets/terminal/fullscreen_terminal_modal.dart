@@ -251,22 +251,22 @@ class _FullscreenTerminalModalState extends ConsumerState<FullscreenTerminalModa
       context: context,
       builder: (context) => AlertDialog(
         backgroundColor: AppTheme.darkSurface,
-        title: Text(
+        title: const Text(
           'Exit Command',
           style: TextStyle(color: AppTheme.darkTextPrimary),
         ),
         content: Text(
           'The command "${widget.command}" is still running. Are you sure you want to exit?',
-          style: TextStyle(color: AppTheme.darkTextSecondary),
+          style: const TextStyle(color: AppTheme.darkTextSecondary),
         ),
         actions: [
           TextButton(
             onPressed: () => Navigator.of(context).pop(false),
-            child: Text('Cancel', style: TextStyle(color: AppTheme.terminalBlue)),
+            child: const Text('Cancel', style: TextStyle(color: AppTheme.terminalBlue)),
           ),
           TextButton(
             onPressed: () => Navigator.of(context).pop(true),
-            child: Text('Exit', style: TextStyle(color: AppTheme.terminalRed)),
+            child: const Text('Exit', style: TextStyle(color: AppTheme.terminalRed)),
           ),
         ],
       ),
@@ -343,7 +343,7 @@ class _FullscreenTerminalModalState extends ConsumerState<FullscreenTerminalModa
       child: Row(
         children: [
           IconButton(
-            icon: Icon(Icons.close, color: AppTheme.darkTextPrimary),
+            icon: const Icon(Icons.close, color: AppTheme.darkTextPrimary),
             onPressed: _handleClose,
             tooltip: 'Close (ESC)',
           ),
@@ -354,7 +354,7 @@ class _FullscreenTerminalModalState extends ConsumerState<FullscreenTerminalModa
               children: [
                 Text(
                   widget.command,
-                  style: TextStyle(
+                  style: const TextStyle(
                     color: AppTheme.darkTextPrimary,
                     fontSize: 16,
                     fontWeight: FontWeight.w600,
@@ -363,7 +363,7 @@ class _FullscreenTerminalModalState extends ConsumerState<FullscreenTerminalModa
                   overflow: TextOverflow.ellipsis,
                 ),
                 if (widget.sshClient != null)
-                  Text(
+                  const Text(
                     'SSH Connection',
                     style: TextStyle(
                       color: AppTheme.darkTextSecondary,
@@ -381,7 +381,7 @@ class _FullscreenTerminalModalState extends ConsumerState<FullscreenTerminalModa
                 color: AppTheme.terminalGreen.withValues(alpha: 0.2),
                 borderRadius: BorderRadius.circular(12),
               ),
-              child: Row(
+              child: const Row(
                 mainAxisSize: MainAxisSize.min,
                 children: [
                   SizedBox(
@@ -392,7 +392,7 @@ class _FullscreenTerminalModalState extends ConsumerState<FullscreenTerminalModa
                       color: AppTheme.terminalGreen,
                     ),
                   ),
-                  const SizedBox(width: 6),
+                  SizedBox(width: 6),
                   Text(
                     'Running',
                     style: TextStyle(
@@ -452,13 +452,13 @@ class _FullscreenTerminalModalState extends ConsumerState<FullscreenTerminalModa
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            Icon(
+            const Icon(
               Icons.error_outline,
               size: 48,
               color: AppTheme.terminalRed,
             ),
             const SizedBox(height: 16),
-            Text(
+            const Text(
               'Terminal Error',
               style: TextStyle(
                 color: AppTheme.darkTextPrimary,
@@ -469,7 +469,7 @@ class _FullscreenTerminalModalState extends ConsumerState<FullscreenTerminalModa
             const SizedBox(height: 8),
             Text(
               _error!,
-              style: TextStyle(
+              style: const TextStyle(
                 color: AppTheme.darkTextSecondary,
                 fontSize: 14,
               ),
@@ -491,14 +491,14 @@ class _FullscreenTerminalModalState extends ConsumerState<FullscreenTerminalModa
   }
 
   Widget _buildLoadingView() {
-    return Center(
+    return const Center(
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
           CircularProgressIndicator(
             color: AppTheme.terminalBlue,
           ),
-          const SizedBox(height: 16),
+          SizedBox(height: 16),
           Text(
             'Initializing terminal...',
             style: TextStyle(
@@ -549,7 +549,7 @@ class _FullscreenTerminalModalState extends ConsumerState<FullscreenTerminalModa
             padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
             child: Text(
               label,
-              style: TextStyle(
+              style: const TextStyle(
                 color: AppTheme.darkTextPrimary,
                 fontSize: 12,
                 fontWeight: FontWeight.w600,

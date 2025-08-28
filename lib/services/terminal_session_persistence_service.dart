@@ -1,11 +1,8 @@
 import 'dart:async';
 import 'dart:convert';
-import 'package:flutter/foundation.dart';
-import 'package:flutter/services.dart';
 import 'package:flutter/widgets.dart';
 
 import '../models/ssh_profile_models.dart';
-import '../models/enhanced_terminal_models.dart';
 import '../widgets/terminal/terminal_block.dart';
 import 'enhanced_terminal_session_manager.dart';
 import 'secure_storage_service.dart';

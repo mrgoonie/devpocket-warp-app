@@ -55,7 +55,7 @@ class _TerminalBlockState extends ConsumerState<TerminalBlock> {
   final TextEditingController _inputController = TextEditingController();
   final ScrollController _outputScrollController = ScrollController();
   bool _isExpanded = true;
-  bool _autoScroll = true;
+  final bool _autoScroll = true;
 
   @override
   void initState() {
@@ -188,7 +188,7 @@ class _TerminalBlockState extends ConsumerState<TerminalBlock> {
           // Status text
           Text(
             _getStatusText(),
-            style: TextStyle(
+            style: const TextStyle(
               color: AppTheme.darkTextSecondary,
               fontSize: 11,
             ),
@@ -257,7 +257,7 @@ class _TerminalBlockState extends ConsumerState<TerminalBlock> {
     if (outputText.isEmpty && widget.status == TerminalBlockStatus.pending) {
       return Container(
         padding: const EdgeInsets.all(12),
-        child: Text(
+        child: const Text(
           'Waiting to execute...',
           style: TextStyle(
             color: AppTheme.darkTextSecondary,
@@ -271,7 +271,7 @@ class _TerminalBlockState extends ConsumerState<TerminalBlock> {
     if (outputText.isEmpty && widget.status == TerminalBlockStatus.running) {
       return Container(
         padding: const EdgeInsets.all(12),
-        child: Row(
+        child: const Row(
           children: [
             SizedBox(
               width: 16,
@@ -281,7 +281,7 @@ class _TerminalBlockState extends ConsumerState<TerminalBlock> {
                 color: AppTheme.primaryColor,
               ),
             ),
-            const SizedBox(width: 8),
+            SizedBox(width: 8),
             Text(
               'Executing command...',
               style: TextStyle(
@@ -332,7 +332,7 @@ class _TerminalBlockState extends ConsumerState<TerminalBlock> {
       ),
       child: Row(
         children: [
-          Icon(
+          const Icon(
             Icons.keyboard,
             size: 16,
             color: AppTheme.darkTextSecondary,
@@ -346,7 +346,7 @@ class _TerminalBlockState extends ConsumerState<TerminalBlock> {
                 fontSize: ref.watch(fontSizeProvider) * 0.85,
                 fontFamily: ref.watch(fontFamilyProvider),
               ),
-              decoration: InputDecoration(
+              decoration: const InputDecoration(
                 hintText: 'Interactive input...',
                 hintStyle: TextStyle(
                   color: AppTheme.darkTextSecondary,
@@ -354,7 +354,7 @@ class _TerminalBlockState extends ConsumerState<TerminalBlock> {
                 ),
                 border: InputBorder.none,
                 isDense: true,
-                contentPadding: const EdgeInsets.symmetric(vertical: 4),
+                contentPadding: EdgeInsets.symmetric(vertical: 4),
               ),
               onSubmitted: (value) {
                 if (value.isNotEmpty && widget.onInputSubmit != null) {

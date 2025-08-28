@@ -468,7 +468,7 @@ class _SshTerminalWidgetState extends ConsumerState<SshTerminalWidget> {
       _welcomeMessage = welcomeContent;
     });
 
-    final blockId = 'welcome_block';
+    const blockId = 'welcome_block';
     final welcomeBlockData = TerminalBlockData(
       id: blockId,
       command: '# SSH Connection Welcome Message',
@@ -535,8 +535,9 @@ class _SshTerminalWidgetState extends ConsumerState<SshTerminalWidget> {
 
   /// Send command through the terminal
   Future<void> _sendCommand(String command) async {
-    if (!_isConnected || _currentSessionId == null || command.trim().isEmpty)
+    if (!_isConnected || _currentSessionId == null || command.trim().isEmpty) {
       return;
+    }
 
     try {
       // Process command through input mode service
