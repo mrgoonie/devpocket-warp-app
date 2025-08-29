@@ -15,6 +15,8 @@ import '../../services/pty_focus_manager.dart';
 import '../../services/fullscreen_command_detector.dart';
 import '../../services/interactive_command_manager.dart';
 import '../../providers/theme_provider.dart';
+import '../../services/ansi_text_processor.dart';
+import '../../services/terminal_text_encoding_service.dart';
 import 'terminal_block.dart';
 import 'enhanced_terminal_block.dart';
 
@@ -541,6 +543,8 @@ class _SshTerminalWidgetState extends ConsumerState<SshTerminalWidget> {
   }
 
   /// Sync blocks to terminal buffer for Terminal View mode
+  /// DISABLED: Commenting out sync functionality due to issues
+  /*
   Future<void> _syncBlocksToTerminal() async {
     if (_terminalBlocks.isEmpty) return;
     
@@ -583,8 +587,11 @@ class _SshTerminalWidgetState extends ConsumerState<SshTerminalWidget> {
       }
     }
   }
+  */
   
   /// Sync terminal buffer to blocks for Block UI mode
+  /// DISABLED: Commenting out sync functionality due to issues
+  /*
   Future<void> _syncTerminalToBlocks() async {
     // Get terminal buffer content
     final buffer = _terminal.buffer.toString();
@@ -675,8 +682,11 @@ class _SshTerminalWidgetState extends ConsumerState<SshTerminalWidget> {
       _hasWelcomeBlock = newBlocks.any((block) => block.id == 'welcome_block');
     });
   }
+  */
   
   /// Check if a line represents a command (starts with $ prompt)
+  /// DISABLED: Helper method for sync functionality
+  /*
   bool _isCommandLine(String line) {
     return line.startsWith(r'$') || line.contains(r'$ ');
   }
@@ -711,6 +721,7 @@ class _SshTerminalWidgetState extends ConsumerState<SshTerminalWidget> {
       index: index,
     );
   }
+  */
 
   /// Display welcome message in both Block UI and Terminal View modes
   void _displayWelcomeMessage(String welcomeContent) {
@@ -1239,9 +1250,9 @@ class _SshTerminalWidgetState extends ConsumerState<SshTerminalWidget> {
             // Welcome content
             Container(
               padding: const EdgeInsets.all(12),
-              child: SelectableText(
-                block.output,
-                style: TextStyle(
+              child: AnsiTextProcessor.instance.createSelectableTerminalText(
+                TerminalTextEncodingService.instance.processTerminalOutputWithAnsi(block.output),
+                defaultStyle: TextStyle(
                   color: AppTheme.darkTextPrimary,
                   fontSize: ref.watch(fontSizeProvider) * 0.85,
                   fontFamily: ref.watch(fontFamilyProvider),
@@ -1356,6 +1367,8 @@ class _SshTerminalWidgetState extends ConsumerState<SshTerminalWidget> {
             constraints: const BoxConstraints(minWidth: 24, minHeight: 24),
             onPressed: () async {
               // Perform synchronization before mode switch
+              // DISABLED: Sync functionality commented out due to issues
+              /*
               if (_useBlockUI) {
                 // Switching to Terminal View - sync blocks to terminal
                 await _syncBlocksToTerminal();
@@ -1363,6 +1376,7 @@ class _SshTerminalWidgetState extends ConsumerState<SshTerminalWidget> {
                 // Switching to Block UI - sync terminal to blocks
                 await _syncTerminalToBlocks();
               }
+              */
               
               setState(() {
                 _useBlockUI = !_useBlockUI;
@@ -1791,6 +1805,8 @@ class _SshTerminalWidgetState extends ConsumerState<SshTerminalWidget> {
                   Navigator.pop(context);
                   
                   // Perform synchronization before mode switch
+                  // DISABLED: Sync functionality commented out due to issues
+                  /*
                   if (_useBlockUI) {
                     // Switching to Terminal View - sync blocks to terminal
                     await _syncBlocksToTerminal();
@@ -1798,6 +1814,7 @@ class _SshTerminalWidgetState extends ConsumerState<SshTerminalWidget> {
                     // Switching to Block UI - sync terminal to blocks
                     await _syncTerminalToBlocks();
                   }
+                  */
                   
                   setState(() {
                     _useBlockUI = !_useBlockUI;

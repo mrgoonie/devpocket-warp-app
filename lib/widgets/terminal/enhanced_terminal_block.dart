@@ -6,6 +6,7 @@ import 'dart:async';
 import '../../themes/app_theme.dart';
 import '../../providers/theme_provider.dart';
 import '../../services/terminal_text_encoding_service.dart';
+import '../../services/ansi_text_processor.dart';
 import '../../services/active_block_manager.dart';
 import '../../services/persistent_process_detector.dart';
 import '../../services/command_type_detector.dart';
@@ -171,7 +172,8 @@ class _EnhancedTerminalBlockState extends ConsumerState<EnhancedTerminalBlock>
 
   void _processOutput() {
     final rawOutput = _outputBuffer.toString();
-    _processedOutput = _encodingService.processTerminalOutput(
+    // Use the new method that preserves ANSI codes for UI processing
+    _processedOutput = _encodingService.processTerminalOutputWithAnsi(
       rawOutput,
       encoding: widget.blockData.encodingFormat,
     );
@@ -618,17 +620,14 @@ class _EnhancedTerminalBlockState extends ConsumerState<EnhancedTerminalBlock>
     return Container(
       width: double.infinity,
       padding: const EdgeInsets.all(12),
-      child: SelectableText(
+      child: AnsiTextProcessor.instance.createSelectableTerminalText(
         _processedOutput,
-        style: TextStyle(
+        defaultStyle: TextStyle(
           color: terminalTextColor,
           fontSize: fontSize,
           fontFamily: fontFamily,
           height: 1.4,
         ),
-        contextMenuBuilder: (context, editableTextState) {
-          return _buildCustomContextMenu(context, editableTextState);
-        },
       ),
     );
   }

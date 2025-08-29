@@ -5,6 +5,8 @@ import 'dart:async';
 
 import '../../themes/app_theme.dart';
 import '../../providers/theme_provider.dart';
+import '../../services/ansi_text_processor.dart';
+import '../../services/terminal_text_encoding_service.dart';
 
 /// Terminal block status indicating command execution state
 enum TerminalBlockStatus {
@@ -295,6 +297,10 @@ class _TerminalBlockState extends ConsumerState<TerminalBlock> {
       );
     }
 
+    // Process the output text through terminal text encoding service to preserve ANSI codes
+    final processedText = TerminalTextEncodingService.instance
+        .processTerminalOutputWithAnsi(outputText);
+
     return Container(
       constraints: const BoxConstraints(
         maxHeight: 300, // Prevent blocks from becoming too tall
@@ -306,9 +312,9 @@ class _TerminalBlockState extends ConsumerState<TerminalBlock> {
           child: Container(
             width: double.infinity,
             padding: const EdgeInsets.all(12),
-            child: SelectableText(
-              outputText,
-              style: TextStyle(
+            child: AnsiTextProcessor.instance.createSelectableTerminalText(
+              processedText,
+              defaultStyle: TextStyle(
                 color: AppTheme.darkTextPrimary,
                 fontSize: ref.watch(fontSizeProvider) * 0.85,
                 fontFamily: ref.watch(fontFamilyProvider),

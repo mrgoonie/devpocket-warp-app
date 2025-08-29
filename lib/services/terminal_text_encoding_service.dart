@@ -220,9 +220,72 @@ class TerminalTextEncodingService {
 
   /// Handle ANSI escape sequences for colors and formatting
   String _handleAnsiSequences(String input) {
-    // Remove ANSI color codes but preserve the text
-    // This is a simple approach - you might want to parse and apply colors in the UI
+    // For compatibility with existing code, we still strip ANSI codes here
+    // The actual ANSI processing is now handled in the UI layer using AnsiTextProcessor
     return input.replaceAll(RegExp(r'\x1b\[[0-9;]*m'), '');
+  }
+
+  /// Process terminal output text preserving ANSI codes for UI processing
+  String processTerminalOutputWithAnsi(String input, {String? encoding}) {
+    try {
+      // Handle empty or null input
+      if (input.isEmpty) return input;
+
+      // Detect and handle different encodings
+      String processed = _handleEncoding(input, encoding);
+
+      // Replace problematic characters
+      processed = _replaceProblematicCharacters(processed);
+
+      // Filter out control characters but preserve ANSI escape sequences
+      processed = _filterControlCharactersPreservingAnsi(processed);
+
+      // Normalize unicode characters
+      processed = _normalizeUnicode(processed);
+
+      return processed;
+
+    } catch (e) {
+      debugPrint('Error processing terminal output with ANSI: $e');
+      // Return sanitized fallback
+      return _sanitizeFallback(input);
+    }
+  }
+
+  /// Filter out control characters while preserving ANSI escape sequences
+  String _filterControlCharactersPreservingAnsi(String input) {
+    final buffer = StringBuffer();
+    bool inAnsiSequence = false;
+    
+    for (int i = 0; i < input.length; i++) {
+      final codeUnit = input.codeUnitAt(i);
+      
+      // Check for start of ANSI escape sequence
+      if (codeUnit == 0x1b && i + 1 < input.length && input.codeUnitAt(i + 1) == 0x5b) {
+        inAnsiSequence = true;
+        buffer.writeCharCode(codeUnit);
+        continue;
+      }
+      
+      // If we're in an ANSI sequence, keep all characters until 'm'
+      if (inAnsiSequence) {
+        buffer.writeCharCode(codeUnit);
+        if (codeUnit == 0x6d) { // 'm' character ends ANSI sequence
+          inAnsiSequence = false;
+        }
+        continue;
+      }
+      
+      // Keep printable characters and common whitespace
+      if (codeUnit >= 32 || codeUnit == 9 || codeUnit == 10 || codeUnit == 13) {
+        // Skip control characters except tab, newline, and carriage return
+        if (!_controlCharacters.contains(codeUnit)) {
+          buffer.writeCharCode(codeUnit);
+        }
+      }
+    }
+    
+    return buffer.toString();
   }
 
   /// Normalize Unicode characters

@@ -17,9 +17,11 @@
 ## Expected behavior
 - Go to "Terminal" screen -> List of SSH Host -> Click on a host to connect -> Host's connected -> See the Block UI mode by default and the host's welcome message -> Type `ls` -> tap on "Return" -> See the block of `ls` output added -> Tapping on "Switch to Terminal View" icon in the status bar -> Show Terminal View -> Should see welcome message and the `ls` command with output -> type `cat hello.txt` -> see the content of `hello.txt` -> Tapping on "Switch to Block UI" icon in the status bar -> See the host's welcome block, `ls` block, `cat hello.txt` block.
 
+> Safely comment out the code to disable command sync between Block UI mode and Terminal View mode because it didn't work as expected.
+
 ---
 
-# Fix the font issue of the Block UI mode
+# [IN_PROGRESS] Fix the font issue of the Block UI mode
 
 ## Current behavior
 - The output content of the block is not displayed properly, it contains some rectangular symbols and special characters. 
@@ -28,6 +30,20 @@
 
 ## Expected behavior
 - The output content of the block should be displayed properly.
+
+---
+
+# [IN_PROGRESS] Analyze and provide a plan to clean up the codebase
+
+Think hard.
+
+## Objectives
+- Extract into smaller components to make the codebase more maintainable and better context engineering.
+- Try to keep the code file length under 500 lines.
+- There are many unused code due to many reasons, such as old versions, old features, old UI, etc.
+- Provide a plan to clean up the codebase by removing unused code.
+- **IMPORTANT:** Make sure the plan is safe and doesn't break any existing functionality.
+
 
 ---
 
