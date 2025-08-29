@@ -107,7 +107,6 @@ class AuthPersistenceService {
         await _secureStorage.storeAuthTokens(
           accessToken: accessToken,
           refreshToken: refreshToken,
-          userId: user.id,
         );
 
         // Update last active time
@@ -163,7 +162,6 @@ class AuthPersistenceService {
         await _secureStorage.storeAuthTokens(
           accessToken: accessToken,
           refreshToken: refreshToken,
-          userId: user.id,
         );
 
         await _setAuthenticatedState(user);
@@ -297,7 +295,6 @@ class AuthPersistenceService {
         await _secureStorage.storeAuthTokens(
           accessToken: newAccessToken,
           refreshToken: newRefreshToken,
-          userId: tokens['userId'] ?? '',
         );
 
         debugPrint('Tokens refreshed successfully');

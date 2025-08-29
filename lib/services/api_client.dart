@@ -165,7 +165,6 @@ class ApiClient {
         await _secureStorage.storeAuthTokens(
           accessToken: newAccessToken,
           refreshToken: newRefreshToken,
-          userId: userId,
         );
         
         return true;
@@ -410,7 +409,6 @@ class ApiClient {
       await _secureStorage.storeAuthTokens(
         accessToken: accessToken,
         refreshToken: refreshToken,
-        userId: userId ?? '',
       );
       debugPrint('🔐 Tokens stored successfully');
     } catch (e) {

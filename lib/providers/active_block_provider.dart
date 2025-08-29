@@ -2,6 +2,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter/foundation.dart';
 
 import '../services/active_block_manager.dart';
+import '../services/active_block_models.dart';
 import '../services/pty_focus_manager.dart';
 import '../services/persistent_process_detector.dart';
 

@@ -3,6 +3,7 @@ import 'package:flutter/services.dart';
 import 'dart:async';
 
 import 'active_block_manager.dart';
+import 'active_block_models.dart';
 import 'persistent_process_detector.dart';
 
 /// Keyboard input routing destination

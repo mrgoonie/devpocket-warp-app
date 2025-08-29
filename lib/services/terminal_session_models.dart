@@ -1,6 +1,7 @@
 import 'dart:async';
 import '../models/ssh_profile_models.dart';
 import 'ssh_connection_manager.dart';
+import 'ssh_connection_models.dart';
 
 /// Terminal session types
 enum TerminalSessionType {

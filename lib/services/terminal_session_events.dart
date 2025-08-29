@@ -1,5 +1,6 @@
 import 'terminal_session_models.dart';
 import 'ssh_connection_manager.dart';
+import 'ssh_connection_models.dart';
 
 /// Handles events for terminal sessions
 class TerminalSessionEvents {

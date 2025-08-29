@@ -8,6 +8,7 @@ import '../../providers/theme_provider.dart';
 import '../../services/terminal_text_encoding_service.dart';
 import '../../services/ansi_text_processor.dart';
 import '../../services/active_block_manager.dart';
+import '../../services/active_block_models.dart';
 import '../../services/persistent_process_detector.dart';
 import '../../services/command_type_detector.dart';
 import '../../models/enhanced_terminal_models.dart';

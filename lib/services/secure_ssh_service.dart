@@ -398,7 +398,7 @@ class SecureSSHService {
   Future<void> _performSecurityChecks(SecureHost host) async {
     // Check if host requires biometric authentication
     if (host.requiresBiometric) {
-      final biometricAvailable = await _secureStorage.isBiometricAvailable();
+      final biometricAvailable = await _secureStorage.biometricAuth.isAvailable();
       if (!biometricAvailable) {
         throw const SSHSecurityException('Biometric authentication required but not available');
       }
