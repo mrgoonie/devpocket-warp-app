@@ -90,6 +90,8 @@ class InteractiveCommandManager {
     required Terminal terminal,
     SSHClient? sshClient,
     Map<String, String>? environment,
+    int? terminalWidth,     // NEW: Explicit dimensions to fix race condition
+    int? terminalHeight,    // NEW: Explicit dimensions to fix race condition
     Function(String)? onOutput,
     Function(String)? onError,
     Function(int)? onExit,
@@ -109,6 +111,8 @@ class InteractiveCommandManager {
           command: command,
           sshClient: sshClient,
           terminal: terminal,
+          terminalWidth: terminalWidth,    // Pass explicit dimensions
+          terminalHeight: terminalHeight,  // Pass explicit dimensions
           onOutput: onOutput,
           onError: onError,
           onExit: onExit,
@@ -118,6 +122,8 @@ class InteractiveCommandManager {
           command: command,
           terminal: terminal,
           environment: environment,
+          terminalWidth: terminalWidth,    // Pass explicit dimensions for consistency
+          terminalHeight: terminalHeight,  // Pass explicit dimensions for consistency
           onOutput: onOutput,
           onError: onError,
           onExit: onExit,
@@ -134,16 +140,27 @@ class InteractiveCommandManager {
     required String command,
     required SSHClient sshClient,
     required Terminal terminal,
+    int? terminalWidth,     // NEW: Explicit dimensions to fix race condition
+    int? terminalHeight,    // NEW: Explicit dimensions to fix race condition
     Function(String)? onOutput,
     Function(String)? onError,
     Function(int)? onExit,
   }) async {
     try {
+      // Use explicit dimensions if provided, fallback to terminal properties
+      final ptyWidth = terminalWidth ?? terminal.viewWidth;
+      final ptyHeight = terminalHeight ?? terminal.viewHeight;
+      
+      // Debug logging to track dimension synchronization
+      debugPrint('SSH PTY dimensions: ${ptyWidth}x$ptyHeight '
+          '(explicit: $terminalWidth×$terminalHeight, '
+          'terminal: ${terminal.viewWidth}×${terminal.viewHeight})');
+      
       // For interactive commands, we need a PTY session
       final session = await sshClient.shell(
         pty: SSHPtyConfig(
-          width: terminal.viewWidth,
-          height: terminal.viewHeight,
+          width: ptyWidth,    // Use calculated dimensions
+          height: ptyHeight,  // Use calculated dimensions
           type: 'xterm-256color',
         ),
       );
@@ -198,6 +215,8 @@ class InteractiveCommandManager {
     required String command,
     required Terminal terminal,
     Map<String, String>? environment,
+    int? terminalWidth,     // NEW: Explicit dimensions for consistency
+    int? terminalHeight,    // NEW: Explicit dimensions for consistency
     Function(String)? onOutput,
     Function(String)? onError,
     Function(int)? onExit,
@@ -222,10 +241,18 @@ class InteractiveCommandManager {
         env.addAll(environment);
       }
       
-      // Configure terminal environment variables
+      // Configure terminal environment variables with explicit dimensions
+      final cols = terminalWidth ?? terminal.viewWidth;
+      final rows = terminalHeight ?? terminal.viewHeight;
+      
       env['TERM'] = 'xterm-256color';
-      env['COLUMNS'] = terminal.viewWidth.toString();
-      env['LINES'] = terminal.viewHeight.toString();
+      env['COLUMNS'] = cols.toString();
+      env['LINES'] = rows.toString();
+      
+      // Debug logging to track dimension synchronization
+      debugPrint('Local command dimensions: ${cols}x$rows '
+          '(explicit: $terminalWidth×$terminalHeight, '
+          'terminal: ${terminal.viewWidth}×${terminal.viewHeight})');
       
       // Start process with proper error handling
       try {
@@ -341,13 +368,31 @@ class InteractiveCommandManager {
 
   /// Resize terminal and notify process
   void resizeTerminal(int cols, int rows) {
-    if (_currentProcess != null && _currentSession != null) {
+    if (_currentSession != null) {
       // Update environment for next commands
       _currentSession!.environment['COLUMNS'] = cols.toString();
       _currentSession!.environment['LINES'] = rows.toString();
       
-      // Send SIGWINCH to notify process of size change
-      sendSignal(ProcessSignal.sigwinch);
+      // Handle SSH session resize
+      if (_currentSession!.sshSession != null) {
+        try {
+          // Send SIGWINCH equivalent to SSH session (if supported)
+          // Note: dartssh2 may not support direct resize, but we log for debugging
+          debugPrint('SSH session resize requested: ${cols}x$rows');
+          
+          // Send control sequence that some applications recognize for resize
+          final resizeSequence = '\x1b[8;$rows;${cols}t';
+          _currentSession!.sshSession!.write(Uint8List.fromList(resizeSequence.codeUnits));
+        } catch (e) {
+          debugPrint('Failed to resize SSH session: $e');
+        }
+      }
+      
+      // Handle local process resize
+      if (_currentProcess != null) {
+        // Send SIGWINCH to notify local process of size change
+        sendSignal(ProcessSignal.sigwinch);
+      }
     }
   }
 

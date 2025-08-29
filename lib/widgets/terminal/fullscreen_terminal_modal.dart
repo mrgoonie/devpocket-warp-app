@@ -181,14 +181,25 @@ class _FullscreenTerminalModalState extends ConsumerState<FullscreenTerminalModa
         _error = null;
       });
       
+      // Calculate explicit dimensions to fix race condition
+      // Get screen size before any async operations to avoid BuildContext warning
+      final screenSize = MediaQuery.of(context).size;
+      final calculatedSize = _xtermService.calculateOptimalTerminalSize(screenSize);
+      
       // Add a small delay to ensure terminal is ready
       await Future.delayed(const Duration(milliseconds: 50));
+      
+      // Debug logging to track dimension calculation
+      debugPrint('Fullscreen modal calculated dimensions: ${calculatedSize.width}x${calculatedSize.height}');
+      debugPrint('Terminal viewWidth/viewHeight: ${_terminal.viewWidth}x${_terminal.viewHeight}');
       
       await _commandManager.executeFullscreenCommand(
         command: widget.command,
         terminal: _terminal,
         sshClient: widget.sshClient,
         environment: widget.environment,
+        terminalWidth: calculatedSize.width,   // Pass explicit dimensions
+        terminalHeight: calculatedSize.height, // Pass explicit dimensions
         onOutput: _handleCommandOutput,
         onError: _handleCommandError,
         onExit: _handleCommandExit,

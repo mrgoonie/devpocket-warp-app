@@ -75,7 +75,7 @@ class XTermIntegrationService {
 
   /// Configure terminal for fullscreen modal use
   void configureForFullscreen([Size? screenSize]) {
-    final size = _calculateOptimalTerminalSize(screenSize);
+    final size = calculateOptimalTerminalSize(screenSize);
     
     // Set terminal size
     terminal.resize(
@@ -90,7 +90,7 @@ class XTermIntegrationService {
   }
 
   /// Calculate optimal terminal size based on device and font metrics
-  TerminalSize _calculateOptimalTerminalSize([Size? screenSize]) {
+  TerminalSize calculateOptimalTerminalSize([Size? screenSize]) {
     // Get device metrics - using fallback values for service context
     final double screenWidth = screenSize?.width ?? 390.0;  // iPhone 12 Pro width as fallback
     final double screenHeight = screenSize?.height ?? 844.0; // iPhone 12 Pro height as fallback
