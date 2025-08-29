@@ -48,34 +48,46 @@ class SecurityRiskIndicator extends StatelessWidget {
 
   Color _getRiskColor(SecurityRisk risk) {
     switch (risk) {
+      case SecurityRisk.none:
+        return Colors.grey;
       case SecurityRisk.low:
         return Colors.green;
       case SecurityRisk.medium:
         return Colors.orange;
       case SecurityRisk.high:
         return Colors.red;
+      case SecurityRisk.critical:
+        return Colors.deepPurple;
     }
   }
 
   IconData _getRiskIcon(SecurityRisk risk) {
     switch (risk) {
+      case SecurityRisk.none:
+        return Icons.info_outline;
       case SecurityRisk.low:
         return Icons.check_circle;
       case SecurityRisk.medium:
         return Icons.warning;
       case SecurityRisk.high:
         return Icons.error;
+      case SecurityRisk.critical:
+        return Icons.dangerous;
     }
   }
 
   String _getRiskLabel(SecurityRisk risk) {
     switch (risk) {
+      case SecurityRisk.none:
+        return 'No Risk';
       case SecurityRisk.low:
         return 'Low Risk';
       case SecurityRisk.medium:
         return 'Medium Risk';
       case SecurityRisk.high:
         return 'High Risk';
+      case SecurityRisk.critical:
+        return 'Critical Risk';
     }
   }
 }
