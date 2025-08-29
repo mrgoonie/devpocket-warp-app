@@ -3,13 +3,12 @@ import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:xterm/xterm.dart';
 import 'dart:async';
-import 'dart:convert';
 import 'package:dartssh2/dartssh2.dart';
 
 import '../../themes/app_theme.dart';
 import '../../services/xterm_integration_service.dart';
 import '../../services/interactive_command_manager.dart';
-import '../../models/enhanced_ssh_models.dart';
+import '../../services/terminal_application_tracker.dart';
 import 'modal_keyboard_handler.dart';
 
 /// Fullscreen modal for interactive terminal commands like vi, nano, top, htop, etc.
@@ -133,8 +132,12 @@ class _FullscreenTerminalModalState extends ConsumerState<FullscreenTerminalModa
         
         _commandManager = InteractiveCommandManager.instance;
         
-        // Configure terminal for fullscreen
-        _xtermService.configureForFullscreen();
+        // Configure terminal for fullscreen with current screen size
+        final screenSize = MediaQuery.of(context).size;
+        _xtermService.configureForFullscreen(screenSize);
+        
+        // Register this command with the terminal application tracker
+        TerminalApplicationTracker.instance.updateCurrentCommand(widget.command);
         
         setState(() {
           _isInitialized = true;
@@ -305,6 +308,10 @@ class _FullscreenTerminalModalState extends ConsumerState<FullscreenTerminalModa
     _slideController.dispose();
     _fadeController.dispose();
     _commandManager.cleanup();
+    
+    // Clear the command from the tracker when modal is disposed
+    TerminalApplicationTracker.instance.clearCurrentCommand();
+    
     super.dispose();
   }
 
@@ -433,6 +440,7 @@ class _FullscreenTerminalModalState extends ConsumerState<FullscreenTerminalModa
         onInput: _handleTerminalInput,
         onEscape: _handleClose,
         onControlSequence: _sendControlSequence,
+        isTerminalApplicationRunning: TerminalApplicationTracker.instance.isTerminalApplicationRunning,
         child: TerminalView(
           _terminal,
           controller: _controller,

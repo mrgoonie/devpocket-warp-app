@@ -1,13 +1,13 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/semantics.dart';
 import 'package:flutter/services.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-import '../../models/enhanced_terminal_models.dart';
-import '../../widgets/terminal/terminal_block.dart';
-import '../../themes/app_theme.dart';
+import '../../providers/theme_provider.dart';
+import 'terminal_block.dart';
 
 /// Accessible terminal block widget with comprehensive accessibility features
-class AccessibleTerminalBlock extends StatefulWidget {
+class AccessibleTerminalBlock extends ConsumerStatefulWidget {
   final TerminalBlockData block;
   final bool isSelected;
   final VoidCallback? onTap;
@@ -30,10 +30,10 @@ class AccessibleTerminalBlock extends StatefulWidget {
   });
 
   @override
-  State<AccessibleTerminalBlock> createState() => _AccessibleTerminalBlockState();
+  ConsumerState<AccessibleTerminalBlock> createState() => _AccessibleTerminalBlockState();
 }
 
-class _AccessibleTerminalBlockState extends State<AccessibleTerminalBlock> with TickerProviderStateMixin {
+class _AccessibleTerminalBlockState extends ConsumerState<AccessibleTerminalBlock> with TickerProviderStateMixin {
   final FocusNode _focusNode = FocusNode();
   bool _isFocused = false;
   bool _isHovered = false;
@@ -260,6 +260,8 @@ class _AccessibleTerminalBlockState extends State<AccessibleTerminalBlock> with 
   Widget build(BuildContext context) {
     final colors = _getAccessibilityColors(context);
     final statusColor = _getStatusColor(colors);
+    final fontSize = ref.watch(fontSizeProvider);
+    final fontFamily = ref.watch(fontFamilyProvider);
     
     return Semantics(
       label: 'Terminal command block',
@@ -300,14 +302,14 @@ class _AccessibleTerminalBlockState extends State<AccessibleTerminalBlock> with 
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        _buildBlockHeader(colors, statusColor),
+                        _buildBlockHeader(colors, statusColor, fontSize, fontFamily),
                         if (widget.block.output.isNotEmpty) ...[
                           const SizedBox(height: 8.0),
-                          _buildBlockOutput(colors),
+                          _buildBlockOutput(colors, fontSize, fontFamily),
                         ],
                         if (widget.block.errorMessage != null) ...[
                           const SizedBox(height: 8.0),
-                          _buildErrorMessage(colors),
+                          _buildErrorMessage(colors, fontSize, fontFamily),
                         ],
                         _buildBlockFooter(colors),
                       ],
@@ -391,7 +393,7 @@ class _AccessibleTerminalBlockState extends State<AccessibleTerminalBlock> with 
   }
 
   /// Build block header with command and status
-  Widget _buildBlockHeader(AccessibilityColors colors, Color statusColor) {
+  Widget _buildBlockHeader(AccessibilityColors colors, Color statusColor, double fontSize, String fontFamily) {
     return Semantics(
       label: 'Command and status',
       child: Row(
@@ -420,8 +422,8 @@ class _AccessibleTerminalBlockState extends State<AccessibleTerminalBlock> with 
                 widget.block.command,
                 style: TextStyle(
                   color: colors.foreground,
-                  fontSize: 14.0 * widget.fontScale,
-                  fontFamily: 'monospace',
+                  fontSize: fontSize * widget.fontScale,
+                  fontFamily: fontFamily,
                   fontWeight: FontWeight.w500,
                 ),
               ),
@@ -445,7 +447,7 @@ class _AccessibleTerminalBlockState extends State<AccessibleTerminalBlock> with 
   }
 
   /// Build block output section
-  Widget _buildBlockOutput(AccessibilityColors colors) {
+  Widget _buildBlockOutput(AccessibilityColors colors, double fontSize, String fontFamily) {
     return Semantics(
       label: 'Command output',
       hint: 'Terminal output from command execution',
@@ -463,8 +465,8 @@ class _AccessibleTerminalBlockState extends State<AccessibleTerminalBlock> with 
           widget.block.output,
           style: TextStyle(
             color: colors.foreground.withOpacity(0.9),
-            fontSize: 12.0 * widget.fontScale,
-            fontFamily: 'monospace',
+            fontSize: fontSize * 0.8 * widget.fontScale,
+            fontFamily: fontFamily,
             height: 1.4,
           ),
         ),
@@ -473,7 +475,7 @@ class _AccessibleTerminalBlockState extends State<AccessibleTerminalBlock> with 
   }
 
   /// Build error message section
-  Widget _buildErrorMessage(AccessibilityColors colors) {
+  Widget _buildErrorMessage(AccessibilityColors colors, double fontSize, String fontFamily) {
     return Semantics(
       label: 'Error message',
       hint: 'Command execution error details',
@@ -501,7 +503,7 @@ class _AccessibleTerminalBlockState extends State<AccessibleTerminalBlock> with 
                 widget.block.errorMessage!,
                 style: TextStyle(
                   color: colors.error,
-                  fontSize: 12.0 * widget.fontScale,
+                  fontSize: fontSize * 0.8 * widget.fontScale,
                   fontWeight: FontWeight.w500,
                 ),
               ),

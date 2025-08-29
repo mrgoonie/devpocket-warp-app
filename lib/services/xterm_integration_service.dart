@@ -74,8 +74,8 @@ class XTermIntegrationService {
   );
 
   /// Configure terminal for fullscreen modal use
-  void configureForFullscreen() {
-    final size = _calculateOptimalTerminalSize();
+  void configureForFullscreen([Size? screenSize]) {
+    final size = _calculateOptimalTerminalSize(screenSize);
     
     // Set terminal size
     terminal.resize(
@@ -90,10 +90,10 @@ class XTermIntegrationService {
   }
 
   /// Calculate optimal terminal size based on device and font metrics
-  TerminalSize _calculateOptimalTerminalSize() {
+  TerminalSize _calculateOptimalTerminalSize([Size? screenSize]) {
     // Get device metrics - using fallback values for service context
-    const double screenWidth = 390.0;  // iPhone 12 Pro width as default
-    const double screenHeight = 844.0; // iPhone 12 Pro height as default
+    final double screenWidth = screenSize?.width ?? 390.0;  // iPhone 12 Pro width as fallback
+    final double screenHeight = screenSize?.height ?? 844.0; // iPhone 12 Pro height as fallback
     
     // Terminal font metrics (JetBrains Mono)
     const double charWidth = 9.6;    // Character width in pixels
@@ -105,8 +105,8 @@ class XTermIntegrationService {
     const double safeAreaTop = 44.0;
     const double safeAreaBottom = 34.0;
     
-    const double availableWidth = screenWidth - 16.0; // 8px padding on each side
-    const double availableHeight = screenHeight - 
+    final double availableWidth = screenWidth - 16.0; // 8px padding on each side
+    final double availableHeight = screenHeight - 
         headerHeight - 
         controlBarHeight - 
         safeAreaTop - 

@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../themes/app_theme.dart';
-import '../../providers/terminal_mode_provider.dart';
+import '../../providers/theme_provider.dart';
 import '../../models/ssh_profile_models.dart';
 
 /// Terminal welcome widget that displays host information and connection status
@@ -27,9 +27,8 @@ class TerminalWelcomeWidget extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final terminalSettings = ref.watch(terminalModeProvider);
-    final fontSize = terminalSettings.fontSize;
-    final fontFamily = terminalSettings.fontFamily;
+    final fontSize = ref.watch(fontSizeProvider);
+    final fontFamily = ref.watch(fontFamilyProvider);
 
     return Container(
       width: double.infinity,
@@ -490,8 +489,7 @@ class CompactTerminalWelcome extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final terminalSettings = ref.watch(terminalModeProvider);
-    final fontSize = terminalSettings.fontSize;
+    final fontSize = ref.watch(fontSizeProvider);
 
     return GestureDetector(
       onTap: onExpand,

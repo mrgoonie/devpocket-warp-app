@@ -8,6 +8,7 @@ class ModalKeyboardHandler extends StatefulWidget {
   final Function(String) onInput;
   final VoidCallback onEscape;
   final Function(String)? onControlSequence;
+  final bool isTerminalApplicationRunning;
   
   const ModalKeyboardHandler({
     super.key,
@@ -16,6 +17,7 @@ class ModalKeyboardHandler extends StatefulWidget {
     required this.onInput,
     required this.onEscape,
     this.onControlSequence,
+    this.isTerminalApplicationRunning = false,
   });
 
   @override
@@ -90,9 +92,15 @@ class _ModalKeyboardHandlerState extends State<ModalKeyboardHandler> {
   void _handleKeyEvent(KeyEvent event) {
     if (event is! KeyDownEvent) return;
 
-    // Handle escape key
+    // Handle escape key - context-aware routing
     if (event.logicalKey == LogicalKeyboardKey.escape) {
-      widget.onEscape();
+      if (widget.isTerminalApplicationRunning) {
+        // Send ESC to terminal for vi/vim/nano editors
+        widget.onInput('\x1b');
+      } else {
+        // Close modal for normal terminal
+        widget.onEscape();
+      }
       return;
     }
 

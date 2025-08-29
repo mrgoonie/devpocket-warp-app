@@ -4,7 +4,6 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'dart:async';
 
 import '../../themes/app_theme.dart';
-import '../../providers/terminal_mode_provider.dart';
 import '../../providers/theme_provider.dart';
 import '../../services/terminal_text_encoding_service.dart';
 import '../../services/active_block_manager.dart';
@@ -191,10 +190,11 @@ class _EnhancedTerminalBlockState extends ConsumerState<EnhancedTerminalBlock>
 
   @override
   Widget build(BuildContext context) {
-    final terminalSettings = ref.watch(terminalModeProvider);
     final terminalTextColor = ref.watch(terminalTextColorProvider);
-    final fontSize = widget.customFontSize ?? terminalSettings.fontSize;
-    final fontFamily = widget.customFontFamily ?? terminalSettings.fontFamily;
+    final globalFontSize = ref.watch(fontSizeProvider);
+    final globalFontFamily = ref.watch(fontFamilyProvider);
+    final fontSize = widget.customFontSize ?? globalFontSize;
+    final fontFamily = widget.customFontFamily ?? globalFontFamily;
     
     return AnimatedBuilder(
       animation: _statusAnimation,

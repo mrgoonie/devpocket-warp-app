@@ -635,8 +635,16 @@ class _EnhancedTerminalScreenState extends ConsumerState<EnhancedTerminalScreen>
     
     ref.read(currentSshProfileProvider.notifier).state = null;
     
-    if (mounted) {
-      Navigator.pop(context);
+    // Only pop if this screen was pushed as a route (not when it's in a tab)
+    // Check if we can pop - if not, we're in a tab and shouldn't pop
+    if (mounted && Navigator.canPop(context)) {
+      // Check if we're actually in a pushed route by checking the route name
+      final route = ModalRoute.of(context);
+      if (route != null && route.settings.name == '/terminal') {
+        // We were pushed as a route, so pop back
+        Navigator.pop(context);
+      }
+      // Otherwise, we're in a tab - don't pop, just show the host selector
     }
   }
 
@@ -647,8 +655,8 @@ class _EnhancedTerminalScreenState extends ConsumerState<EnhancedTerminalScreen>
       _isConnecting = false;    // Reset connecting state
     });
     
-    // Clear provider state to maintain consistency
-    ref.read(currentSshProfileProvider.notifier).state = null;
+    // Don't clear provider state - this was causing widget recreation and state loss
+    // The local state _showHostSelector will handle showing the host selector UI
   }
 
 

@@ -11,8 +11,6 @@ class TerminalModeSettings {
   final bool showTimestamps;
   final bool enableKeyboardShortcuts;
   final TerminalDisplayMode displayMode;
-  final double fontSize;
-  final String fontFamily;
 
   const TerminalModeSettings({
     this.isAiMode = false,
@@ -20,8 +18,6 @@ class TerminalModeSettings {
     this.showTimestamps = true,
     this.enableKeyboardShortcuts = true,
     this.displayMode = TerminalDisplayMode.blocks,
-    this.fontSize = 14.0,
-    this.fontFamily = 'Monaco',
   });
 
   TerminalModeSettings copyWith({
@@ -30,8 +26,6 @@ class TerminalModeSettings {
     bool? showTimestamps,
     bool? enableKeyboardShortcuts,
     TerminalDisplayMode? displayMode,
-    double? fontSize,
-    String? fontFamily,
   }) {
     return TerminalModeSettings(
       isAiMode: isAiMode ?? this.isAiMode,
@@ -39,8 +33,6 @@ class TerminalModeSettings {
       showTimestamps: showTimestamps ?? this.showTimestamps,
       enableKeyboardShortcuts: enableKeyboardShortcuts ?? this.enableKeyboardShortcuts,
       displayMode: displayMode ?? this.displayMode,
-      fontSize: fontSize ?? this.fontSize,
-      fontFamily: fontFamily ?? this.fontFamily,
     );
   }
 
@@ -51,8 +43,6 @@ class TerminalModeSettings {
       'showTimestamps': showTimestamps,
       'enableKeyboardShortcuts': enableKeyboardShortcuts,
       'displayMode': displayMode.name,
-      'fontSize': fontSize,
-      'fontFamily': fontFamily,
     };
   }
 
@@ -66,8 +56,6 @@ class TerminalModeSettings {
         (mode) => mode.name == json['displayMode'],
         orElse: () => TerminalDisplayMode.blocks,
       ),
-      fontSize: json['fontSize']?.toDouble() ?? 14.0,
-      fontFamily: json['fontFamily'] ?? 'Monaco',
     );
   }
 }
@@ -101,8 +89,6 @@ class TerminalModeNotifier extends StateNotifier<TerminalModeSettings> {
         final showTimestamps = prefs.getBool('${_prefsKeyPrefix}showTimestamps') ?? true;
         final enableKeyboardShortcuts = prefs.getBool('${_prefsKeyPrefix}enableKeyboardShortcuts') ?? true;
         final displayModeIndex = prefs.getInt('${_prefsKeyPrefix}displayMode') ?? 0;
-        final fontSize = prefs.getDouble('${_prefsKeyPrefix}fontSize') ?? 14.0;
-        final fontFamily = prefs.getString('${_prefsKeyPrefix}fontFamily') ?? 'Monaco';
 
         state = TerminalModeSettings(
           isAiMode: isAiMode,
@@ -110,8 +96,6 @@ class TerminalModeNotifier extends StateNotifier<TerminalModeSettings> {
           showTimestamps: showTimestamps,
           enableKeyboardShortcuts: enableKeyboardShortcuts,
           displayMode: TerminalDisplayMode.values[displayModeIndex],
-          fontSize: fontSize,
-          fontFamily: fontFamily,
         );
       }
     } catch (e) {
@@ -130,8 +114,6 @@ class TerminalModeNotifier extends StateNotifier<TerminalModeSettings> {
       await prefs.setBool('${_prefsKeyPrefix}showTimestamps', state.showTimestamps);
       await prefs.setBool('${_prefsKeyPrefix}enableKeyboardShortcuts', state.enableKeyboardShortcuts);
       await prefs.setInt('${_prefsKeyPrefix}displayMode', state.displayMode.index);
-      await prefs.setDouble('${_prefsKeyPrefix}fontSize', state.fontSize);
-      await prefs.setString('${_prefsKeyPrefix}fontFamily', state.fontFamily);
       
     } catch (e) {
       debugPrint('Failed to save terminal mode settings: $e');
@@ -180,21 +162,6 @@ class TerminalModeNotifier extends StateNotifier<TerminalModeSettings> {
     }
   }
 
-  /// Set font size
-  Future<void> setFontSize(double size) async {
-    if (state.fontSize != size) {
-      state = state.copyWith(fontSize: size);
-      await _saveSettings();
-    }
-  }
-
-  /// Set font family
-  Future<void> setFontFamily(String family) async {
-    if (state.fontFamily != family) {
-      state = state.copyWith(fontFamily: family);
-      await _saveSettings();
-    }
-  }
 
   /// Reset to defaults
   Future<void> resetToDefaults() async {
@@ -268,12 +235,6 @@ final autoScrollProvider = Provider<bool>((ref) {
 /// Display mode provider
 final displayModeProvider = Provider<TerminalDisplayMode>((ref) {
   return ref.watch(terminalModeProvider).displayMode;
-});
-
-/// Font settings provider
-final fontSettingsProvider = Provider<({double size, String family})>((ref) {
-  final settings = ref.watch(terminalModeProvider);
-  return (size: settings.fontSize, family: settings.fontFamily);
 });
 
 /// Session AI mode provider

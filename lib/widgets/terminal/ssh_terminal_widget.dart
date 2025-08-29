@@ -201,7 +201,7 @@ class _SshTerminalWidgetState extends ConsumerState<SshTerminalWidget> {
         _status = 'Connected';
       });
 
-      // Get and display welcome message for SSH sessions as first terminal block
+      // Get and display welcome message for SSH sessions
       if (widget.profile != null && _currentSessionId != null) {
         // Wait a moment for welcome message to be captured
         Future.delayed(const Duration(milliseconds: 1000), () {
@@ -209,7 +209,7 @@ class _SshTerminalWidgetState extends ConsumerState<SshTerminalWidget> {
             final welcomeMsg =
                 _sshManager.getWelcomeMessage(_currentSessionId!);
             if (welcomeMsg.isNotEmpty) {
-              _createWelcomeBlock(welcomeMsg);
+              _displayWelcomeMessage(welcomeMsg);
             }
           }
         });
@@ -310,7 +310,13 @@ class _SshTerminalWidgetState extends ConsumerState<SshTerminalWidget> {
     switch (event.type) {
       case SshConnectionEventType.dataReceived:
         if (event.data != null) {
-          _currentOutputController?.add(event.data!);
+          if (_useBlockUI) {
+            // Send to block UI output stream
+            _currentOutputController?.add(event.data!);
+          } else {
+            // Send to XTerm terminal in fallback mode
+            _terminal.write(event.data!);
+          }
         }
         break;
 
@@ -500,6 +506,61 @@ class _SshTerminalWidgetState extends ConsumerState<SshTerminalWidget> {
         );
       }
     });
+  }
+
+  /// Resize terminal to fit current screen dimensions
+  void _resizeTerminalForCurrentScreen() {
+    if (!mounted) return;
+    
+    final screenSize = MediaQuery.of(context).size;
+    
+    // Terminal font metrics (JetBrains Mono)
+    const double charWidth = 9.6;    // Character width in pixels
+    const double charHeight = 18.0;   // Line height in pixels
+    
+    // Account for status bar, safe area, and UI elements
+    const double statusBarHeight = 56.0;
+    const double inputControlsHeight = 48.0;
+    const double safeAreaBuffer = 88.0; // Combined safe area estimate
+    
+    final double availableWidth = screenSize.width - 16.0; // 8px padding on each side
+    final double availableHeight = screenSize.height - 
+        statusBarHeight - 
+        inputControlsHeight - 
+        safeAreaBuffer - 
+        16.0; // 8px padding top/bottom
+    
+    final int cols = (availableWidth / charWidth).floor().clamp(20, 200);
+    final int rows = (availableHeight / charHeight).floor().clamp(10, 100);
+    
+    _terminal.resize(cols, rows);
+    
+    debugPrint('Terminal resized to ${cols}x$rows for screen ${screenSize.width}x${screenSize.height}');
+  }
+
+  /// Display welcome message in both Block UI and Terminal View modes
+  void _displayWelcomeMessage(String welcomeContent) {
+    if (!mounted) return;
+    
+    // Store welcome message for potential re-creation
+    setState(() {
+      _welcomeMessage = welcomeContent;
+    });
+    
+    if (_useBlockUI) {
+      // Use existing block creation for Block UI mode
+      _createWelcomeBlock(welcomeContent);
+    } else {
+      // Write welcome message directly to terminal for Terminal View mode
+      if (welcomeContent.isNotEmpty) {
+        // Format welcome message with terminal colors and styling
+        final formattedWelcome = '\x1b[32m# SSH Connection Welcome Message\x1b[0m\r\n'
+            '\x1b[36m${welcomeContent.replaceAll('\n', '\r\n')}\x1b[0m\r\n'
+            '\x1b[33m${'─' * 50}\x1b[0m\r\n';
+        
+        _terminal.write(formattedWelcome);
+      }
+    }
   }
 
   /// Check if command is interactive
@@ -740,7 +801,7 @@ class _SshTerminalWidgetState extends ConsumerState<SshTerminalWidget> {
 
     // Re-create welcome block if we have a welcome message
     if (_welcomeMessage.isNotEmpty) {
-      _createWelcomeBlock(_welcomeMessage);
+      _displayWelcomeMessage(_welcomeMessage);
     }
 
     // Show brief confirmation
@@ -806,6 +867,41 @@ class _SshTerminalWidgetState extends ConsumerState<SshTerminalWidget> {
   }
 
   Widget _buildEmptyBlocksState() {
+    // Check if we're in a connecting state
+    final isConnecting = _status.contains('Connecting') || 
+                        _status.contains('Authenticating') || 
+                        _status.contains('Reconnecting') ||
+                        _status.contains('Starting');
+    
+    if (isConnecting) {
+      // Show loading indicator when connecting
+      return Center(
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            const SizedBox(
+              width: 48,
+              height: 48,
+              child: CircularProgressIndicator(
+                strokeWidth: 3,
+                valueColor: AlwaysStoppedAnimation<Color>(AppTheme.primaryColor),
+              ),
+            ),
+            const SizedBox(height: 16),
+            Text(
+              _status,
+              style: const TextStyle(
+                color: AppTheme.darkTextSecondary,
+                fontSize: 16,
+                fontWeight: FontWeight.w500,
+              ),
+            ),
+          ],
+        ),
+      );
+    }
+    
+    // Show terminal ready state when not connecting
     return const Center(
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
@@ -954,21 +1050,14 @@ class _SshTerminalWidgetState extends ConsumerState<SshTerminalWidget> {
             
             // Welcome content
             Container(
-              constraints: const BoxConstraints(
-                maxHeight: 200, // Limit height for very long welcome messages
-              ),
-              child: Scrollbar(
-                child: SingleChildScrollView(
-                  padding: const EdgeInsets.all(12),
-                  child: SelectableText(
-                    block.output,
-                    style: TextStyle(
-                      color: AppTheme.darkTextPrimary,
-                      fontSize: ref.watch(fontSizeProvider) * 0.85,
-                      fontFamily: ref.watch(fontFamilyProvider),
-                      height: 1.4,
-                    ),
-                  ),
+              padding: const EdgeInsets.all(12),
+              child: SelectableText(
+                block.output,
+                style: TextStyle(
+                  color: AppTheme.darkTextPrimary,
+                  fontSize: ref.watch(fontSizeProvider) * 0.85,
+                  fontFamily: ref.watch(fontFamilyProvider),
+                  height: 1.4,
                 ),
               ),
             ),
@@ -1081,6 +1170,11 @@ class _SshTerminalWidgetState extends ConsumerState<SshTerminalWidget> {
               setState(() {
                 _useBlockUI = !_useBlockUI;
               });
+              
+              // Resize terminal when switching to Terminal View mode
+              if (!_useBlockUI) {
+                _resizeTerminalForCurrentScreen();
+              }
             },
             tooltip: _useBlockUI
                 ? 'Switch to Terminal View'
@@ -1448,7 +1542,7 @@ class _SshTerminalWidgetState extends ConsumerState<SshTerminalWidget> {
                   
                   // Re-create welcome block if we have a welcome message
                   if (_welcomeMessage.isNotEmpty) {
-                    _createWelcomeBlock(_welcomeMessage);
+                    _displayWelcomeMessage(_welcomeMessage);
                   }
                 },
               ),
@@ -1477,6 +1571,11 @@ class _SshTerminalWidgetState extends ConsumerState<SshTerminalWidget> {
                   setState(() {
                     _useBlockUI = !_useBlockUI;
                   });
+                  
+                  // Resize terminal when switching to Terminal View mode
+                  if (!_useBlockUI) {
+                    _resizeTerminalForCurrentScreen();
+                  }
                 },
               ),
             ],
@@ -1565,7 +1664,7 @@ class _SshTerminalWidgetState extends ConsumerState<SshTerminalWidget> {
               
               // Re-create welcome block if we have a welcome message
               if (_welcomeMessage.isNotEmpty) {
-                _createWelcomeBlock(_welcomeMessage);
+                _displayWelcomeMessage(_welcomeMessage);
               }
               
               if (mounted) {
