@@ -382,14 +382,15 @@ Keep the explanation under 200 words and use simple language.
       final systemPrompt = '''
 You are a command-line expert. Convert natural language requests to precise shell commands.
 
-Rules:
+## Rules:
 1. Return ONLY the command, no explanation
 2. Use ${shellType ?? 'bash'} syntax
 3. Consider the current directory: ${currentDirectory ?? '/'}
 4. Be safe - avoid destructive commands without explicit confirmation
 5. If the request is unclear or dangerous, respond with "UNSAFE" or "UNCLEAR"
 
-Context: ${context ?? 'General command line usage'}
+## Context: 
+${context ?? 'General command line usage'}
 ''';
       
       final request = AiChatCompletionRequest(

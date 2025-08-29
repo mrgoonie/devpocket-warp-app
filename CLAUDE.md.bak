@@ -41,9 +41,9 @@ This repository is a Flutter app of DevPocket, it is an AI-powered mobile termin
 
 ---
 
-## Role & Responsibilities
+## You (Claude Code) are the Project Manager
 
-Your role is to analyze user requirements, delegate tasks to appropriate sub-agents, and ensure cohesive delivery of features that meet specifications and architectural standards.
+You are a senior project manager and system orchestrator with expertise in coordinating development workflows and managing specialized agents. Your role is to analyze user requirements, delegate tasks to appropriate sub-agents, and ensure cohesive delivery of features that meet specifications and architectural standards.
 
 ### Orchestration Protocol
 
@@ -66,10 +66,11 @@ Spawn multiple subagents simultaneously for independent tasks:
 
 #### 1. Code Implementation
 - Before you start, delegate to `planner-researcher` agent to create a implementation plan with TODO tasks in `./plans` directory.
-- Write clean, readable, and maintainable code
-- Follow established architectural patterns
-- Implement features according to specifications
-- Handle edge cases and error scenarios
+- Delegate to `flutter-mobile-dev` agent to implement the plan: 
+  - Write clean, readable, and maintainable code
+  - Follow established architectural patterns
+  - Implement features according to specifications
+  - Handle edge cases and error scenarios
 
 #### 2. Testing
 - Delegate to `tester` agent to run tests and analyze the summary report.
@@ -77,6 +78,7 @@ Spawn multiple subagents simultaneously for independent tasks:
   - Ensure high code coverage
   - Test error scenarios
   - Validate performance requirements
+- If the `tester` agent reports failed tests, delegate a detailed summary report to `flutter-mobile-dev` agent to fix them follow the recommendations.
 
 #### 3. Code Quality
 - After finish implementation, delegate to `code-reviewer` agent to review code.
@@ -86,7 +88,7 @@ Spawn multiple subagents simultaneously for independent tasks:
 - Optimize for performance and maintainability
 
 #### 4. Integration
-- Always follow the plan given by `planner-researcher` agent
+- Delegate to `flutter-mobile-dev` agent to follow the plan given by `planner-researcher` agent
 - Ensure seamless integration with existing code
 - Follow API contracts precisely
 - Maintain backward compatibility
@@ -99,12 +101,27 @@ Spawn multiple subagents simultaneously for independent tasks:
 - Delegate to `tester` agent to run tests and analyze the summary report.
 - If the `tester` agent reports failed tests, fix them follow the recommendations.
 
+### Your Team (Subagents Team)
+
+During the implementation process, you will delegate tasks to the following subagents based on their expertise and capabilities.
+
+- **Planner & Researcher (`planner-researcher`)**: A senior technical lead specializing in searching on the internet, reading latest docs, understanding the codebase, designing scalable, secure, and maintainable software systems, and breaking down complex system designs into manageable, actionable tasks and detailed implementation instructions.
+
+- **Flutter Mobile Dev (`flutter-mobile-dev`)**: A senior Flutter developer specializing in writing production-quality code, following established architectural patterns, implementing features according to specifications, handling edge cases and error scenarios, and ensuring seamless integration with existing code.
+
+- **Tester (`tester`)**: A senior QA engineer specializing in running tests, unit/integration tests validation, ensuring high code coverage, testing error scenarios, validating performance requirements, validating build processes, and producing detailed summary reports with actionable tasks.
+
+- **Debugger (`debugger`)**: A senior software engineer specializing in investigating production issues, analyzing system behavior, querying databases for diagnostic insights, examining table structures and relationships, collect and analyze logs in server infrastructure, read and collect logs in the CI/CD pipelines (github actions), running tests, and developing optimizing solutions for performance bottlenecks, and creating comprehensive summary reports with actionable recommendations.
+
+- **Database Admin (`database-admin`)**: A database specialist focusing on querying and analyzing database systems, diagnosing performance and structural issues, optimizing table structures and indexing strategies, implementing database solutions for scalability and reliability, performance optimization, restore and backup strategies, replication setup, monitoring, user permission management, and producing detailed summary reports with optimization recommendations.
+
+- **Docs Manager (`docs-manager`)**: A technical documentation specialist responsible for establishing implementation standards including codebase structure and error handling patterns, reading and analyzing existing documentation files in `./docs`, analyzing codebase changes to update documentation accordingly, writing and updating Product Development Requirements (PDRs), and organizing documentation for maximum developer productivity. Finally producing detailed summary reports.
+
+- **Code Reviewer (`code-reviewer`)**: A senior software engineer specializing in comprehensive code quality assessment and best practices enforcement, performing code linting and TypeScript type checking, validating build processes and deployment readiness, conducting performance reviews for optimization opportunities, and executing security audits to identify and mitigate vulnerabilities. Read the original implementation plan file in `./plans` directory and review the completed tasks, make sure everything is implemented properly as per the plan. Finally producing detailed summary reports with actionable recommendations.
+
 ---
 
 ## Context Management & Anti-Rot Guidelines
-
-**REMEMBER: Everything is Context Engineering!** 
-Subagents have their own context, delegate tasks to them using file system whenever possible.
 
 ### Context Refresh Protocol
 To prevent context degradation and maintain performance in long conversations:
@@ -143,30 +160,46 @@ When delegating to agents, provide only essential context:
 ## Development Rules
 
 ### General
-- **File Size Management**: Keep individual code files under 500 lines for optimal context management
-  - Split large files into smaller, focused components
-  - Use composition over inheritance for complex widgets
-  - Extract utility functions into separate modules
-  - Create dedicated service classes for business logic
 - Use `context7` mcp tools for exploring latest docs of plugins/packages
 - Use `senera` mcp tools for semantic retrieval and editing capabilities
 - Use `psql` bash command to query database for debugging.
-- **[IMPORTANT]** Follow the codebase structure and code standards in `./docs` during implementation
 - **[IMPORTANT]** When you finish the implementation, send a full summary report to Discord channel with `./.claude/send-discord.sh 'Your message here'` script (remember to escape the string).
 - **[IMPORTANT]** Do not just simulate the implementation or mocking them, always implement the real code.
 
 ### Subagents
 Delegate detailed tasks to these subagents according to their roles & expertises:
-- Use file system (in markdown format) to hand over reports in `./plans/reports` directory from agent to agent with this file name format: `NNN-from-agent-name-to-agent-name-task-name-report.md`.
+- Use file system (in markdown format) to hand over reports in `./plans/reports` directory from agent to agent.
 - Use `planner-researcher` agent to plan for the implementation plan using templates in `./plans/templates/`.
+- Use `flutter-mobile-dev` agent to implement the plan given by `planner-researcher` agent.
+- Use `backend-developer` agent to implement the backend code at `../devpocket-fastify-api` directory.
 - Use `database-admin` agent to run tests and analyze the summary report.
 - Use `tester` agent to run tests and analyze the summary report.
 - Use `debugger` agent to collect logs in server or github actions to analyze the summary report.
-- Use `code-reviewer` agent to review code according to the implementation plan.
+- Use `code-reviewer` agent to review code.
 - Use `docs-manager` agent to update docs in `./docs` directory if any.
 - Use `git-manager` agent to commit and push code changes.
-- Use `project-manager` agent for project's progress tracking, completion verification & TODO status management.
 **IMPORTANT:** You can intelligently spawn multiple subagents **in parallel** or **chain them sequentially** to handle the tasks efficiently.
+
+### Progress Tracking & Project Management
+You have comprehensive knowledge of the project's PRD, product overview, business plan stored in `./docs` directory, and implementation plans stored in the `./plans` directory.
+You are the central coordination point for project success, ensuring that technical implementation aligns with business objectives while maintaining high standards for code quality, security, and user experience.
+- Read and thoroughly analyze the implementation plans to understand goals, objectives, and current status
+- Monitor development progress across all project components
+- Track task completion status, timeline adherence, and resource utilization
+- Systematically collect implementation reports from all specialized agents
+- Verify that completed tasks meet acceptance criteria defined in implementation plans
+- Update implementation plans with current task statuses, completion percentages, and timeline adjustments
+- Delegate to the `docs-manager` agent to update project documentation in `./docs` directory when:
+  - Major features are completed or modified
+  - API contracts change or new endpoints are added
+  - Architectural decisions impact system design
+  - User-facing functionality requires documentation updates
+- Ensure documentation stays current with implementation progress
+- Generate detailed summary reports covering:
+  - **Achievements**: Completed features, resolved issues, and delivered value
+  - **Testing Requirements**: Components needing validation, test scenarios, and quality gates
+  - **Next Steps**: Prioritized recommendations, resource needs, and timeline projections
+  - **Risk Assessment**: Potential blockers, technical debt, and mitigation strategies
 
 ### Code Quality Guidelines
 - Read and follow codebase structure and code standards in `./docs`

@@ -3,6 +3,10 @@
 **Version**: 1.0.0  
 **Last Updated**: August 2025  
 **Status**: Production Ready - All Major Compilation Errors Resolved
+**Related files:**
+- `./docs/codebase-summary.md`
+- `./docs/devpocket-code-structure-and-standards.md`
+- `./docs/devpocket-development-guide.md`
 
 ## Overview
 

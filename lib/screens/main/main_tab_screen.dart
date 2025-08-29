@@ -5,7 +5,6 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../themes/app_theme.dart';
 import '../../main.dart';
 import '../../providers/auth_provider.dart';
-import '../../providers/ssh_host_providers.dart';
 import '../vaults/vaults_screen.dart';
 import '../terminal/enhanced_terminal_screen.dart';
 import '../history/history_screen.dart';
@@ -25,41 +24,36 @@ class _MainTabScreenState extends ConsumerState<MainTabScreen>
   late PageController _pageController;
   late AnimationController _animationController;
 
-  final List<TabItem> _tabs = [
+  final List<TabItem> _tabs = const [
     TabItem(
       icon: Icons.folder_special,
       activeIcon: Icons.folder_special,
       label: 'Vaults',
-      screen: const VaultsScreen(),
+      screen: VaultsScreen(),
     ),
     TabItem(
       icon: Icons.terminal,
       activeIcon: Icons.terminal,
       label: 'Terminal',
-      screen: Consumer(
-        builder: (context, ref, child) {
-          final currentProfile = ref.watch(currentSshProfileProvider);
-          return EnhancedTerminalScreen(initialProfile: currentProfile);
-        },
-      ),
+      screen: EnhancedTerminalScreen(),
     ),
     TabItem(
       icon: Icons.history,
       activeIcon: Icons.history,
       label: 'History',
-      screen: const HistoryScreen(),
+      screen: HistoryScreen(),
     ),
     TabItem(
       icon: Icons.code,
       activeIcon: Icons.code,
       label: 'Editor',
-      screen: const ComingSoonScreen(feature: 'Code Editor'),
+      screen: ComingSoonScreen(feature: 'Code Editor'),
     ),
     TabItem(
       icon: Icons.settings,
       activeIcon: Icons.settings,
       label: 'Settings',
-      screen: const SettingsScreen(),
+      screen: SettingsScreen(),
     ),
   ];
 
@@ -314,7 +308,7 @@ class TabItem {
   final String label;
   final Widget screen;
 
-  TabItem({
+  const TabItem({
     required this.icon,
     required this.activeIcon,
     required this.label,

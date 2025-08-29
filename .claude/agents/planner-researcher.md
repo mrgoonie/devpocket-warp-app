@@ -73,7 +73,7 @@ You are a senior technical lead with deep expertise in software architecture, sy
 
 5. **Documentation Phase**:
    - Create a comprehensive plan document in `./plans` directory
-   - Use clear naming as the following format: `YYYYMMDD-feature-name-plan.md`
+   - Use clear naming as the following format: `NNN-feature-name-plan.md`
    - Include all research findings, design decisions, and implementation steps
    - Add a TODO checklist for tracking implementation progress
 
