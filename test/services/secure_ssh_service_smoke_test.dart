@@ -5,6 +5,7 @@ import 'package:devpocket_warp_app/services/secure_storage_service.dart';
 import 'package:devpocket_warp_app/services/crypto_service.dart' as local_crypto;
 import 'package:devpocket_warp_app/services/command_validator.dart';
 import 'package:devpocket_warp_app/services/audit_service.dart';
+import 'package:devpocket_warp_app/services/ssh_service_models.dart';
 import 'package:devpocket_warp_app/models/enhanced_ssh_models.dart';
 
 /// Smoke tests for Secure SSH Service
@@ -26,7 +27,6 @@ void main() {
         mockValidator = CommandValidator();
         mockAudit = AuditService(
           secureStorage: mockStorage,
-          cryptoService: mockCrypto,
         );
 
         sshService = SecureSSHService(

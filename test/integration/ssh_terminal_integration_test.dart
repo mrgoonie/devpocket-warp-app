@@ -3,6 +3,7 @@ import 'dart:async';
 
 import 'package:devpocket_warp_app/models/ssh_profile_models.dart';
 import 'package:devpocket_warp_app/services/terminal_session_handler.dart';
+import 'package:devpocket_warp_app/services/terminal_session_models.dart';
 import 'package:devpocket_warp_app/services/terminal_websocket_service.dart';
 import 'package:devpocket_warp_app/services/websocket_manager.dart';
 import '../helpers/test_helpers.dart';

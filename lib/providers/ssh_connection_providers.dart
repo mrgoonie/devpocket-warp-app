@@ -4,6 +4,7 @@ import 'package:flutter/foundation.dart';
 
 import '../models/ssh_profile_models.dart';
 import '../services/ssh_connection_manager.dart';
+import '../services/ssh_connection_models.dart';
 
 /// SSH Connection status for terminal
 enum SshTerminalConnectionStatus {

@@ -151,6 +151,8 @@ When delegating to agents, provide only essential context:
 - Use `context7` mcp tools for exploring latest docs of plugins/packages
 - Use `senera` mcp tools for semantic retrieval and editing capabilities
 - Use `psql` bash command to query database for debugging.
+- Use `project-manager` agent to intelligently update `./docs/project-roadmap.md` based on the user's request.
+- **[IMPORTANT]** After implementation: use `project-manager` agent to add brief changes with date time into `./docs/implementation-changelog.md` in datetime descending order.
 - **[IMPORTANT]** Follow the codebase structure and code standards in `./docs` during implementation
 - **[IMPORTANT]** When you finish the implementation, send a full summary report to Discord channel with `./.claude/send-discord.sh 'Your message here'` script (remember to escape the string).
 - **[IMPORTANT]** Do not just simulate the implementation or mocking them, always implement the real code.

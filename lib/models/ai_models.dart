@@ -194,6 +194,8 @@ class CommandContext {
   final List<String> runningProcesses;
   final String shellType;
   final String hostname;
+  final List<String>? recentCommands;
+  final List<String>? availableTools;
   
   const CommandContext({
     required this.currentDirectory,
@@ -203,6 +205,8 @@ class CommandContext {
     this.runningProcesses = const [],
     required this.shellType,
     required this.hostname,
+    this.recentCommands,
+    this.availableTools,
   });
   
   factory CommandContext.fromJson(Map<String, dynamic> json) {

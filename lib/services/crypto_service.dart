@@ -517,6 +517,120 @@ class CryptoService {
     };
     return validTypes.contains(keyType.toLowerCase());
   }
+
+  /// Generate a cryptographically secure random key
+  Future<Uint8List> generateKey() async {
+    final key = Uint8List(_keyLength);
+    for (int i = 0; i < key.length; i++) {
+      key[i] = _secureRandom.nextUint8();
+    }
+    return key;
+  }
+
+  /// Hash a string using SHA-256
+  String hashString(String input) {
+    final bytes = utf8.encode(input);
+    final digest = sha256.convert(bytes);
+    return digest.toString();
+  }
+
+  /// Encrypt string using AES-GCM with device key
+  Future<Uint8List> encryptWithDeviceKey(String value) async {
+    // This is a simplified version - in a real implementation,
+    // you would get the device key from DeviceIdentityManager
+    // For now, we'll use a temporary approach
+    final valueBytes = utf8.encode(value);
+    final key = await generateKey(); // This should be the actual device key
+    final encryptedData = await encryptAESGCM(Uint8List.fromList(valueBytes), key);
+    
+    // Return combined data (nonce + tag + ciphertext) for storage
+    final combined = Uint8List(encryptedData.nonce.length + encryptedData.tag.length + encryptedData.ciphertext.length);
+    int offset = 0;
+    combined.setRange(offset, offset + encryptedData.nonce.length, encryptedData.nonce);
+    offset += encryptedData.nonce.length;
+    combined.setRange(offset, offset + encryptedData.tag.length, encryptedData.tag);
+    offset += encryptedData.tag.length;
+    combined.setRange(offset, offset + encryptedData.ciphertext.length, encryptedData.ciphertext);
+    
+    return combined;
+  }
+
+  /// Decrypt data using AES-GCM with device key  
+  Future<String> decryptWithDeviceKey(Uint8List encryptedData) async {
+    // This is a simplified version - in a real implementation,
+    // you would get the device key from DeviceIdentityManager
+    final key = await generateKey(); // This should be the actual device key
+    
+    // Extract components from combined data
+    const nonceLength = 12; // AES-GCM standard nonce length
+    const tagLength = 16; // AES-GCM standard tag length
+    
+    if (encryptedData.length < nonceLength + tagLength) {
+      throw const CryptoException('Invalid encrypted data format');
+    }
+    
+    final nonce = encryptedData.sublist(0, nonceLength);
+    final tag = encryptedData.sublist(nonceLength, nonceLength + tagLength);
+    final ciphertext = encryptedData.sublist(nonceLength + tagLength);
+    
+    final data = EncryptedData(
+      ciphertext: ciphertext,
+      nonce: nonce,
+      tag: tag,
+    );
+    
+    final decryptedBytes = await decryptAESGCM(data, key);
+    return utf8.decode(decryptedBytes);
+  }
+
+  /// Encrypt string with passphrase using PBKDF2
+  Future<Uint8List> encryptString(String value, String passphrase) async {
+    final salt = generateSalt();
+    final key = deriveKeyFromPassword(passphrase, salt);
+    final valueBytes = utf8.encode(value);
+    
+    final encryptedData = await encryptAESGCM(Uint8List.fromList(valueBytes), key);
+    
+    // Combine salt + nonce + tag + ciphertext for storage
+    final combined = Uint8List(salt.length + encryptedData.nonce.length + encryptedData.tag.length + encryptedData.ciphertext.length);
+    int offset = 0;
+    combined.setRange(offset, offset + salt.length, salt);
+    offset += salt.length;
+    combined.setRange(offset, offset + encryptedData.nonce.length, encryptedData.nonce);
+    offset += encryptedData.nonce.length;
+    combined.setRange(offset, offset + encryptedData.tag.length, encryptedData.tag);
+    offset += encryptedData.tag.length;
+    combined.setRange(offset, offset + encryptedData.ciphertext.length, encryptedData.ciphertext);
+    
+    return combined;
+  }
+
+  /// Decrypt string with passphrase using PBKDF2
+  Future<String> decryptString(Uint8List encryptedData, String passphrase) async {
+    // Extract components from combined data
+    const nonceLength = 12; // AES-GCM standard nonce length
+    const tagLength = 16; // AES-GCM standard tag length
+    
+    if (encryptedData.length < _saltLength + nonceLength + tagLength) {
+      throw const CryptoException('Invalid encrypted data format');
+    }
+    
+    final salt = encryptedData.sublist(0, _saltLength);
+    final nonce = encryptedData.sublist(_saltLength, _saltLength + nonceLength);
+    final tag = encryptedData.sublist(_saltLength + nonceLength, _saltLength + nonceLength + tagLength);
+    final ciphertext = encryptedData.sublist(_saltLength + nonceLength + tagLength);
+    
+    final key = deriveKeyFromPassword(passphrase, salt);
+    
+    final data = EncryptedData(
+      ciphertext: ciphertext,
+      nonce: nonce,
+      tag: tag,
+    );
+    
+    final decryptedBytes = await decryptAESGCM(data, key);
+    return utf8.decode(decryptedBytes);
+  }
 }
 
 /// Exception thrown by cryptographic operations

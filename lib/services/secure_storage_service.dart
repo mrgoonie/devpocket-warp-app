@@ -3,26 +3,37 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:device_info_plus/device_info_plus.dart';
 import 'package:local_auth/local_auth.dart';
-import 'crypto_service.dart';
 
-/// Enhanced secure storage service with multiple encryption layers
+import 'crypto_service.dart';
+import 'secure_storage_models.dart';
+import 'device_identity_manager.dart';
+import 'biometric_auth_handler.dart';
+import 'ssh_key_manager.dart';
+import 'api_key_manager.dart';
+import 'host_fingerprint_manager.dart';
+
+/// Enhanced secure storage service with modular architecture
 /// Provides device keychain integration, biometric protection, and encrypted storage
 class SecureStorageService {
-  static const String _deviceKeyPrefix = 'device_key_';
-  static const String _encryptedDataPrefix = 'encrypted_';
-  static const String _metadataPrefix = 'metadata_';
-  
+  static const String _authTokensKey = 'auth_tokens';
+  static const String _lastActiveKey = 'last_active_time';
+  static const String _onboardingKey = 'onboarding_completed';
+
   static SecureStorageService? _instance;
   static SecureStorageService get instance => _instance ??= SecureStorageService();
-  
+
   final FlutterSecureStorage _secureStorage;
   final CryptoService _cryptoService;
-  final LocalAuthentication _localAuth;
-  final DeviceInfoPlugin _deviceInfo;
-  
-  String? _deviceId;
-  Uint8List? _deviceKey;
-  
+
+  // Component managers
+  late final DeviceIdentityManager _deviceIdentity;
+  late final BiometricAuthHandler _biometricAuth;
+  late final SSHKeyManager _sshKeyManager;
+  late final APIKeyManager _apiKeyManager;
+  late final HostFingerprintManager _hostFingerprintManager;
+
+  bool _initialized = false;
+
   SecureStorageService({
     FlutterSecureStorage? secureStorage,
     CryptoService? cryptoService,
@@ -39,22 +50,53 @@ class SecureStorageService {
             accountName: 'DevPocket',
           ),
         ),
-        _cryptoService = cryptoService ?? CryptoService(),
-        _localAuth = localAuth ?? LocalAuthentication(),
-        _deviceInfo = deviceInfo ?? DeviceInfoPlugin();
-  
+        _cryptoService = cryptoService ?? CryptoService() {
+    _initializeComponents(localAuth, deviceInfo);
+  }
+
+  void _initializeComponents(LocalAuthentication? localAuth, DeviceInfoPlugin? deviceInfo) {
+    _deviceIdentity = DeviceIdentityManager(
+      secureStorage: _secureStorage,
+      cryptoService: _cryptoService,
+      deviceInfo: deviceInfo,
+    );
+
+    _biometricAuth = BiometricAuthHandler(
+      localAuth: localAuth,
+    );
+
+    _sshKeyManager = SSHKeyManager(
+      secureStorage: _secureStorage,
+      cryptoService: _cryptoService,
+      biometricAuth: _biometricAuth,
+    );
+
+    _apiKeyManager = APIKeyManager(
+      secureStorage: _secureStorage,
+      cryptoService: _cryptoService,
+      biometricAuth: _biometricAuth,
+    );
+
+    _hostFingerprintManager = HostFingerprintManager(
+      secureStorage: _secureStorage,
+    );
+  }
+
   /// Initialize the secure storage service
   Future<void> initialize() async {
+    if (_initialized) return;
+
     try {
-      await _initializeDeviceIdentity();
-      await _initializeDeviceKey();
+      debugPrint('🚀 Initializing SecureStorageService...');
+      await _deviceIdentity.initialize();
+      _initialized = true;
+      debugPrint('✅ SecureStorageService initialized successfully');
     } catch (e) {
       debugPrint('❌ SecureStorageService initialization failed: $e');
-      // Don't throw exception - let the app continue with fallback storage
-      // The app will handle missing device keys gracefully
+      throw SecureStorageException('SecureStorageService initialization failed: $e');
     }
   }
-  
+
   /// Store sensitive data with optional biometric protection
   Future<void> storeSecure({
     required String key,
@@ -62,348 +104,171 @@ class SecureStorageService {
     bool requireBiometric = false,
     Map<String, dynamic>? metadata,
   }) async {
-    if (requireBiometric) {
-      final authenticated = await _authenticateWithBiometrics();
-      if (!authenticated) {
-        throw const SecureStorageException('Biometric authentication required');
+    await _ensureInitialized();
+
+    try {
+      debugPrint('🔐 Storing secure data: $key');
+
+      if (requireBiometric) {
+        final authenticated = await _biometricAuth.authenticateForSecureData(key);
+        if (!authenticated) {
+          throw const SecureStorageException('Biometric authentication required');
+        }
       }
+
+      // Encrypt value with device key
+      final encryptedData = await _cryptoService.encryptWithDeviceKey(value);
+
+      // Create storage metadata
+      final storageMetadata = StorageMetadata(
+        createdAt: DateTime.now(),
+        lastAccessed: DateTime.now(),
+        version: '1.0',
+        description: metadata?['description'] ?? 'Secure data: $key',
+        requiresBiometric: requireBiometric,
+      );
+
+      // Store encrypted data
+      await _secureStorage.write(
+        key: 'encrypted_$key',
+        value: base64.encode(encryptedData),
+      );
+
+      // Store metadata
+      await _secureStorage.write(
+        key: 'metadata_$key',
+        value: json.encode(storageMetadata.toJson()),
+      );
+
+      debugPrint('✅ Secure data stored successfully: $key');
+    } catch (e) {
+      debugPrint('❌ Failed to store secure data: $e');
+      throw SecureStorageException('Failed to store secure data: $e');
     }
-    
-    // Encrypt the value
-    final encryptedData = await _encryptValue(value);
-    
-    // Store encrypted data
-    await _secureStorage.write(
-      key: '$_encryptedDataPrefix$key',
-      value: json.encode(encryptedData.toJson()),
-    );
-    
-    // Store metadata
-    final storageMetadata = StorageMetadata(
-      createdAt: DateTime.now(),
-      requiresBiometric: requireBiometric,
-      customMetadata: metadata ?? {},
-    );
-    
-    await _secureStorage.write(
-      key: '$_metadataPrefix$key',
-      value: json.encode(storageMetadata.toJson()),
-    );
   }
-  
+
   /// Retrieve sensitive data with biometric check if required
   Future<String?> getSecure(String key) async {
-    // Check metadata first
-    final metadataJson = await _secureStorage.read(key: '$_metadataPrefix$key');
-    if (metadataJson == null) return null;
-    
-    final metadata = StorageMetadata.fromJson(json.decode(metadataJson));
-    
-    // Require biometric authentication if needed
-    if (metadata.requiresBiometric) {
-      final authenticated = await _authenticateWithBiometrics();
-      if (!authenticated) {
-        throw const SecureStorageException('Biometric authentication required');
+    await _ensureInitialized();
+
+    try {
+      debugPrint('🔓 Retrieving secure data: $key');
+
+      // Check metadata for biometric requirement
+      final metadataJson = await _secureStorage.read(key: 'metadata_$key');
+      if (metadataJson != null) {
+        final metadata = StorageMetadata.fromJson(json.decode(metadataJson));
+        if (metadata.requiresBiometric) {
+          final authenticated = await _biometricAuth.authenticateForSecureData(key);
+          if (!authenticated) {
+            throw const SecureStorageException('Biometric authentication required');
+          }
+        }
       }
+
+      // Retrieve encrypted data
+      final encryptedDataBase64 = await _secureStorage.read(key: 'encrypted_$key');
+      if (encryptedDataBase64 == null) {
+        debugPrint('⚠️ Secure data not found: $key');
+        return null;
+      }
+
+      // Decrypt data
+      final encryptedData = base64.decode(encryptedDataBase64);
+      final decryptedValue = await _cryptoService.decryptWithDeviceKey(encryptedData);
+
+      debugPrint('✅ Secure data retrieved successfully: $key');
+      return decryptedValue;
+    } catch (e) {
+      debugPrint('❌ Failed to retrieve secure data: $e');
+      throw SecureStorageException('Failed to retrieve secure data: $e');
     }
-    
-    // Get encrypted data
-    final encryptedJson = await _secureStorage.read(key: '$_encryptedDataPrefix$key');
-    if (encryptedJson == null) return null;
-    
-    final encryptedData = EncryptedData.fromJson(json.decode(encryptedJson));
-    
-    // Decrypt and return
-    return await _decryptValue(encryptedData);
   }
-  
-  /// Store SSH private key with enhanced security
+
+  // SSH Key Management - Delegate to SSHKeyManager
   Future<void> storeSSHKey({
     required String keyId,
     required String privateKey,
     required String passphrase,
     bool requireBiometric = true,
+    String? description,
   }) async {
-    // Encrypt SSH key with passphrase
-    final encryptedSSHKey = await _cryptoService.encryptSSHKey(
-      privateKey,
-      passphrase,
-    );
-    
-    await storeSecure(
-      key: 'ssh_key_$keyId',
-      value: json.encode(encryptedSSHKey.toJson()),
+    await _ensureInitialized();
+    return _sshKeyManager.storeSSHKey(
+      keyId: keyId,
+      privateKey: privateKey,
+      passphrase: passphrase,
       requireBiometric: requireBiometric,
-      metadata: {
-        'type': 'ssh_private_key',
-        'key_id': keyId,
-        'encrypted_with_passphrase': true,
-      },
+      description: description,
     );
-    
-    // Clear sensitive data from memory
-    _cryptoService.clearSensitiveData(privateKey.codeUnits);
-    _cryptoService.clearSensitiveData(passphrase.codeUnits);
   }
-  
-  /// Retrieve SSH private key
+
   Future<String?> getSSHKey(String keyId, String passphrase) async {
-    final encryptedKeyJson = await getSecure('ssh_key_$keyId');
-    if (encryptedKeyJson == null) return null;
-    
-    try {
-      final encryptedSSHKey = EncryptedSSHKey.fromJson(json.decode(encryptedKeyJson));
-      
-      final privateKey = await _cryptoService.decryptSSHKey(
-        encryptedSSHKey,
-        passphrase,
-      );
-      
-      return privateKey;
-    } catch (e) {
-      throw SecureStorageException('Failed to decrypt SSH key: $e');
-    } finally {
-      // Clear passphrase from memory
-      _cryptoService.clearSensitiveData(passphrase.codeUnits);
-    }
+    await _ensureInitialized();
+    return _sshKeyManager.getSSHKey(keyId, passphrase);
   }
-  
-  /// Store API key with encryption
+
+  // API Key Management - Delegate to APIKeyManager
   Future<void> storeAPIKey({
     required String keyName,
     required String apiKey,
     bool requireBiometric = false,
+    String? description,
+    String? provider,
   }) async {
-    await storeSecure(
-      key: 'api_key_$keyName',
-      value: apiKey,
+    await _ensureInitialized();
+    return _apiKeyManager.storeAPIKey(
+      keyName: keyName,
+      apiKey: apiKey,
       requireBiometric: requireBiometric,
-      metadata: {
-        'type': 'api_key',
-        'key_name': keyName,
-      },
+      description: description,
+      provider: provider,
     );
-    
-    // Clear API key from memory
-    _cryptoService.clearSensitiveData(apiKey.codeUnits);
   }
-  
-  /// Retrieve API key
+
   Future<String?> getAPIKey(String keyName) async {
-    return await getSecure('api_key_$keyName');
+    await _ensureInitialized();
+    return _apiKeyManager.getAPIKey(keyName);
   }
-  
-  /// Store host fingerprints for SSH host key verification
+
+  // Host Fingerprint Management - Delegate to HostFingerprintManager
   Future<void> storeHostFingerprint({
     required String hostname,
     required String fingerprint,
     required String keyType,
+    bool isVerified = false,
   }) async {
-    final hostKey = HostKeyFingerprint(
+    await _ensureInitialized();
+    return _hostFingerprintManager.storeHostFingerprint(
       hostname: hostname,
       fingerprint: fingerprint,
       keyType: keyType,
-      firstSeen: DateTime.now(),
-      lastVerified: DateTime.now(),
+      isVerified: isVerified,
     );
-    
-    await storeSecure(
-      key: 'host_key_$hostname',
-      value: json.encode(hostKey.toJson()),
-      requireBiometric: false,
-      metadata: {
-        'type': 'host_fingerprint',
-        'hostname': hostname,
-      },
-    );
-  }
-  
-  /// Retrieve host fingerprint
-  Future<HostKeyFingerprint?> getHostFingerprint(String hostname) async {
-    final fingerprintJson = await getSecure('host_key_$hostname');
-    if (fingerprintJson == null) return null;
-    
-    return HostKeyFingerprint.fromJson(json.decode(fingerprintJson));
-  }
-  
-  /// Update host fingerprint verification time
-  Future<void> updateHostFingerprintVerification(String hostname) async {
-    final existingFingerprint = await getHostFingerprint(hostname);
-    if (existingFingerprint != null) {
-      final updatedFingerprint = existingFingerprint.copyWith(
-        lastVerified: DateTime.now(),
-      );
-      
-      await storeSecure(
-        key: 'host_key_$hostname',
-        value: json.encode(updatedFingerprint.toJson()),
-        requireBiometric: false,
-      );
-    }
-  }
-  
-  /// List all stored keys (for management purposes)
-  Future<List<String>> listStoredKeys() async {
-    final allKeys = await _secureStorage.readAll();
-    
-    return allKeys.keys
-        .where((key) => key.startsWith(_encryptedDataPrefix))
-        .map((key) => key.substring(_encryptedDataPrefix.length))
-        .toList();
-  }
-  
-  /// Delete stored key
-  Future<void> deleteKey(String key) async {
-    await _secureStorage.delete(key: '$_encryptedDataPrefix$key');
-    await _secureStorage.delete(key: '$_metadataPrefix$key');
-  }
-  
-  /// Clear all stored data (for logout/reset)
-  Future<void> clearAll() async {
-    await _secureStorage.deleteAll();
-    _deviceKey = null;
-  }
-  
-  /// Check if biometric authentication is available
-  Future<bool> isBiometricAvailable() async {
-    try {
-      final isAvailable = await _localAuth.canCheckBiometrics;
-      final availableBiometrics = await _localAuth.getAvailableBiometrics();
-      
-      return isAvailable && availableBiometrics.isNotEmpty;
-    } catch (e) {
-      return false;
-    }
-  }
-  
-  /// Get available biometric types
-  Future<List<BiometricType>> getAvailableBiometrics() async {
-    try {
-      return await _localAuth.getAvailableBiometrics();
-    } catch (e) {
-      return [];
-    }
-  }
-  
-  // Private helper methods
-  
-  Future<void> _initializeDeviceIdentity() async {
-    try {
-      if (defaultTargetPlatform == TargetPlatform.iOS) {
-        final iosInfo = await _deviceInfo.iosInfo;
-        _deviceId = iosInfo.identifierForVendor ?? 'unknown-ios';
-      } else if (defaultTargetPlatform == TargetPlatform.android) {
-        final androidInfo = await _deviceInfo.androidInfo;
-        _deviceId = androidInfo.id;
-      } else {
-        _deviceId = 'unknown-device';
-      }
-    } catch (e) {
-      _deviceId = 'fallback-device-id';
-    }
-  }
-  
-  Future<void> _initializeDeviceKey() async {
-    final deviceKeyString = await _secureStorage.read(key: '$_deviceKeyPrefix$_deviceId');
-    
-    if (deviceKeyString != null) {
-      _deviceKey = base64.decode(deviceKeyString);
-    } else {
-      // Generate new device key
-      _deviceKey = _cryptoService.generateSalt();
-      await _secureStorage.write(
-        key: '$_deviceKeyPrefix$_deviceId',
-        value: base64.encode(_deviceKey!),
-      );
-    }
-  }
-  
-  Future<EncryptedData> _encryptValue(String value) async {
-    if (_deviceKey == null) {
-      // Fallback to basic secure storage without additional encryption
-      debugPrint('⚠️ Device key not initialized, using fallback storage');
-      throw const SecureStorageException('Device key not initialized');
-    }
-    
-    final valueBytes = utf8.encode(value);
-    return await _cryptoService.encryptAESGCM(
-      Uint8List.fromList(valueBytes),
-      _deviceKey!,
-      associatedData: utf8.encode(_deviceId!).toUint8List(),
-    );
-  }
-  
-  Future<String> _decryptValue(EncryptedData encryptedData) async {
-    if (_deviceKey == null) {
-      throw const SecureStorageException('Device key not initialized');
-    }
-    
-    final decryptedBytes = await _cryptoService.decryptAESGCM(
-      encryptedData,
-      _deviceKey!,
-      associatedData: utf8.encode(_deviceId!).toUint8List(),
-    );
-    
-    return utf8.decode(decryptedBytes);
-  }
-  
-  Future<bool> _authenticateWithBiometrics() async {
-    try {
-      final isAvailable = await isBiometricAvailable();
-      if (!isAvailable) {
-        throw const SecureStorageException('Biometric authentication not available');
-      }
-      
-      return await _localAuth.authenticate(
-        localizedReason: 'Please authenticate to access secure data',
-        options: const AuthenticationOptions(
-          biometricOnly: false,
-          stickyAuth: true,
-        ),
-      );
-    } catch (e) {
-      debugPrint('Biometric authentication error: $e');
-      return false;
-    }
   }
 
-  // Authentication token management methods
+  Future<HostKeyFingerprint?> getHostFingerprint(String hostname) async {
+    await _ensureInitialized();
+    return _hostFingerprintManager.getHostFingerprint(hostname);
+  }
+
+  Future<void> updateHostFingerprintVerification(String hostname) async {
+    await _ensureInitialized();
+    return _hostFingerprintManager.updateHostFingerprintVerification(hostname);
+  }
+
+  // Authentication Token Management
   Future<Map<String, String>?> getAuthTokens() async {
+    await _ensureInitialized();
+
     try {
-      debugPrint('[SecureStorage] Retrieving auth tokens...');
-      final tokensJson = await getSecure('auth_tokens');
-      
-      if (tokensJson == null) {
-        debugPrint('[SecureStorage] ❌ No auth tokens found in secure storage');
-        return null;
-      }
-      
-      debugPrint('[SecureStorage] ✅ Raw tokens retrieved from storage (length: ${tokensJson.length})');
-      
-      final Map<String, dynamic> data = json.decode(tokensJson);
-      final tokens = data.cast<String, String>();
-      
-      debugPrint('[SecureStorage] ✅ Auth tokens parsed successfully - Keys: ${tokens.keys.toList()}');
-      
-      // Check if tokens have expired (if expires_at is present)
-      if (tokens.containsKey('expires_at')) {
-        try {
-          final expiresAt = DateTime.parse(tokens['expires_at']!);
-          final now = DateTime.now();
-          if (now.isAfter(expiresAt)) {
-            debugPrint('[SecureStorage] ⚠️ Warning: Access token has expired (expired at: $expiresAt, now: $now)');
-          } else {
-            debugPrint('[SecureStorage] ✅ Access token is still valid (expires at: $expiresAt)');
-          }
-        } catch (e) {
-          debugPrint('[SecureStorage] ⚠️ Could not parse expiration date: $e');
-        }
-      }
-      
-      return tokens;
-    } catch (e, stackTrace) {
-      debugPrint('[SecureStorage] ❌ Error retrieving auth tokens: $e');
-      debugPrint('[SecureStorage] ❌ Stack trace: $stackTrace');
+      final tokensJson = await getSecure(_authTokensKey);
+      if (tokensJson == null) return null;
+
+      final tokensMap = json.decode(tokensJson) as Map<String, dynamic>;
+      return tokensMap.cast<String, String>();
+    } catch (e) {
+      debugPrint('❌ Failed to get auth tokens: $e');
       return null;
     }
   }
@@ -411,206 +276,168 @@ class SecureStorageService {
   Future<void> storeAuthTokens({
     required String accessToken,
     required String refreshToken,
-    required String userId,
-    DateTime? expiresAt,
+    String? tokenType,
+    int? expiresIn,
   }) async {
-    final tokens = {
-      'accessToken': accessToken,
-      'refreshToken': refreshToken,
-      'userId': userId,
-      if (expiresAt != null) 'expires_at': expiresAt.toIso8601String(),
-      'stored_at': DateTime.now().toIso8601String(),
-    };
-    
-    await storeSecure(
-      key: 'auth_tokens',
-      value: json.encode(tokens),
-      requireBiometric: false,
-    );
+    await _ensureInitialized();
+
+    try {
+      final tokens = {
+        'access_token': accessToken,
+        'refresh_token': refreshToken,
+        if (tokenType != null) 'token_type': tokenType,
+        if (expiresIn != null) 'expires_in': expiresIn.toString(),
+        'stored_at': DateTime.now().toIso8601String(),
+      };
+
+      await storeSecure(
+        key: _authTokensKey,
+        value: json.encode(tokens),
+        requireBiometric: false,
+      );
+
+      debugPrint('✅ Auth tokens stored successfully');
+    } catch (e) {
+      debugPrint('❌ Failed to store auth tokens: $e');
+      throw SecureStorageException('Failed to store auth tokens: $e');
+    }
   }
 
   Future<void> clearAuthTokens() async {
-    await deleteSecure('auth_tokens');
+    await deleteSecure(_authTokensKey);
   }
 
+  // User Activity Tracking
   Future<DateTime?> getLastActiveTime() async {
-    final timeStr = await getSecure('last_active_time');
-    if (timeStr == null) return null;
-    
     try {
-      return DateTime.parse(timeStr);
+      final timeString = await _secureStorage.read(key: _lastActiveKey);
+      if (timeString == null) return null;
+      return DateTime.parse(timeString);
     } catch (e) {
-      debugPrint('Error parsing last active time: $e');
+      debugPrint('❌ Failed to get last active time: $e');
       return null;
     }
   }
 
   Future<void> storeLastActiveTime([DateTime? time]) async {
-    await storeSecure(
-      key: 'last_active_time',
-      value: (time ?? DateTime.now()).toIso8601String(),
-      requireBiometric: false,
-    );
+    try {
+      final activeTime = time ?? DateTime.now();
+      await _secureStorage.write(
+        key: _lastActiveKey,
+        value: activeTime.toIso8601String(),
+      );
+    } catch (e) {
+      debugPrint('❌ Failed to store last active time: $e');
+    }
   }
 
-  // Onboarding management methods
+  // Onboarding State Management
   Future<bool> isOnboardingCompleted() async {
-    final completed = await getSecure('onboarding_completed');
-    return completed == 'true';
+    try {
+      final completed = await _secureStorage.read(key: _onboardingKey);
+      return completed == 'true';
+    } catch (e) {
+      debugPrint('❌ Failed to check onboarding status: $e');
+      return false;
+    }
   }
 
   Future<void> markOnboardingCompleted() async {
-    await storeSecure(
-      key: 'onboarding_completed',
-      value: 'true',
-      requireBiometric: false,
-    );
-    await storeLastActiveTime();
+    try {
+      await _secureStorage.write(key: _onboardingKey, value: 'true');
+      debugPrint('✅ Onboarding marked as completed');
+    } catch (e) {
+      debugPrint('❌ Failed to mark onboarding completed: $e');
+      throw SecureStorageException('Failed to mark onboarding completed: $e');
+    }
   }
 
   Future<void> resetOnboarding() async {
-    await deleteSecure('onboarding_completed');
-    await deleteSecure('onboarding_progress');
-    await deleteSecure('onboarding_preferences');
+    try {
+      await _secureStorage.delete(key: _onboardingKey);
+      debugPrint('✅ Onboarding reset');
+    } catch (e) {
+      debugPrint('❌ Failed to reset onboarding: $e');
+    }
   }
 
-  // Generic storage methods (for backward compatibility)
+  // Basic Storage Operations
   Future<void> store(String key, String value) async {
-    await storeSecure(key: key, value: value, requireBiometric: false);
+    await _secureStorage.write(key: key, value: value);
   }
 
   Future<String?> read(String key) async {
-    return await getSecure(key);
+    return await _secureStorage.read(key: key);
   }
 
   Future<Map<String, String>> readAll() async {
-    // Note: This is a simplified implementation
-    // In a real implementation, you'd need to enumerate all keys
-    final result = <String, String>{};
-    
-    // Try to read common keys
-    final commonKeys = [
-      'onboarding_completed',
-      'onboarding_progress', 
-      'onboarding_preferences',
-      'last_active_time',
-      'auth_tokens',
-    ];
-    
-    for (final key in commonKeys) {
-      final value = await getSecure(key);
-      if (value != null) {
-        result[key] = value;
-      }
-    }
-    
-    return result;
+    return await _secureStorage.readAll();
   }
 
   Future<void> delete(String key) async {
-    await deleteSecure(key);
+    await _secureStorage.delete(key: key);
   }
 
   Future<void> deleteSecure(String key) async {
-    await _secureStorage.delete(key: '$_encryptedDataPrefix$key');
-    await _secureStorage.delete(key: '$_metadataPrefix$key');
+    await delete('encrypted_$key');
+    await delete('metadata_$key');
   }
 
-  // Additional methods for compatibility with tests
+  // List Management Operations
+  Future<List<String>> listStoredKeys() async {
+    await _ensureInitialized();
+
+    try {
+      final allKeys = await _secureStorage.readAll();
+      return allKeys.keys.toList();
+    } catch (e) {
+      debugPrint('❌ Failed to list stored keys: $e');
+      throw SecureStorageException('Failed to list stored keys: $e');
+    }
+  }
+
+  // Component Access (for advanced usage)
+  DeviceIdentityManager get deviceIdentity => _deviceIdentity;
+  BiometricAuthHandler get biometricAuth => _biometricAuth;
+  SSHKeyManager get sshKeyManager => _sshKeyManager;
+  APIKeyManager get apiKeyManager => _apiKeyManager;
+  HostFingerprintManager get hostFingerprintManager => _hostFingerprintManager;
+
+  // Service Status and Statistics
+  Future<Map<String, dynamic>> getServiceStatus() async {
+    await _ensureInitialized();
+
+    try {
+      final deviceSecurity = await _deviceIdentity.getSecurityInfo();
+      final biometricStatus = await _biometricAuth.getBiometricStatus();
+      final sshStats = await _sshKeyManager.getSSHKeyStatistics();
+      final apiStats = await _apiKeyManager.getAPIKeyStatistics();
+      final hostStats = await _hostFingerprintManager.getHostFingerprintStatistics();
+
+      return {
+        'initialized': _initialized,
+        'deviceId': deviceSecurity.deviceId,
+        'keyCreatedAt': deviceSecurity.keyCreatedAt.toIso8601String(),
+        'biometrics': biometricStatus,
+        'sshKeys': sshStats,
+        'apiKeys': apiStats,
+        'hostFingerprints': hostStats,
+      };
+    } catch (e) {
+      debugPrint('❌ Failed to get service status: $e');
+      return {'error': e.toString()};
+    }
+  }
+
+  // Utility Methods
+  Future<void> _ensureInitialized() async {
+    if (!_initialized) {
+      await initialize();
+    }
+  }
+
+  /// Legacy compatibility method
   Future<void> write({required String key, required String value}) async {
-    await storeSecure(key: key, value: value, requireBiometric: false);
-  }
-}
-
-/// Exception for secure storage operations
-class SecureStorageException implements Exception {
-  final String message;
-  final Object? cause;
-  
-  const SecureStorageException(this.message, [this.cause]);
-  
-  @override
-  String toString() => 'SecureStorageException: $message';
-}
-
-/// Metadata for stored items
-class StorageMetadata {
-  final DateTime createdAt;
-  final bool requiresBiometric;
-  final Map<String, dynamic> customMetadata;
-  
-  const StorageMetadata({
-    required this.createdAt,
-    required this.requiresBiometric,
-    required this.customMetadata,
-  });
-  
-  Map<String, dynamic> toJson() {
-    return {
-      'created_at': createdAt.toIso8601String(),
-      'requires_biometric': requiresBiometric,
-      'custom_metadata': customMetadata,
-    };
-  }
-  
-  factory StorageMetadata.fromJson(Map<String, dynamic> json) {
-    return StorageMetadata(
-      createdAt: DateTime.parse(json['created_at']),
-      requiresBiometric: json['requires_biometric'],
-      customMetadata: Map<String, dynamic>.from(json['custom_metadata']),
-    );
-  }
-}
-
-/// Host key fingerprint for SSH connections
-class HostKeyFingerprint {
-  final String hostname;
-  final String fingerprint;
-  final String keyType;
-  final DateTime firstSeen;
-  final DateTime lastVerified;
-  
-  const HostKeyFingerprint({
-    required this.hostname,
-    required this.fingerprint,
-    required this.keyType,
-    required this.firstSeen,
-    required this.lastVerified,
-  });
-  
-  HostKeyFingerprint copyWith({
-    String? hostname,
-    String? fingerprint,
-    String? keyType,
-    DateTime? firstSeen,
-    DateTime? lastVerified,
-  }) {
-    return HostKeyFingerprint(
-      hostname: hostname ?? this.hostname,
-      fingerprint: fingerprint ?? this.fingerprint,
-      keyType: keyType ?? this.keyType,
-      firstSeen: firstSeen ?? this.firstSeen,
-      lastVerified: lastVerified ?? this.lastVerified,
-    );
-  }
-  
-  Map<String, dynamic> toJson() {
-    return {
-      'hostname': hostname,
-      'fingerprint': fingerprint,
-      'key_type': keyType,
-      'first_seen': firstSeen.toIso8601String(),
-      'last_verified': lastVerified.toIso8601String(),
-    };
-  }
-  
-  factory HostKeyFingerprint.fromJson(Map<String, dynamic> json) {
-    return HostKeyFingerprint(
-      hostname: json['hostname'],
-      fingerprint: json['fingerprint'],
-      keyType: json['key_type'],
-      firstSeen: DateTime.parse(json['first_seen']),
-      lastVerified: DateTime.parse(json['last_verified']),
-    );
+    await store(key, value);
   }
 }

@@ -5,6 +5,7 @@ import 'package:flutter/foundation.dart';
 import '../models/ssh_profile_models.dart';
 import '../models/ssh_connection_error.dart';
 import '../services/ssh_connection_manager.dart';
+import '../services/ssh_connection_models.dart';
 import '../services/ssh_health_monitor.dart';
 import '../services/network_monitor.dart';
 
