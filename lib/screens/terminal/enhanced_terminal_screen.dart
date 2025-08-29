@@ -4,7 +4,6 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../themes/app_theme.dart';
 import '../../models/ssh_profile_models.dart';
 import '../../providers/ssh_host_providers.dart';
-import '../../providers/ssh_connection_providers.dart';
 import '../../widgets/terminal/ssh_terminal_widget.dart';
 import '../../widgets/ssh_sync_widgets.dart';
 import '../vaults/host_edit_screen.dart';
@@ -31,8 +30,24 @@ class _EnhancedTerminalScreenState extends ConsumerState<EnhancedTerminalScreen>
   @override
   void initState() {
     super.initState();
-    _selectedProfile = widget.initialProfile;
-    _showHostSelector = widget.initialProfile == null && widget.sessionId == null;
+    
+    // Check provider state as fallback if no initialProfile
+    final providerProfile = ref.read(currentSshProfileProvider);
+    _selectedProfile = widget.initialProfile ?? providerProfile;
+    
+    _showHostSelector = _selectedProfile == null && widget.sessionId == null;
+    
+    // Listen to provider changes for real-time updates
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      ref.listen<SshProfile?>(currentSshProfileProvider, (previous, next) {
+        if (mounted && next != null && _selectedProfile == null) {
+          setState(() {
+            _selectedProfile = next;
+            _showHostSelector = false;
+          });
+        }
+      });
+    });
   }
 
   @override
@@ -91,13 +106,11 @@ class _EnhancedTerminalScreenState extends ConsumerState<EnhancedTerminalScreen>
           Consumer(
             builder: (context, ref, child) {
               final hostsAsync = ref.watch(sshHostsProvider);
-              final connectionState = ref.watch(sshTerminalConnectionProvider);
-              final isConnected = connectionState.status == SshTerminalConnectionStatus.connected;
               
               return hostsAsync.when(
                 data: (hosts) {
-                  // Show "Add Host" icon when no hosts exist OR no host connected
-                  if (hosts.isEmpty || !isConnected) {
+                  // Show "Add Host" icon when no hosts exist
+                  if (hosts.isEmpty) {
                     return IconButton(
                       icon: const Icon(Icons.add),
                       onPressed: () {
@@ -111,10 +124,10 @@ class _EnhancedTerminalScreenState extends ConsumerState<EnhancedTerminalScreen>
                       tooltip: 'Add Host',
                     );
                   } else {
-                    // Show "Select Host" icon only when hosts exist AND connected to a host
+                    // Show "Select Host" icon when hosts exist
                     return IconButton(
                       icon: const Icon(Icons.list_alt),
-                      onPressed: _showHostSelector ? _hideHostSelector : _showConnectionSelector,
+                      onPressed: _showConnectionSelector,
                       tooltip: 'Select Host',
                     );
                   }
@@ -146,24 +159,24 @@ class _EnhancedTerminalScreenState extends ConsumerState<EnhancedTerminalScreen>
   }
 
   Widget _buildBody() {
+    // Validate provider state consistency
+    final providerProfile = ref.watch(currentSshProfileProvider);
+    final effectiveProfile = _selectedProfile ?? providerProfile;
+    
     if (_showHostSelector) {
       return _buildHostSelector();
     }
 
-    if (_selectedProfile == null && widget.sessionId == null) {
+    if (effectiveProfile == null && widget.sessionId == null) {
       return _buildEmptyState();
     }
 
     return Padding(
       padding: const EdgeInsets.all(16),
       child: SshTerminalWidget(
-        profile: _selectedProfile,
+        profile: effectiveProfile,
         sessionId: widget.sessionId,
-        onSessionClosed: () {
-          if (mounted) {
-            Navigator.pop(context);
-          }
-        },
+        onSessionClosed: _onSessionClosed,
       ),
     );
   }
@@ -297,16 +310,56 @@ class _EnhancedTerminalScreenState extends ConsumerState<EnhancedTerminalScreen>
               _showHostSelector = false;
               _isConnecting = false;
             });
+            
+            // Sync with provider to maintain consistency
+            ref.read(currentSshProfileProvider.notifier).state = host;
           } catch (e) {
             setState(() {
               _isConnecting = false;
             });
+            
+            // Clear provider state if connection fails
+            ref.read(currentSshProfileProvider.notifier).state = null;
             
             if (mounted) {
               ScaffoldMessenger.of(context).showSnackBar(
                 SnackBar(
                   content: Text('Connection failed: $e'),
                   backgroundColor: AppTheme.terminalRed,
+                  action: SnackBarAction(
+                    label: 'Retry',
+                    textColor: Colors.white,
+                    onPressed: () async {
+                      setState(() {
+                        _isConnecting = true;
+                      });
+                      
+                      try {
+                        await Future.delayed(const Duration(milliseconds: 500));
+                        
+                        setState(() {
+                          _selectedProfile = host;
+                          _showHostSelector = false;
+                          _isConnecting = false;
+                        });
+                        
+                        ref.read(currentSshProfileProvider.notifier).state = host;
+                      } catch (retryError) {
+                        setState(() {
+                          _isConnecting = false;
+                        });
+                        
+                        if (mounted) {
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            SnackBar(
+                              content: Text('Retry failed: $retryError'),
+                              backgroundColor: AppTheme.terminalRed,
+                            ),
+                          );
+                        }
+                      }
+                    },
+                  ),
                 ),
               );
             }
@@ -573,17 +626,31 @@ class _EnhancedTerminalScreenState extends ConsumerState<EnhancedTerminalScreen>
     );
   }
 
+  void _onSessionClosed() {
+    // Clear both local and provider state
+    setState(() {
+      _selectedProfile = null;
+      _showHostSelector = true;
+    });
+    
+    ref.read(currentSshProfileProvider.notifier).state = null;
+    
+    if (mounted) {
+      Navigator.pop(context);
+    }
+  }
+
   void _showConnectionSelector() {
     setState(() {
       _showHostSelector = true;
+      _selectedProfile = null;  // Clear the selected profile to disconnect
+      _isConnecting = false;    // Reset connecting state
     });
+    
+    // Clear provider state to maintain consistency
+    ref.read(currentSshProfileProvider.notifier).state = null;
   }
 
-  void _hideHostSelector() {
-    setState(() {
-      _showHostSelector = false;
-    });
-  }
 
   void _showConnectionInfo() {
     if (_selectedProfile == null) return;

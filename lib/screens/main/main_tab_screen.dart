@@ -5,6 +5,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../themes/app_theme.dart';
 import '../../main.dart';
 import '../../providers/auth_provider.dart';
+import '../../providers/ssh_host_providers.dart';
 import '../vaults/vaults_screen.dart';
 import '../terminal/enhanced_terminal_screen.dart';
 import '../history/history_screen.dart';
@@ -35,7 +36,12 @@ class _MainTabScreenState extends ConsumerState<MainTabScreen>
       icon: Icons.terminal,
       activeIcon: Icons.terminal,
       label: 'Terminal',
-      screen: const EnhancedTerminalScreen(),
+      screen: Consumer(
+        builder: (context, ref, child) {
+          final currentProfile = ref.watch(currentSshProfileProvider);
+          return EnhancedTerminalScreen(initialProfile: currentProfile);
+        },
+      ),
     ),
     TabItem(
       icon: Icons.history,
