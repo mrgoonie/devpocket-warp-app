@@ -752,23 +752,6 @@ class _EnhancedTerminalBlockState extends ConsumerState<EnhancedTerminalBlock>
     );
   }
 
-  Widget _buildCustomContextMenu(BuildContext context, EditableTextState editableTextState) {
-    final List<ContextMenuButtonItem> buttonItems = [
-      ...editableTextState.contextMenuButtonItems,
-      ContextMenuButtonItem(
-        label: 'Copy Output',
-        onPressed: () {
-          _copyOutput();
-          ContextMenuController.removeAny();
-        },
-      ),
-    ];
-
-    return AdaptiveTextSelectionToolbar.buttonItems(
-      anchors: editableTextState.contextMenuAnchors,
-      buttonItems: buttonItems,
-    );
-  }
 
   Color _getStatusColor() {
     switch (widget.blockData.status) {
