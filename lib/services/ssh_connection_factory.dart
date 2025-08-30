@@ -76,11 +76,11 @@ class SshConnectionFactory {
       
       throw Exception('Network connection failed: ${e.message}');
       
-    } on SSHException catch (e) {
+    } on Exception catch (e) {
       debugPrint('SSH protocol error: $e');
       _eventEmitter(SshConnectionEvent(
         type: SshConnectionEventType.error,
-        error: 'SSH authentication failed: ${e.message}',
+        error: 'SSH authentication failed: $e',
         timestamp: DateTime.now(),
       ));
       
@@ -90,7 +90,7 @@ class SshConnectionFactory {
         timestamp: DateTime.now(),
       ));
       
-      throw Exception('SSH authentication failed: ${e.message}');
+      throw Exception('SSH authentication failed: $e');
       
     } catch (e) {
       debugPrint('SSH connection error: $e');

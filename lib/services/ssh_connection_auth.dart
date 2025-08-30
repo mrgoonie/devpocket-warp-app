@@ -1,7 +1,6 @@
 import 'package:dartssh2/dartssh2.dart';
 import 'package:flutter/foundation.dart';
 import 'dart:convert';
-import 'dart:typed_data';
 
 import '../models/ssh_profile_models.dart';
 
@@ -56,7 +55,8 @@ class SshConnectionAuth {
       // Try parsing with passphrase if provided
       if (passphrase != null && passphrase.isNotEmpty) {
         try {
-          return SSHKeyPair.fromPem(normalizedKey, passphrase);
+          final keyPairs = SSHKeyPair.fromPem(normalizedKey, passphrase);
+          return keyPairs.isNotEmpty ? keyPairs.first : null;
         } catch (e) {
           debugPrint('Failed to parse key with passphrase: $e');
           // Try without passphrase as fallback
@@ -64,7 +64,8 @@ class SshConnectionAuth {
       }
       
       // Try parsing without passphrase
-      return SSHKeyPair.fromPem(normalizedKey);
+      final keyPairs = SSHKeyPair.fromPem(normalizedKey);
+      return keyPairs.isNotEmpty ? keyPairs.first : null;
       
     } catch (e) {
       debugPrint('Failed to parse SSH private key: $e');
@@ -74,7 +75,8 @@ class SshConnectionAuth {
         // Try base64 decoding if it looks like raw base64
         if (!privateKey.contains('BEGIN') && !privateKey.contains('END')) {
           final decoded = base64.decode(privateKey);
-          return SSHKeyPair.fromPem(utf8.decode(decoded));
+          final keyPairs = SSHKeyPair.fromPem(utf8.decode(decoded));
+          return keyPairs.isNotEmpty ? keyPairs.first : null;
         }
       } catch (decodeError) {
         debugPrint('Base64 decode failed: $decodeError');
@@ -134,7 +136,7 @@ class SshConnectionAuth {
       
       // Test connection by attempting to execute a simple command
       final session = await client.execute('echo "test"');
-      await session.stdout.transform(utf8.decoder).join();
+      await utf8.decoder.bind(session.stdout).join();
       
       client.close();
       return true;
