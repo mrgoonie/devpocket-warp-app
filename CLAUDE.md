@@ -14,7 +14,7 @@ This repository is a Flutter app of DevPocket, it is an AI-powered mobile termin
 ### Frontend (Flutter)
 - **Authentication Flow**: Splash → Onboarding → Login/Register → Main App
 - **Main Navigation**: 5-tab structure (Vaults, Terminal, History, Code Editor, Settings)
-- **Terminal Features**: Block-based UI, dual input modes (Command/Agent), PTY support
+- **Terminal Features**: Block-based UI, Native Terminal UI, dual input modes (Command/Agent), PTY support
 - **State Management**: Uses Riverpod for reactive state management
 - **AI Integration**: BYOK (Bring Your Own Key) model with [OpenRouter](https://openrouter.ai) API
 
@@ -31,6 +31,7 @@ This repository is a Flutter app of DevPocket, it is an AI-powered mobile termin
 - **Local PTY**: True terminal emulation on mobile
 - **AI Command Generation**: Natural language to shell commands
 - **Block-based Interface**: Warp-style command execution blocks
+- **Native Terminal UI**: True terminal emulation on mobile for advanced users
 - **Multi-device Sync**: Command history across devices
 
 ### Security & Privacy
@@ -70,6 +71,7 @@ Spawn multiple subagents simultaneously for independent tasks:
 - Follow established architectural patterns
 - Implement features according to specifications
 - Handle edge cases and error scenarios
+- Use `flutter analyze ...` to check if the generated/modified code is compilable
 
 #### 2. Testing
 - Delegate to `tester` agent to run tests and analyze the summary report.
@@ -182,8 +184,9 @@ Delegate detailed tasks to these subagents according to their roles & expertises
 ### Pre-commit/Push Rules
 - Run linting before commit
 - Run tests before push (DO NOT ignore failed tests just to pass the build or github actions)
+- Use `git-manager` agent to commit code changes after every implementation phase
 - Keep commits focused on the actual code changes
-- **DO NOT** commit and push any confidential information (such as dotenv files, API keys, database credentials, etc.) to git repository!
+- **[IMPORTANT] DO NOT** commit and push any confidential information (such as dotenv files, API keys, database credentials, etc.) to git repository!
 - NEVER automatically add AI attribution signatures like:
   "🤖 Generated with [Claude Code]"
   "Co-Authored-By: Claude noreply@anthropic.com"
